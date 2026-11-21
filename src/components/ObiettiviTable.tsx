@@ -28,7 +28,7 @@ import { LevelsReadOnly, PayoutCurve } from "./SchedaEditor";
 import { StatusPill } from "./SchedeTable";
 import { FilterMenu, GhostButton, Modal, PrimaryButton, Tooltip } from "./ui";
 
-type SortKey = "name" | "category" | "usage" | "updatedAt";
+type SortKey = "name" | "category" | "usage" | "cycle";
 const collator = new Intl.Collator("it", { sensitivity: "base" });
 
 const CATEGORY_STYLE: Record<string, string> = {
@@ -118,9 +118,9 @@ export function ObiettiviTable() {
 
   const cols: { key: SortKey | "levels"; label: string; sortable: boolean }[] = [
     { key: "name", label: "Obiettivo", sortable: true },
-    { key: "category", label: "Categoria", sortable: true },
+    { key: "category", label: "Livello", sortable: true },
     { key: "usage", label: "Schede", sortable: true },
-    { key: "updatedAt", label: "Aggiornato", sortable: true },
+    { key: "cycle", label: "Ciclo", sortable: true },
   ];
 
   return (
@@ -148,8 +148,8 @@ export function ObiettiviTable() {
       <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
         <FilterMenu
           icon={<Tag className="h-3.5 w-3.5 text-[#7d8698]" />}
-          label="Categoria"
-          activeLabel="Categoria"
+          label="Livello"
+          activeLabel="Livello"
           value={category}
           onChange={setCategory}
           options={CATEGORIES.map((c) => ({ value: c, label: c }))}
@@ -282,9 +282,7 @@ export function ObiettiviTable() {
                       )}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap px-3 text-[12px] tabular-nums text-muted">
-                    {o.updatedAt ? new Date(o.updatedAt).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
-                  </td>
+                  <td className="whitespace-nowrap px-3 text-[12.5px] text-[#5b6476]">{o.cycle ? cycleLabel(o.cycle) : "—"}</td>
                   <td className="sticky right-0 border-l border-line bg-white px-3 py-1 group-hover:bg-[#f8fafd]">
                     <div className="flex items-center gap-0.5">
                       <IconBtn label="Visualizza" onClick={() => setViewing(o.id)}>

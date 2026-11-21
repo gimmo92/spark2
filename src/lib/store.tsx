@@ -6,7 +6,7 @@ import { SEED_OBJECTIVES, buildSeedSchede, type ObjectiveDef, type Scheda } from
 
 const KEY = "spark.users.v4";
 const SCHEDE_KEY = "spark.schede.v4";
-const OBJ_KEY = "spark.objectives.v2";
+const OBJ_KEY = "spark.objectives.v3";
 
 interface Toast {
   id: number;

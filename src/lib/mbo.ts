@@ -18,6 +18,8 @@ export interface ObjectiveDef {
   /** Catalog-only metadata (absent on one-off objectives inside a scheda). */
   description?: string;
   category?: string;
+  /** Reference cycle (year or period), one of CYCLES. */
+  cycle?: string;
   archived?: boolean;
   updatedAt?: string;
 }
@@ -79,7 +81,7 @@ const o = (
   levels: [number, number][],
 ): ObjectiveDef => ({ id, name, category, description, unit, calc, levels: levels.map(([target, payout]) => ({ target, payout })), updatedAt: "2026-01-15" });
 
-export const SEED_OBJECTIVES: ObjectiveDef[] = [
+const SEED_BASE: ObjectiveDef[] = [
   o("ob-fatturato", "Fatturato area di competenza", "Business Unit", "Ricavi netti fatturati nell'area o nel portafoglio clienti assegnato.", "M€", "lineare", [[8, 50], [10, 100], [12, 150]]),
   o("ob-oee", "Efficienza OEE impianti", "Team", "Overall Equipment Effectiveness media degli impianti di competenza.", "%", "lineare", [[70, 50], [78, 100], [85, 130]]),
   o("ob-nps", "Customer satisfaction (NPS)", "Società", "Net Promoter Score rilevato dalla survey clienti annuale.", "pt", "lineare", [[30, 50], [40, 100], [50, 120]]),
@@ -95,6 +97,9 @@ export const SEED_OBJECTIVES: ObjectiveDef[] = [
   o("ob-utile", "Utile netto aziendale", "Gruppo", "Utile netto da bilancio civilistico. Usato tipicamente come obiettivo soglia.", "M€", "scaglioni", [[18, 100]]),
   { ...o("ob-carta", "Riduzione consumo carta", "Società", "Risme di carta acquistate in meno rispetto all'anno precedente.", "%", "scaglioni", [[10, 50], [20, 100]]), archived: true },
 ];
+
+const SEED_CYCLE: Record<string, string> = { "ob-digitale": "2026-H1", "ob-formazione": "2026-H2", "ob-carta": "2025" };
+export const SEED_OBJECTIVES: ObjectiveDef[] = SEED_BASE.map((d) => ({ ...d, cycle: SEED_CYCLE[d.id] ?? "2026" }));
 
 export type Catalog = ObjectiveDef[];
 export const catalogById = (catalog: Catalog, id?: string) => catalog.find((o) => o.id === id);

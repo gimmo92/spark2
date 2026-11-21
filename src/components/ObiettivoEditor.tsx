@@ -5,10 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ArrowLeft, ChevronDown, Info, TriangleAlert, X } from "lucide-react";
 import { fullName } from "@/lib/data";
-import { CATEGORIES, cycleLabel, schedeUsing, type Level, type ObjectiveDef, type Scheda } from "@/lib/mbo";
+import { CATEGORIES, CYCLES, cycleLabel, schedeUsing, type Level, type ObjectiveDef, type Scheda } from "@/lib/mbo";
 import { useStore } from "@/lib/store";
 import { MultiSelect } from "./MultiSelect";
-import { Block, CustomObjectiveEditor, LevelsEditor, SectionTitle, Switch, customError, fmt, levelsError } from "./SchedaEditor";
+import { Block, CustomObjectiveEditor, LevelsEditor, SectionTitle, customError, levelsError } from "./SchedaEditor";
 import { StatusPill } from "./SchedeTable";
 import { GhostButton, PrimaryButton, inputCls } from "./ui";
 
@@ -41,7 +41,6 @@ let seq = 0;
 const uid = () => `it${Date.now().toString(36)}${(seq++).toString(36)}`;
 
 const itemOf = (s: Scheda, objectiveId: string) => s.items.find((i) => !i.custom && i.objectiveId === objectiveId);
-const levelsText = (levels: Level[], unit: string) => levels.map((l) => `${fmt(l.target)} ${unit} → ${l.payout}%`).join(" · ");
 
 function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
   const router = useRouter();
@@ -54,6 +53,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
       name: "",
       description: "",
       category: CATEGORIES[0],
+      cycle: "2026",
       unit: "%",
       calc: "lineare",
       levels: [
@@ -139,6 +139,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
       name: draft.name.trim(),
       description: draft.description?.trim() ?? "",
       category: draft.category,
+      cycle: draft.cycle,
       unit: draft.unit.trim(),
       calc: draft.calc,
       levels: [...draft.levels].sort((a, b) => a.target - b.target),
@@ -195,15 +196,24 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
 
       <section className="card p-5">
         <SectionTitle n={1} title="Classificazione" />
-        <div className="grid gap-4 sm:grid-cols-[240px_1fr]">
-          <Block label="Categoria" hint="Livello a cui si misura">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Block label="Livello" hint="A che livello si misura">
             <select className={inputCls} value={draft.category} onChange={(e) => patch({ category: e.target.value })}>
               {CATEGORIES.map((c) => (
                 <option key={c}>{c}</option>
               ))}
             </select>
           </Block>
-          <Block label="Descrizione" hint="Come si misura, fonte del dato">
+          <Block label="Ciclo di riferimento" hint="Anno o periodo">
+            <select className={inputCls} value={draft.cycle ?? "2026"} onChange={(e) => patch({ cycle: e.target.value })}>
+              {CYCLES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </Block>
+          <Block label="Descrizione" hint="Come si misura, fonte del dato" className="sm:col-span-2">
             <textarea
               rows={2}
               className={`${inputCls} resize-y`}
@@ -218,7 +228,6 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
       <section className="card p-5">
         <SectionTitle n={2} title="Misurazione e livelli standard" />
         <CustomObjectiveEditor def={draft} onChange={patch} error={submitted ? (draftError ?? undefined) : undefined} />
-        <p className="mt-3 text-[11.5px] text-muted">I livelli standard valgono per tutte le schede che non hanno livelli personalizzati.</p>
       </section>
 
       <section className="card p-5">
@@ -317,23 +326,16 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                         </p>
                       </div>
 
-                      <div>
-                        <label className="flex cursor-pointer items-start gap-3">
-                          <Switch
-                            checked={!!a.levels}
-                            onChange={(on) => patchAssignment(id, { levels: on ? draft.levels.map((l) => ({ ...l })) : undefined })}
-                          />
-                          <span>
-                            <span className="block text-[13px] font-semibold">Livelli target e payout personalizzati</span>
-                            <span className="block text-[12px] text-muted">
-                              {a.levels ? "Valgono solo per questa scheda." : `Usa i livelli standard: ${levelsText(draft.levels, draft.unit)}`}
-                            </span>
-                          </span>
-                        </label>
+                      <div className="rounded-lg bg-canvas p-3">
+                        <LevelsEditor unit={draft.unit} levels={lv} onChange={(levels) => patchAssignment(id, { levels })} />
                         {a.levels && (
-                          <div className="mt-3 rounded-lg bg-canvas p-3">
-                            <LevelsEditor unit={draft.unit} levels={lv} onChange={(levels) => patchAssignment(id, { levels })} />
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => patchAssignment(id, { levels: undefined })}
+                            className="mt-2 ml-4 text-[12px] font-semibold text-muted hover:text-ink hover:underline"
+                          >
+                            Ripristina livelli standard
+                          </button>
                         )}
                       </div>
                       {e && (
