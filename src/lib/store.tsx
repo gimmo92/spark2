@@ -2,11 +2,12 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { buildSeedUsers, type User } from "./data";
-import { SEED_OBJECTIVES, buildSeedSchede, type ObjectiveDef, type Scheda } from "./mbo";
+import { SEED_OBJECTIVES, SEED_PRESETS, buildSeedSchede, type ObjectiveDef, type Preset, type Scheda } from "./mbo";
 
 const KEY = "spark.users.v4";
 const SCHEDE_KEY = "spark.schede.v4";
 const OBJ_KEY = "spark.objectives.v3";
+const PRESET_KEY = "spark.presets.v1";
 
 interface Toast {
   id: number;
@@ -23,6 +24,9 @@ interface Store {
   objectives: ObjectiveDef[];
   addObjective: (o: Omit<ObjectiveDef, "id" | "updatedAt">) => ObjectiveDef;
   updateObjective: (id: string, patch: Partial<ObjectiveDef>) => void;
+  presets: Preset[];
+  savePreset: (p: Omit<Preset, "id"> & { id?: string }) => Preset;
+  deletePreset: (id: string) => void;
   resetData: () => void;
   hydrated: boolean;
   toasts: Toast[];
@@ -36,6 +40,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<User[]>(() => buildSeedUsers());
   const [schede, setSchede] = useState<Scheda[]>(() => buildSeedSchede(buildSeedUsers()));
   const [objectives, setObjectives] = useState<ObjectiveDef[]>(SEED_OBJECTIVES);
+  const [presets, setPresets] = useState<Preset[]>(SEED_PRESETS);
   const [hydrated, setHydrated] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -48,6 +53,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (rawS) setSchede(JSON.parse(rawS));
       const rawO = localStorage.getItem(OBJ_KEY);
       if (rawO) setObjectives(JSON.parse(rawO));
+      const rawP = localStorage.getItem(PRESET_KEY);
+      if (rawP) setPresets(JSON.parse(rawP));
     } catch {}
     setHydrated(true);
   }, []);
@@ -58,8 +65,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(KEY, JSON.stringify(users));
       localStorage.setItem(SCHEDE_KEY, JSON.stringify(schede));
       localStorage.setItem(OBJ_KEY, JSON.stringify(objectives));
+      localStorage.setItem(PRESET_KEY, JSON.stringify(presets));
     } catch {}
-  }, [users, schede, objectives, hydrated]);
+  }, [users, schede, objectives, presets, hydrated]);
 
   const notify = useCallback((message: string) => {
     const id = Date.now() + Math.random();
@@ -97,16 +105,25 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setObjectives((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch, updatedAt: today() } : o)));
   }, []);
 
+  const savePreset = useCallback((p: Omit<Preset, "id"> & { id?: string }) => {
+    const preset: Preset = { ...p, id: p.id ?? `pr${Date.now().toString(36)}` };
+    setPresets((prev) => (prev.some((x) => x.id === preset.id) ? prev.map((x) => (x.id === preset.id ? preset : x)) : [...prev, preset]));
+    return preset;
+  }, []);
+
+  const deletePreset = useCallback((id: string) => setPresets((prev) => prev.filter((p) => p.id !== id)), []);
+
   const resetData = useCallback(() => {
     const seed = buildSeedUsers();
     setUsers(seed);
     setSchede(buildSeedSchede(seed));
     setObjectives(SEED_OBJECTIVES);
+    setPresets(SEED_PRESETS);
   }, []);
 
   const value = useMemo(
-    () => ({ users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, resetData, hydrated, toasts, notify }),
-    [users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, resetData, hydrated, toasts, notify],
+    () => ({ users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, resetData, hydrated, toasts, notify }),
+    [users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, resetData, hydrated, toasts, notify],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

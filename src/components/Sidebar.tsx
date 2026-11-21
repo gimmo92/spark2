@@ -13,6 +13,7 @@ import {
   BookOpen,
   Star,
   Goal,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 
@@ -51,6 +52,7 @@ export const NAV: Item[] = [
   { label: "Competenze", href: "/competenze", icon: BookOpen, muted: true },
   { label: "Valutazioni", href: "/valutazioni", icon: Star, muted: true },
   { label: "OKR", href: "/okr", icon: Goal, muted: true },
+  { label: "Impostazioni", href: "/impostazioni", icon: Settings },
 ];
 
 export function SparkLogo({ className = "" }: { className?: string }) {

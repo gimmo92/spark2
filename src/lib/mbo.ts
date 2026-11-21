@@ -200,3 +200,55 @@ export function buildSeedSchede(users: User[]): Scheda[] {
   });
   return out;
 }
+
+/** Reusable target → payout scheme that can be applied to objectives. */
+export interface Preset {
+  id: string;
+  name: string;
+  description?: string;
+  calc: CalcMode;
+  levels: Level[];
+}
+
+export const SEED_PRESETS: Preset[] = [
+  {
+    id: "pr-standard",
+    name: "Standard 80 / 100 / 120",
+    description: "Curva lineare classica: soglia all'80% del target, massimo al 120%.",
+    calc: "lineare",
+    levels: [
+      { target: 80, payout: 50 },
+      { target: 100, payout: 100 },
+      { target: 120, payout: 150 },
+    ],
+  },
+  {
+    id: "pr-scaglioni",
+    name: "Scaglioni 90 / 100 / 110",
+    description: "Payout a gradini, nessuna interpolazione tra i livelli.",
+    calc: "scaglioni",
+    levels: [
+      { target: 90, payout: 50 },
+      { target: 100, payout: 100 },
+      { target: 110, payout: 120 },
+    ],
+  },
+  {
+    id: "pr-onoff",
+    name: "On / Off",
+    description: "Tutto o niente: paga il 100% solo al raggiungimento del target.",
+    calc: "scaglioni",
+    levels: [{ target: 100, payout: 100 }],
+  },
+  {
+    id: "pr-accelerato",
+    name: "Accelerato commerciale",
+    description: "Pendenza ridotta sotto target, accelerata oltre il target.",
+    calc: "lineare",
+    levels: [
+      { target: 90, payout: 25 },
+      { target: 100, payout: 100 },
+      { target: 115, payout: 200 },
+    ],
+  },
+];

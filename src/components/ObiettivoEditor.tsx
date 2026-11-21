@@ -8,7 +8,7 @@ import { fullName } from "@/lib/data";
 import { CATEGORIES, CYCLES, cycleLabel, schedeUsing, type Level, type ObjectiveDef, type Scheda } from "@/lib/mbo";
 import { useStore } from "@/lib/store";
 import { MultiSelect } from "./MultiSelect";
-import { Block, CustomObjectiveEditor, LevelsEditor, SectionTitle, customError, levelsError } from "./SchedaEditor";
+import { Block, CustomObjectiveEditor, LevelsEditor, PresetPicker, SectionTitle, customError, levelsError } from "./SchedaEditor";
 import { StatusPill } from "./SchedeTable";
 import { GhostButton, PrimaryButton, inputCls } from "./ui";
 
@@ -326,7 +326,13 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                         </p>
                       </div>
 
-                      <div className="rounded-lg bg-canvas p-3">
+                      <div className="space-y-3 rounded-lg bg-canvas p-3">
+                        <div className="max-w-[420px]">
+                          <PresetPicker
+                            hint="Compila i livelli di questa scheda"
+                            onApply={(pr) => patchAssignment(id, { levels: pr.levels.map((l) => ({ ...l })) })}
+                          />
+                        </div>
                         <LevelsEditor unit={draft.unit} levels={lv} onChange={(levels) => patchAssignment(id, { levels })} />
                         {a.levels && (
                           <button

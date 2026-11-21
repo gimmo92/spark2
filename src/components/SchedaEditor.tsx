@@ -13,6 +13,7 @@ import {
   payoutFor,
   type CalcMode,
   type Level,
+  type Preset,
   type ObjectiveDef,
   type Scheda,
   type SchedaItem,
@@ -427,6 +428,8 @@ export function CustomObjectiveEditor({ def, onChange, error }: { def: Objective
           </Block>
         </div>
 
+        <PresetPicker onApply={(pr) => onChange({ calc: pr.calc, levels: pr.levels.map((l) => ({ ...l })) })} />
+
         <Block label="Modalità di calcolo">
           <div className="inline-flex rounded-lg bg-canvas p-1">
             {(["lineare", "scaglioni"] as CalcMode[]).map((m) => (
@@ -503,6 +506,45 @@ export function LevelsEditor({ unit, levels, onChange }: { unit: string; levels:
         <Plus className="h-3.5 w-3.5" /> Aggiungi livello
       </button>
     </div>
+  );
+}
+
+/** Dropdown of the target/payout presets defined in Impostazioni → MBO. Applying copies calc mode and levels. */
+export function PresetPicker({
+  onApply,
+  label = "Preset target / payout",
+  hint = "Compila livelli e modalità di calcolo",
+}: {
+  onApply: (p: Preset) => void;
+  label?: string;
+  hint?: string;
+}) {
+  const { presets } = useStore();
+  const [value, setValue] = useState("");
+  return (
+    <Block label={label} hint={presets.length ? hint : undefined}>
+      <div className="flex items-center gap-2">
+        <select
+          className={inputCls}
+          value={value}
+          onChange={(e) => {
+            const pr = presets.find((x) => x.id === e.target.value);
+            setValue(e.target.value);
+            if (pr) onApply(pr);
+          }}
+        >
+          <option value="">{presets.length ? "Scegli un preset…" : "Nessun preset definito"}</option>
+          {presets.map((pr) => (
+            <option key={pr.id} value={pr.id}>
+              {pr.name} · {pr.calc === "lineare" ? "Lineare" : "A scaglioni"}
+            </option>
+          ))}
+        </select>
+        <Link href="/impostazioni/mbo" className="shrink-0 text-[12px] font-semibold text-brand hover:underline">
+          Gestisci
+        </Link>
+      </div>
+    </Block>
   );
 }
 
