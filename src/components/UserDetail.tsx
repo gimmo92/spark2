@@ -8,6 +8,7 @@ import { fullName } from "@/lib/data";
 import { useStore } from "@/lib/store";
 import { Badge, PrimaryButton } from "./ui";
 import { UserFormModal } from "./UserForm";
+import { RegistrationCard } from "./InviteAction";
 
 export function UserDetail() {
   const { id } = useParams<{ id: string }>();
@@ -89,24 +90,27 @@ export function UserDetail() {
           </dl>
         </div>
 
-        <div className="card p-5">
-          <h2 className="mb-4 text-[12px] font-bold uppercase tracking-wide text-muted">Colleghi nel team</h2>
-          {teammates.length === 0 && <p className="text-[12.5px] text-muted">Nessun collega nel team.</p>}
-          <ul className="space-y-1">
-            {teammates.map((t) => (
-              <li key={t.id}>
-                <Link href={`/azienda/utenti/${t.id}`} className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-canvas">
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft text-[11px] font-bold text-brand">
-                    {(t.firstName[0] + (t.lastName[0] ?? "")).toUpperCase()}
-                  </span>
-                  <span className="min-w-0">
-                    <span className="block truncate text-[12.5px] font-semibold">{fullName(t)}</span>
-                    <span className="block truncate text-[11px] text-muted">{t.role}</span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+        <div className="space-y-4">
+          <RegistrationCard user={u} />
+          <div className="card p-5">
+            <h2 className="mb-4 text-[12px] font-bold uppercase tracking-wide text-muted">Colleghi nel team</h2>
+            {teammates.length === 0 && <p className="text-[12.5px] text-muted">Nessun collega nel team.</p>}
+            <ul className="space-y-1">
+              {teammates.map((t) => (
+                <li key={t.id}>
+                  <Link href={`/azienda/utenti/${t.id}`} className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-canvas">
+                    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft text-[11px] font-bold text-brand">
+                      {(t.firstName[0] + (t.lastName[0] ?? "")).toUpperCase()}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block truncate text-[12.5px] font-semibold">{fullName(t)}</span>
+                      <span className="block truncate text-[11px] text-muted">{t.role}</span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       </div>
 

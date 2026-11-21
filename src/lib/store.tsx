@@ -2,6 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { buildSeedUsers, type User } from "./data";
+import { INVITE_ERRORS, type InviteDTO, type InvitesStatus } from "./invites";
 import { SEED_OBJECTIVES, SEED_PRESETS, buildSeedSchede, type ObjectiveDef, type Preset, type Scheda } from "./mbo";
 
 const KEY = "spark.users.v4";
@@ -31,6 +32,11 @@ interface Store {
   addObjective: (o: Omit<ObjectiveDef, "id" | "updatedAt">) => ObjectiveDef;
   updateObjective: (id: string, patch: Partial<ObjectiveDef>) => void;
   presets: Preset[];
+  /** Registration invites keyed by lowercase email (from /api/invites). */
+  invites: Record<string, InviteDTO>;
+  invitesStatus: InvitesStatus;
+  invitesMessage: string | null;
+  sendInvite: (email: string, fullName: string) => Promise<{ ok: boolean; message?: string }>;
   mboSettings: MboSettings;
   setMboSettings: (patch: Partial<MboSettings>) => void;
   savePreset: (p: Omit<Preset, "id"> & { id?: string }) => Preset;
@@ -51,6 +57,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [presets, setPresets] = useState<Preset[]>(SEED_PRESETS);
   const [mboSettings, setMboSettingsState] = useState<MboSettings>({ defaultThresholdId: "ob-ebitda" });
   const [hydrated, setHydrated] = useState(false);
+  const [invites, setInvites] = useState<Record<string, InviteDTO>>({});
+  const [invitesStatus, setInvitesStatus] = useState<InvitesStatus>("loading");
+  const [invitesMessage, setInvitesMessage] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
   useEffect(() => {
@@ -80,6 +89,46 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(mboSettings));
     } catch {}
   }, [users, schede, objectives, presets, mboSettings, hydrated]);
+
+  // invites live on the server: load once
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/invites")
+      .then(async (r) => {
+        const data = (await r.json().catch(() => ({}))) as { invites?: InviteDTO[]; error?: string };
+        if (!alive) return;
+        if (r.ok && data.invites) {
+          setInvites(Object.fromEntries(data.invites.map((i) => [i.email, i])));
+          setInvitesStatus("ready");
+        } else {
+          setInvitesStatus("unavailable");
+          setInvitesMessage(INVITE_ERRORS[data.error ?? "config"] ?? INVITE_ERRORS.config);
+        }
+      })
+      .catch(() => {
+        if (!alive) return;
+        setInvitesStatus("unavailable");
+        setInvitesMessage(INVITE_ERRORS.config);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const sendInvite = useCallback(async (email: string, fullName: string) => {
+    const r = await fetch("/api/invites", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, fullName }),
+    });
+    const data = (await r.json().catch(() => ({}))) as { invite?: InviteDTO; error?: string };
+    if (r.ok && data.invite) {
+      setInvites((prev) => ({ ...prev, [data.invite!.email]: data.invite! }));
+      setInvitesStatus("ready");
+      return { ok: true };
+    }
+    return { ok: false, message: INVITE_ERRORS[data.error ?? ""] ?? "Invio non riuscito. Riprova." };
+  }, []);
 
   const notify = useCallback((message: string) => {
     const id = Date.now() + Math.random();
@@ -136,8 +185,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, mboSettings, setMboSettings, resetData, hydrated, toasts, notify }),
-    [users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, mboSettings, setMboSettings, resetData, hydrated, toasts, notify],
+    () => ({ users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, mboSettings, setMboSettings, invites, invitesStatus, invitesMessage, sendInvite, resetData, hydrated, toasts, notify }),
+    [users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, mboSettings, setMboSettings, invites, invitesStatus, invitesMessage, sendInvite, resetData, hydrated, toasts, notify],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -240,9 +240,9 @@ export function LoginForm() {
         </button>
       </form>
       <p className="mt-5 text-center text-[12.5px] text-muted">
-        Primo accesso?{" "}
+        Hai ricevuto un codice di invito?{" "}
         <Link href="/registrazione" className="font-semibold text-brand hover:underline">
-          Crea la tua password
+          Registrati
         </Link>
       </p>
     </AuthCard>

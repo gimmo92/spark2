@@ -1,30 +1,54 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { adminConfigured, getSupabaseAdmin } from "@/lib/supabase/admin";
 
+const norm = (c: string) => c.toUpperCase().replace(/[^A-Z0-9]/g, "");
+
+function sameCode(a: string, b: string) {
+  const x = norm(a);
+  const y = norm(b);
+  if (x.length !== y.length) return false;
+  let diff = 0;
+  for (let i = 0; i < x.length; i++) diff |= x.charCodeAt(i) ^ y.charCodeAt(i);
+  return diff === 0;
+}
+
 /**
- * Self-registration restricted to pre-loaded users: the email must exist in public.allowed_users.
- * The account is created with the password the user chose; ownership of the mailbox is proven at
- * every login by the emailed code.
+ * Registration is only possible with the code sent from the app (public.registration_invites).
+ * The user picks the password; the invite is marked as used but the code is kept for the profile.
  */
 export async function POST(request: NextRequest) {
   if (!adminConfigured()) return NextResponse.json({ error: "config" }, { status: 500 });
 
-  const body = (await request.json().catch(() => ({}))) as { email?: string; password?: string };
+  const body = (await request.json().catch(() => ({}))) as { email?: string; code?: string; password?: string };
   const email = String(body.email ?? "").trim().toLowerCase();
+  const code = String(body.code ?? "");
   const password = String(body.password ?? "");
   if (!/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: "email" }, { status: 400 });
   if (password.length < 8) return NextResponse.json({ error: "weak" }, { status: 400 });
 
   const admin = getSupabaseAdmin();
-  const { data: allowed, error: lookupError } = await admin.from("allowed_users").select("email").eq("email", email).maybeSingle();
+  const { data: invite, error: lookupError } = await admin
+    .from("registration_invites")
+    .select("email, code, registered_at")
+    .eq("email", email)
+    .maybeSingle();
   if (lookupError) return NextResponse.json({ error: "config" }, { status: 500 });
-  if (!allowed) return NextResponse.json({ error: "not_allowed" }, { status: 403 });
+  // same answer for "no invite" and "wrong code"
+  if (!invite || !sameCode(invite.code, code)) return NextResponse.json({ error: "invalid_code" }, { status: 403 });
+  if (invite.registered_at) return NextResponse.json({ error: "exists" }, { status: 409 });
 
-  const { error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
-  if (error) {
-    if (/already|exists|registered/i.test(error.message)) return NextResponse.json({ error: "exists" }, { status: 409 });
-    if (/password/i.test(error.message)) return NextResponse.json({ error: "weak", message: error.message }, { status: 400 });
+  const markRegistered = () => admin.from("registration_invites").update({ registered_at: new Date().toISOString() }).eq("email", email);
+
+  const { data: created, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  if (error || !created.user) {
+    if (/already|exists|registered/i.test(error?.message ?? "")) {
+      await markRegistered();
+      return NextResponse.json({ error: "exists" }, { status: 409 });
+    }
+    if (/password/i.test(error?.message ?? "")) return NextResponse.json({ error: "weak", message: error?.message }, { status: 400 });
     return NextResponse.json({ error: "unknown" }, { status: 500 });
   }
+
+  await markRegistered();
   return NextResponse.json({ ok: true });
 }

@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { authConfigured } from "@/lib/supabase/env";
 import { AuthCard, EmailField, Notice, authInputCls, authPrimaryCls } from "./LoginForm";
 
 const ERRORS: Record<string, string> = {
-  not_allowed: "Questo indirizzo non è abilitato alla piattaforma. Contatta l'amministratore.",
+  invalid_code: "Email o codice di registrazione non validi. Controlla l'email di invito.",
   exists: "Esiste già un account con questa email. Accedi oppure usa “Password dimenticata?”.",
   weak: "Password troppo debole: usa almeno 8 caratteri.",
   email: "Inserisci un indirizzo email valido.",
@@ -18,7 +18,9 @@ const ERRORS: Record<string, string> = {
 /** First access: users pre-loaded by the admin choose their own password. */
 export function RegisterForm() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const params = useSearchParams();
+  const [email, setEmail] = useState(params.get("email") ?? "");
+  const [code, setCode] = useState(params.get("code") ?? "");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
@@ -33,7 +35,7 @@ export function RegisterForm() {
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, code, password }),
     });
     const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; message?: string };
     setBusy(false);
@@ -42,10 +44,22 @@ export function RegisterForm() {
   };
 
   return (
-    <AuthCard title="Crea la tua password" subtitle="Solo per gli utenti già abilitati dall'amministratore.">
+    <AuthCard title="Registrazione" subtitle="Inserisci il codice che hai ricevuto via email e scegli la tua password.">
       {error && <Notice kind="error">{error}</Notice>}
       <form onSubmit={submit} className="mt-5 space-y-3">
         <EmailField value={email} onChange={setEmail} />
+        <label className="block">
+          <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">Codice di registrazione</span>
+          <input
+            required
+            autoComplete="off"
+            spellCheck={false}
+            value={code}
+            onChange={(e) => setCode(e.target.value.toUpperCase())}
+            placeholder="ABCD-1234"
+            className={`${authInputCls} font-mono font-semibold tracking-[0.15em] uppercase`}
+          />
+        </label>
         <label className="block">
           <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">Password</span>
           <input type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className={authInputCls} />

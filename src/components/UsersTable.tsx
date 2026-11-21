@@ -9,7 +9,6 @@ import {
   ChevronsUpDown,
   Diamond,
   Eye,
-  Mail,
   RotateCcw,
   Search,
   Settings,
@@ -23,6 +22,7 @@ import { ACCESS_LEVELS, COMPANIES, TEAMS, fullName, type User } from "@/lib/data
 import { useStore } from "@/lib/store";
 import { Badge, FilterMenu, GhostButton, Modal, Popover, PrimaryButton, Tooltip } from "./ui";
 import { UserFormModal } from "./UserForm";
+import { InviteIconButton } from "./InviteAction";
 
 type SortKey = "name" | "level" | "email" | "team" | "role";
 type ColKey = SortKey | "company" | "status";
@@ -348,9 +348,7 @@ export function UsersTable() {
                     <IconBtn label="Modifica" onClick={() => setEditing(u)}>
                       <UserPen className="h-4 w-4" strokeWidth={2.2} />
                     </IconBtn>
-                    <IconBtn label="Invia email" href={`mailto:${u.email}`}>
-                      <Mail className="h-4 w-4" strokeWidth={2.2} />
-                    </IconBtn>
+                    <InviteIconButton user={u} />
                     {u.status === "attivo" ? (
                       <IconBtn label="Disattiva account" onClick={() => setConfirm(u)} danger>
                         <UserX className="h-4 w-4" strokeWidth={2.2} />
