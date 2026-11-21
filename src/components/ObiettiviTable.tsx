@@ -12,12 +12,10 @@ import {
   ChevronsUpDown,
   Eye,
   Layers,
-  Link2,
   Pencil,
   Plus,
   Search,
   ShieldAlert,
-  SlidersHorizontal,
   Tag,
   UserRound,
 } from "lucide-react";
@@ -53,8 +51,6 @@ export function ObiettiviTable() {
   const { objectives, schede, users, updateObjective, notify } = useStore();
 
   const [category, setCategory] = useState("");
-  const [calc, setCalc] = useState("");
-  const [usage, setUsage] = useState("");
   const [team, setTeam] = useState("");
   const [company, setCompany] = useState("");
   const [showArchived, setShowArchived] = useState("");
@@ -95,10 +91,6 @@ export function ObiettiviTable() {
         const u = usageMap.get(o.id);
         if (!!o.archived !== !!showArchived) return false;
         if (category && o.category !== category) return false;
-        if (calc && o.calc !== calc) return false;
-        if (usage === "used" && !u?.total) return false;
-        if (usage === "unused" && u?.total) return false;
-        if (usage === "threshold" && !u?.asThreshold) return false;
         if (team && !u?.teams.has(team)) return false;
         if (company && !u?.companies.has(company)) return false;
         if (needle && !`${o.name} ${o.description ?? ""}`.toLowerCase().includes(needle)) return false;
@@ -110,10 +102,10 @@ export function ObiettiviTable() {
         const c = typeof x === "number" && typeof y === "number" ? x - y : collator.compare(String(x), String(y));
         return c * sort.dir;
       });
-  }, [objectives, usageMap, category, calc, usage, team, company, showArchived, q, sort]);
+  }, [objectives, usageMap, category, team, company, showArchived, q, sort]);
 
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
-  const anyFilter = category || calc || usage || team || company || showArchived || q;
+  const anyFilter = category || team || company || showArchived || q;
   const viewed = viewing ? objectives.find((o) => o.id === viewing) : undefined;
 
   const cols: { key: SortKey | "levels"; label: string; sortable: boolean }[] = [
@@ -155,28 +147,6 @@ export function ObiettiviTable() {
           options={CATEGORIES.map((c) => ({ value: c, label: c }))}
         />
         <FilterMenu
-          icon={<SlidersHorizontal className="h-3.5 w-3.5 text-[#7d8698]" />}
-          label="Modalità di calcolo"
-          activeLabel="Calcolo"
-          value={calc}
-          onChange={setCalc}
-          options={[
-            { value: "lineare", label: "Lineare" },
-            { value: "scaglioni", label: "A scaglioni" },
-          ]}
-        />
-        <FilterMenu
-          icon={<Link2 className="h-3.5 w-3.5 text-[#7d8698]" />}
-          label="Utilizzo"
-          value={usage}
-          onChange={setUsage}
-          options={[
-            { value: "used", label: "In uso nelle schede" },
-            { value: "unused", label: "Non utilizzati" },
-            { value: "threshold", label: "Usati come soglia" },
-          ]}
-        />
-        <FilterMenu
           icon={<UserRound className="h-3.5 w-3.5 fill-[#7d8698] text-[#7d8698]" />}
           label="Filtra per gruppo"
           activeLabel="Gruppo"
@@ -204,8 +174,6 @@ export function ObiettiviTable() {
             type="button"
             onClick={() => {
               setCategory("");
-              setCalc("");
-              setUsage("");
               setTeam("");
               setCompany("");
               setShowArchived("");
