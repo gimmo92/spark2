@@ -4,8 +4,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { buildSeedUsers, type User } from "./data";
 import { buildSeedSchede, type Scheda } from "./mbo";
 
-const KEY = "spark.users.v1";
-const SCHEDE_KEY = "spark.schede.v1";
+const KEY = "spark.users.v2";
+const SCHEDE_KEY = "spark.schede.v2";
 
 interface Toast {
   id: number;

@@ -71,20 +71,20 @@ const ROLES = [
   "Warehouse Operator",
 ];
 
-// Rows that match the reference screenshot, in order.
+// Hand-picked demo rows shown first in the list (fictional people).
 const SEED: Array<[string, string, AccessLevel, string, string]> = [
-  ["Alwin Moses", "A", "UTENTE", "GROUPE B1 - INDIA", ROLES[0]],
-  ["Subashini", "A", "UTENTE", "GROUPE B1 - INDIA", ROLES[1]],
-  ["Leonardo", "Aguglia", "UTENTE", "GROUPE A", ROLES[2]],
-  ["Khalidislam", "Ahmad Zukri", "UTENTE", "GROUPE B1 - SOUTH EAST ASIA", ROLES[3]],
-  ["Baha khaleel tarkan", "Al-mamoori", "MANAGER", "GROUPE B2 - ITALY", ROLES[4]],
-  ["Alessandro", "Alberti", "MANAGER", "GROUPE A", ROLES[5]],
-  ["Brent", "Allen", "UTENTE", "GROUPE B1 - AUSTRALIA", ROLES[6]],
-  ["Elisa", "Angelillo", "UTENTE", "GROUPE A", ROLES[7]],
-  ["Abdelrani", "Arbaoui", "UTENTE", "GROUPE B1 - FRANCE", ROLES[8]],
-  ["Rossella", "Asaro", "UTENTE", "GROUPE B2 - ITALY", "account manager"],
-  ["Carmine", "Assediato", "UTENTE", "GROUPE A", ROLES[10]],
-  ["Donato", "Attanasi", "UTENTE", "GROUPE A", "Assembly dept supervisor"],
+  ["Aurelio", "Abbondanza", "UTENTE", "GROUPE B1 - INDIA", ROLES[0]],
+  ["Meera", "Acharvani", "UTENTE", "GROUPE B1 - INDIA", ROLES[1]],
+  ["Tommaso", "Adornetti", "UTENTE", "GROUPE A", ROLES[2]],
+  ["Farid", "Adzlan Rahimi", "UTENTE", "GROUPE B1 - SOUTH EAST ASIA", ROLES[3]],
+  ["Samir", "Al-Qasrawi", "MANAGER", "GROUPE B2 - ITALY", ROLES[4]],
+  ["Ludovica", "Albertazzi", "MANAGER", "GROUPE A", ROLES[5]],
+  ["Callum", "Alderwick", "UTENTE", "GROUPE B1 - AUSTRALIA", ROLES[6]],
+  ["Beatrice", "Amorevole", "UTENTE", "GROUPE A", ROLES[7]],
+  ["Yanis", "Ardouane", "UTENTE", "GROUPE B1 - FRANCE", ROLES[8]],
+  ["Ginevra", "Arpinelli", "UTENTE", "GROUPE B2 - ITALY", ROLES[9]],
+  ["Ettore", "Ascanelli", "UTENTE", "GROUPE A", ROLES[10]],
+  ["Noemi", "Astorrino", "UTENTE", "GROUPE A", ROLES[11]],
 ];
 
 const FIRST = [
@@ -136,8 +136,7 @@ export function buildSeedUsers(): User[] {
   const emails = new Set<string>();
 
   SEED.forEach(([firstName, lastName, level, team, role], i) => {
-    const email =
-      i === 0 ? "alwin.moses@rossi.com" : i === 1 ? "subashini.a@rossi.com" : i === 3 ? "khalid.ahmadzukri@rossi.com" : i === 4 ? "baha.almamoori@rossi.com" : slugEmail(firstName, lastName);
+    const email = slugEmail(firstName, lastName);
     emails.add(email);
     users.push({
       id: `u${i + 1}`,
