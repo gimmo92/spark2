@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Building2, CalendarDays } from "lucide-react";
 import { COMPANIES, type User } from "@/lib/data";
-import { SCHEDA_STATUSES, YEARS, cycleYear, hasActuals, itemDef, payoutFor, schedaScore, type Scheda } from "@/lib/mbo";
+import { CATEGORIES, SCHEDA_STATUSES, YEARS, catalogById, cycleYear, hasActuals, itemDef, payoutFor, schedaScore, thresholdMet, type Scheda } from "@/lib/mbo";
 import { useStore } from "@/lib/store";
 import { DashboardTabs } from "./DashboardTabs";
 import { FilterMenu, Tooltip } from "./ui";
@@ -18,6 +18,16 @@ const BUCKETS: { label: string; test: (v: number) => boolean }[] = [
   { label: "100–119%", test: (v) => v >= 100 && v < 120 },
   { label: "≥ 120%", test: (v) => v >= 120 },
 ];
+
+/** Fixed category → colour (validated categorical slots 1–5; "Altro" is neutral grey). */
+const LEVEL_COLOR: Record<string, string> = {
+  Gruppo: "#2a78d6",
+  Società: "#eb6834",
+  "Business Unit": "#1baf7a",
+  Team: "#eda100",
+  Utente: "#e87ba4",
+  Altro: "#a3abba",
+};
 
 const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0);
 
@@ -64,6 +74,48 @@ export function DashboardMbo() {
       .map((e) => ({ name: e.name, value: avg(e.payouts), n: e.payouts.length }))
       .sort((a, b) => b.value - a.value);
 
+    // payout by company (company of the scheda's first assignee)
+    const byCompany = COMPANIES.map((c) => {
+      const ss = measured.filter((s) => byId.get(s.assigneeIds[0])?.company === c);
+      return { label: c, value: avg(ss.map((s) => schedaScore(objectives, s))), n: ss.length };
+    })
+      .filter((x) => x.n > 0)
+      .sort((a, b) => b.value - a.value);
+
+    // payout by objective level (category), over every measured catalog item
+    const levelPayouts = new Map<string, number[]>();
+    // weight composition by level, over every scheda in scope
+    const levelWeights = new Map<string, number>();
+    for (const s of scope)
+      for (const it of s.items) {
+        const def = itemDef(objectives, it);
+        if (!def) continue;
+        const level = (!it.custom && def.category) || "Altro";
+        levelWeights.set(level, (levelWeights.get(level) ?? 0) + (Number(it.weight) || 0));
+        if (it.actual != null && hasActuals(s)) {
+          const arr = levelPayouts.get(level) ?? [];
+          arr.push(payoutFor(def, it.actual));
+          levelPayouts.set(level, arr);
+        }
+      }
+    const byLevel = [...CATEGORIES, "Altro"]
+      .map((l) => ({ label: l, value: avg(levelPayouts.get(l) ?? []), n: (levelPayouts.get(l) ?? []).length }))
+      .filter((x) => x.n > 0);
+    const totalWeight = [...levelWeights.values()].reduce((a, b) => a + b, 0);
+    const weightMix = [...CATEGORIES, "Altro"]
+      .map((l) => ({ label: l, value: totalWeight ? ((levelWeights.get(l) ?? 0) / totalWeight) * 100 : 0 }))
+      .filter((x) => x.value > 0);
+
+    // threshold (gate) outcome
+    const gated = scope.filter((s) => s.threshold);
+    const gate = [
+      { label: "Soglia raggiunta", value: gated.filter((s) => s.threshold?.actual != null && thresholdMet(objectives, s)).length },
+      { label: "Soglia non raggiunta", value: gated.filter((s) => s.threshold?.actual != null && !thresholdMet(objectives, s)).length },
+      { label: "Soglia da consuntivare", value: gated.filter((s) => s.threshold?.actual == null).length },
+      { label: "Senza soglia", value: scope.length - gated.length },
+    ];
+    const gateNames = [...new Set(gated.map((s) => catalogById(objectives, s.threshold!.objectiveId)?.name).filter(Boolean))];
+
     return {
       total: scope.length,
       measured: measured.length,
@@ -75,6 +127,11 @@ export function DashboardMbo() {
       byStatus,
       histogram,
       objRank,
+      byCompany,
+      byLevel,
+      weightMix,
+      gate,
+      gateNames,
     };
   }, [schede, users, objectives, year, company]);
 
@@ -127,6 +184,43 @@ export function DashboardMbo() {
             </ChartCard>
             <ChartCard title="Distribuzione del payout" note="Schede consuntivate per fascia di payout">
               {data.measured ? <Histogram cols={data.histogram} /> : <Empty />}
+            </ChartCard>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ChartCard title="Payout medio per società" note="Linea tratteggiata = 100% del target">
+              {data.byCompany.length ? (
+                <HBars
+                  rows={data.byCompany.map((r) => ({ ...r, tip: `${r.label}: payout medio ${r.value}% su ${r.n} schede` }))}
+                  format={(v) => `${v}%`}
+                  reference={100}
+                />
+              ) : (
+                <Empty />
+              )}
+            </ChartCard>
+            <ChartCard title="Payout medio per livello obiettivo" note="Media sugli obiettivi consuntivati · linea = 100%">
+              {data.byLevel.length ? (
+                <HBars
+                  rows={data.byLevel.map((r) => ({ ...r, tip: `${r.label}: payout medio ${r.value}% su ${r.n} obiettivi` }))}
+                  format={(v) => `${v}%`}
+                  reference={100}
+                />
+              ) : (
+                <Empty />
+              )}
+            </ChartCard>
+          </div>
+
+          <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+            <ChartCard title="Composizione dei pesi per livello" note="Quota del peso totale delle schede assegnata a ciascun livello">
+              <StackedShare parts={data.weightMix} />
+            </ChartCard>
+            <ChartCard
+              title="Esito obiettivo soglia"
+              note={data.gateNames.length ? `Soglie usate: ${data.gateNames.join(", ")}` : "Nessuna scheda con obiettivo soglia"}
+            >
+              <HBars rows={data.gate.map((r) => ({ ...r, tip: `${r.label}: ${r.value} schede` }))} format={(v) => String(v)} />
             </ChartCard>
           </div>
 
@@ -254,5 +348,35 @@ function ObjectiveTable({ rows }: { rows: { name: string; value: number; n: numb
         ))}
       </tbody>
     </table>
+  );
+}
+
+/** 100% stacked bar (part-to-whole) with 2px surface gaps and a legend that carries every value. */
+function StackedShare({ parts }: { parts: { label: string; value: number }[] }) {
+  if (!parts.length) return <Empty />;
+  return (
+    <div>
+      <div className="flex h-7 w-full gap-[2px]">
+        {parts.map((p, i) => (
+          <span key={p.label} className="flex h-full min-w-[3px]" style={{ width: `${p.value}%` }}>
+            <Tooltip label={`${p.label}: ${Math.round(p.value)}% del peso`} className="flex h-full w-full">
+              <span
+                className={`h-full w-full ${i === 0 ? "rounded-l-[4px]" : ""} ${i === parts.length - 1 ? "rounded-r-[4px]" : ""}`}
+                style={{ background: LEVEL_COLOR[p.label] ?? LEVEL_COLOR.Altro }}
+              />
+            </Tooltip>
+          </span>
+        ))}
+      </div>
+      <ul className="mt-4 flex flex-wrap gap-x-6 gap-y-2">
+        {parts.map((p) => (
+          <li key={p.label} className="flex items-center gap-2 text-[12.5px]">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: LEVEL_COLOR[p.label] ?? LEVEL_COLOR.Altro }} />
+            <span className="text-[#3f4757]">{p.label}</span>
+            <span className="font-semibold tabular-nums text-ink">{Math.round(p.value)}%</span>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
