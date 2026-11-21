@@ -43,9 +43,9 @@ export const NAV: Item[] = [
     label: "MBO",
     icon: Target,
     children: [
+      { label: "Schede obiettivo", href: "/mbo/schede" },
       { label: "Obiettivi", href: "/mbo/obiettivi" },
-      { label: "Schede MBO", href: "/mbo/schede" },
-      { label: "Consuntivazione", href: "/mbo/consuntivazione" },
+      { label: "Workflow", href: "/mbo/workflow" },
     ],
   },
   { label: "Competenze", href: "/competenze", icon: BookOpen, muted: true },
