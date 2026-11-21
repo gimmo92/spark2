@@ -10,7 +10,7 @@ import { FilterMenu, Tooltip } from "./ui";
 
 /* Single-series magnitude charts: one hue (brand blue), no legend, values direct-labeled in text ink. */
 const BAR = "bg-[#1673e6]";
-const BUCKETS: { label: string; test: (v: number) => boolean }[] = [
+export const BUCKETS: { label: string; test: (v: number) => boolean }[] = [
   { label: "0%", test: (v) => v === 0 },
   { label: "1–49%", test: (v) => v > 0 && v < 50 },
   { label: "50–79%", test: (v) => v >= 50 && v < 80 },
@@ -243,7 +243,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub: string
   );
 }
 
-function ChartCard({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
+export function ChartCard({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
   return (
     <section className="card p-5">
       <h2 className="text-[13px] font-bold">{title}</h2>
@@ -291,7 +291,7 @@ function HBars({
 }
 
 /** Vertical columns anchored to a shared baseline, counts labeled above each column. */
-function Histogram({ cols }: { cols: { label: string; value: number }[] }) {
+export function Histogram({ cols }: { cols: { label: string; value: number }[] }) {
   const max = Math.max(...cols.map((c) => c.value), 1);
   const H = 150;
   return (

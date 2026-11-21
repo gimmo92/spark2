@@ -49,6 +49,7 @@ export const NAV: Item[] = [
       { label: "Schede obiettivo", href: "/mbo/schede" },
       { label: "Obiettivi", href: "/mbo/obiettivi" },
       { label: "Workflow", href: "/mbo/workflow" },
+      { label: "Forecast", href: "/mbo/forecast" },
     ],
   },
   { label: "Competenze", href: "/competenze", icon: BookOpen, muted: true },
