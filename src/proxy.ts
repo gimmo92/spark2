@@ -1,19 +1,20 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { TWOFA_COOKIE, verifyToken } from "@/lib/auth/twofa";
 import { SUPABASE_KEY, SUPABASE_URL, authConfigured } from "@/lib/supabase/env";
 
-const PUBLIC_PATHS = ["/login", "/auth/"];
+const PUBLIC_PATHS = ["/login", "/registrazione", "/auth/", "/api/auth/"];
 const isPublic = (path: string) => PUBLIC_PATHS.some((p) => path === p || path.startsWith(p));
 
 /**
- * Gate every page behind a Supabase session. Also refreshes the session cookies on each request,
- * as required by @supabase/ssr.
+ * Gate every page behind: a valid Supabase session AND the signed 2-step cookie (password + email code)
+ * for the same user. Also refreshes the Supabase session cookies, as required by @supabase/ssr.
  */
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
   // The gate is switched on with AUTH_ENABLED=true (Vercel → Settings → Environment Variables),
-  // so the code can ship before SSO is configured. /login stays reachable to test sign-in first.
+  // so the code can ship before auth is configured. /login stays reachable to test sign-in first.
   if (process.env.AUTH_ENABLED !== "true") return NextResponse.next();
 
   if (!authConfigured) {
@@ -35,14 +36,16 @@ export async function proxy(request: NextRequest) {
 
   // getClaims() verifies the JWT; don't run code between client creation and this call.
   const { data } = await supabase.auth.getClaims();
-  const signedIn = Boolean(data?.claims?.sub);
+  const sub = data?.claims?.sub as string | undefined;
+  const twofa = sub ? await verifyToken<{ sub: string }>(request.cookies.get(TWOFA_COOKIE)?.value) : null;
+  const fullyAuthed = Boolean(sub && twofa?.sub === sub);
 
-  if (!signedIn && !isPublic(path)) {
+  if (!fullyAuthed && !isPublic(path)) {
     const url = new URL("/login", request.url);
     if (path !== "/") url.searchParams.set("next", path + request.nextUrl.search);
     return NextResponse.redirect(url);
   }
-  if (signedIn && path === "/login") return NextResponse.redirect(new URL("/", request.url));
+  if (fullyAuthed && (path === "/login" || path === "/registrazione")) return NextResponse.redirect(new URL("/", request.url));
 
   return response;
 }

@@ -40,8 +40,9 @@ export function UpdatePasswordForm() {
     const { error: err } = await supabase.auth.updateUser({ password });
     setBusy(false);
     if (err) return setError(/same.*password|different from the old/i.test(err.message) ? "Scegli una password diversa dalla precedente." : err.message);
-    router.replace("/");
-    router.refresh();
+    // the recovery link only proves the mailbox: sign out and do the full password + code login
+    await supabase.auth.signOut({ scope: "local" });
+    router.replace("/login?reset=1");
   };
 
   return (
@@ -86,7 +87,7 @@ export function UpdatePasswordForm() {
             className="btn-gradient flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-[12px] font-extrabold uppercase tracking-tight text-white disabled:opacity-50"
           >
             {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-            Salva e accedi
+            Salva password
           </button>
         </form>
       )}
