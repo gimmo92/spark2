@@ -5,7 +5,7 @@ import { buildSeedUsers, type User } from "./data";
 import { buildSeedSchede, type Scheda } from "./mbo";
 
 const KEY = "spark.users.v2";
-const SCHEDE_KEY = "spark.schede.v2";
+const SCHEDE_KEY = "spark.schede.v3";
 
 interface Toast {
   id: number;
@@ -20,6 +20,7 @@ interface Store {
   addScheda: (s: Omit<Scheda, "id" | "updatedAt">) => Scheda;
   updateScheda: (id: string, patch: Partial<Scheda>) => void;
   resetData: () => void;
+  hydrated: boolean;
   toasts: Toast[];
   notify: (message: string) => void;
 }
@@ -85,8 +86,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ users, addUser, updateUser, schede, addScheda, updateScheda, resetData, toasts, notify }),
-    [users, addUser, updateUser, schede, addScheda, updateScheda, resetData, toasts, notify],
+    () => ({ users, addUser, updateUser, schede, addScheda, updateScheda, resetData, hydrated, toasts, notify }),
+    [users, addUser, updateUser, schede, addScheda, updateScheda, resetData, hydrated, toasts, notify],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   Archive,
@@ -9,18 +10,32 @@ import {
   ChevronDown,
   ChevronUp,
   ChevronsUpDown,
+  CircleDot,
   Eye,
   Pencil,
   Plus,
   Search,
-  Trash2,
+  ShieldAlert,
   UserRound,
-  CircleDot,
 } from "lucide-react";
 import { TEAMS, fullName, type User } from "@/lib/data";
-import { SCHEDA_STATUSES, YEARS, schedaScore, statusLabel, type Objective, type Scheda, type SchedaStatus } from "@/lib/mbo";
+import {
+  SCHEDA_STATUSES,
+  YEARS,
+  catalogById,
+  cycleLabel,
+  cycleYear,
+  hasActuals,
+  itemDef,
+  payoutFor,
+  schedaScore,
+  statusLabel,
+  thresholdMet,
+  type Scheda,
+  type SchedaStatus,
+} from "@/lib/mbo";
 import { useStore } from "@/lib/store";
-import { Badge, Field, FilterMenu, GhostButton, Modal, PrimaryButton, inputCls } from "./ui";
+import { Badge, FilterMenu, GhostButton, Modal, PrimaryButton } from "./ui";
 
 const STATUS_STYLE: Record<SchedaStatus, string> = {
   bozza: "bg-[#eef1f5] text-[#5b6476]",
@@ -38,10 +53,12 @@ export function StatusPill({ status }: { status: SchedaStatus }) {
   );
 }
 
-type SortKey = "user" | "year" | "team" | "score" | "status" | "updatedAt";
+type SortKey = "name" | "cycle" | "team" | "score" | "status" | "updatedAt";
 const collator = new Intl.Collator("it", { sensitivity: "base" });
+const fmt = (n: number) => n.toLocaleString("it-IT", { maximumFractionDigits: 2 });
 
 export function SchedeTable() {
+  const router = useRouter();
   const { schede, users, updateScheda, notify } = useStore();
   const byId = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
 
@@ -50,28 +67,30 @@ export function SchedeTable() {
   const [team, setTeam] = useState("");
   const [showArchived, setShowArchived] = useState("");
   const [q, setQ] = useState("");
-  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "user", dir: 1 });
-  const [viewing, setViewing] = useState<Scheda | null>(null);
-  const [editing, setEditing] = useState<Scheda | "new" | null>(null);
+  const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "name", dir: 1 });
+  const [viewing, setViewing] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<Scheda | null>(null);
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
+    const first = (s: Scheda) => byId.get(s.assigneeIds[0]);
     const val = (s: Scheda, k: SortKey): string | number => {
-      const u = byId.get(s.userId);
-      if (k === "user") return u ? `${u.lastName} ${u.firstName}` : "";
-      if (k === "team") return u?.team ?? "";
+      if (k === "name") {
+        const u = first(s);
+        return u ? `${u.lastName} ${u.firstName}` : s.name;
+      }
+      if (k === "team") return first(s)?.team ?? "";
       if (k === "score") return schedaScore(s);
       if (k === "status") return SCHEDA_STATUSES.findIndex((x) => x.value === s.status);
       return s[k];
     };
     return schede
       .filter((s) => {
-        const u = byId.get(s.userId);
+        const people = s.assigneeIds.map((id) => byId.get(id)).filter(Boolean) as User[];
         if (status ? s.status !== status : s.status === "archiviata" && !showArchived) return false;
-        if (year && s.year !== Number(year)) return false;
-        if (team && u?.team !== team) return false;
-        if (needle && !(`${u ? fullName(u) : ""} ${s.title}`.toLowerCase().includes(needle))) return false;
+        if (year && cycleYear(s.cycle) !== Number(year)) return false;
+        if (team && !people.some((u) => u.team === team)) return false;
+        if (needle && !`${people.map(fullName).join(" ")} ${s.name}`.toLowerCase().includes(needle)) return false;
         return true;
       })
       .sort((a, b) => {
@@ -84,13 +103,14 @@ export function SchedeTable() {
 
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
   const anyFilter = status || year !== "2026" || team || showArchived || q;
+  const viewed = viewing ? schede.find((s) => s.id === viewing) : undefined;
 
   const cols: { key: SortKey | "objectives"; label: string }[] = [
-    { key: "user", label: "Dipendente" },
-    { key: "year", label: "Anno" },
+    { key: "name", label: "Scheda / Assegnatari" },
+    { key: "cycle", label: "Ciclo" },
     { key: "team", label: "Team" },
     { key: "objectives", label: "Obiettivi" },
-    { key: "score", label: "Raggiungimento" },
+    { key: "score", label: "Payout" },
     { key: "status", label: "Stato" },
     { key: "updatedAt", label: "Aggiornata" },
   ];
@@ -98,13 +118,12 @@ export function SchedeTable() {
   return (
     <div className="space-y-3.5">
       <div className="flex items-center gap-3 sm:gap-4">
-        <button
-          type="button"
-          onClick={() => setEditing("new")}
+        <Link
+          href="/mbo/schede/nuova"
           className="btn-gradient flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[11.5px] font-extrabold uppercase tracking-[-0.02em] text-white sm:px-5"
         >
           <Plus className="h-3.5 w-3.5" strokeWidth={3} /> Nuova scheda
-        </button>
+        </Link>
       </div>
 
       <div className="card overflow-hidden px-4 pb-3 pt-2.5">
@@ -175,7 +194,7 @@ export function SchedeTable() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Cerca dipendente o scheda..."
+            placeholder="Cerca scheda o assegnatario..."
             className="w-full rounded-lg border border-[#e3e7ee] bg-white py-1.5 pl-9 pr-3 text-[13px] outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-brand focus:ring-3 focus:ring-brand/15"
           />
         </div>
@@ -221,33 +240,48 @@ export function SchedeTable() {
           </thead>
           <tbody>
             {rows.map((s) => {
-              const u = byId.get(s.userId);
+              const people = s.assigneeIds.map((id) => byId.get(id)).filter(Boolean) as User[];
               const score = schedaScore(s);
+              const measured = hasActuals(s);
               return (
                 <tr key={s.id} className={`group border-b border-line last:border-0 hover:bg-[#f8fafd] ${s.status === "archiviata" ? "opacity-60" : ""}`}>
                   <td className="px-3 py-[9px] pl-4">
-                    <button type="button" onClick={() => setViewing(s)} className="block text-left">
-                      <span className="block whitespace-nowrap text-[13.5px] font-semibold text-brand hover:underline">
-                        {u ? fullName(u) : "Utente rimosso"}
+                    <button type="button" onClick={() => setViewing(s.id)} className="block text-left">
+                      <span className="block max-w-[300px] truncate text-[13.5px] font-semibold text-brand hover:underline" title={s.name}>
+                        {s.name}
                       </span>
-                      <span className="block max-w-[260px] truncate text-[11.5px] text-muted" title={s.title}>
-                        {s.title}
+                      <span className="block max-w-[300px] truncate text-[11.5px] text-muted">
+                        {people.length ? fullName(people[0]) : "Nessun assegnatario"}
+                        {people.length > 1 && <span className="font-semibold text-ink/70"> +{people.length - 1}</span>}
                       </span>
                     </button>
                   </td>
-                  <td className="px-3 text-[13px] tabular-nums text-[#5b6476]">{s.year}</td>
-                  <td className="px-3">{u?.team ? <Badge>{u.team}</Badge> : <Badge tone="grey">Nessun team</Badge>}</td>
-                  <td className="px-3 text-[13px] tabular-nums text-[#5b6476]">{s.objectives.length}</td>
+                  <td className="whitespace-nowrap px-3 text-[12.5px] text-[#5b6476]">{cycleLabel(s.cycle)}</td>
+                  <td className="px-3">{people[0]?.team ? <Badge>{people[0].team}</Badge> : <Badge tone="grey">Nessun team</Badge>}</td>
+                  <td className="px-3 text-[13px] tabular-nums text-[#5b6476]">
+                    <span className="inline-flex items-center gap-1.5">
+                      {s.items.length}
+                      {s.threshold && (
+                        <span title={`Obiettivo soglia: ${catalogById(s.threshold.objectiveId)?.name ?? ""}`}>
+                          <ShieldAlert className="h-3.5 w-3.5 text-amber-500" />
+                        </span>
+                      )}
+                    </span>
+                  </td>
                   <td className="px-3">
-                    <div className="flex items-center gap-2">
-                      <div className="h-1.5 w-20 overflow-hidden rounded-full bg-[#eef1f5]">
-                        <div
-                          className={`h-full rounded-full ${score >= 80 ? "bg-emerald-500" : score >= 50 ? "bg-brand" : "bg-amber-500"}`}
-                          style={{ width: `${score}%` }}
-                        />
+                    {measured ? (
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-20 overflow-hidden rounded-full bg-[#eef1f5]">
+                          <div
+                            className={`h-full rounded-full ${score >= 100 ? "bg-emerald-500" : score >= 50 ? "bg-brand" : "bg-amber-500"}`}
+                            style={{ width: `${Math.min(score, 100)}%` }}
+                          />
+                        </div>
+                        <span className="w-10 text-[12px] font-semibold tabular-nums text-[#5b6476]">{score}%</span>
                       </div>
-                      <span className="w-9 text-[12px] font-semibold tabular-nums text-[#5b6476]">{score}%</span>
-                    </div>
+                    ) : (
+                      <span className="text-[12px] text-faint">Da consuntivare</span>
+                    )}
                   </td>
                   <td className="px-3">
                     <StatusPill status={s.status} />
@@ -257,10 +291,10 @@ export function SchedeTable() {
                   </td>
                   <td className="sticky right-0 border-l border-line bg-white px-3 py-1 group-hover:bg-[#f8fafd]">
                     <div className="flex items-center gap-0.5">
-                      <IconBtn label="Visualizza" onClick={() => setViewing(s)}>
+                      <IconBtn label="Visualizza" onClick={() => setViewing(s.id)}>
                         <Eye className="h-4 w-4" strokeWidth={2.2} />
                       </IconBtn>
-                      <IconBtn label="Modifica" onClick={() => setEditing(s)} disabled={s.status === "archiviata"}>
+                      <IconBtn label="Modifica" onClick={() => router.push(`/mbo/schede/${s.id}`)} disabled={s.status === "archiviata"}>
                         <Pencil className="h-4 w-4" strokeWidth={2.2} />
                       </IconBtn>
                       {s.status === "archiviata" ? (
@@ -295,18 +329,14 @@ export function SchedeTable() {
         </table>
       </div>
 
-      {viewing && (
+      {viewed && (
         <SchedaView
-          scheda={schede.find((x) => x.id === viewing.id) ?? viewing}
-          user={byId.get(viewing.userId)}
+          scheda={viewed}
+          people={viewed.assigneeIds.map((id) => byId.get(id)).filter(Boolean) as User[]}
           onClose={() => setViewing(null)}
-          onEdit={() => {
-            setEditing(viewing);
-            setViewing(null);
-          }}
+          onEdit={() => router.push(`/mbo/schede/${viewed.id}`)}
         />
       )}
-      {editing && <SchedaForm scheda={editing === "new" ? undefined : editing} onClose={() => setEditing(null)} />}
       {archiving && (
         <Modal
           title="Archiviare la scheda?"
@@ -328,9 +358,8 @@ export function SchedeTable() {
           }
         >
           <p className="text-[13px] leading-relaxed text-muted">
-            La scheda <span className="font-semibold text-ink">{archiving.title}</span>
-            {byId.get(archiving.userId) && <> di {fullName(byId.get(archiving.userId)!)}</>} non sarà più modificabile. Potrai
-            ripristinarla dal filtro <em>Archiviate</em>.
+            La scheda <span className="font-semibold text-ink">{archiving.name}</span> non sarà più modificabile. Potrai ripristinarla dal
+            filtro <em>Archiviate</em>.
           </p>
         </Modal>
       )}
@@ -338,11 +367,13 @@ export function SchedeTable() {
   );
 }
 
-function SchedaView({ scheda: s, user, onClose, onEdit }: { scheda: Scheda; user?: User; onClose: () => void; onEdit: () => void }) {
+function SchedaView({ scheda: s, people, onClose, onEdit }: { scheda: Scheda; people: User[]; onClose: () => void; onEdit: () => void }) {
   const score = schedaScore(s);
+  const gate = s.threshold ? catalogById(s.threshold.objectiveId) : undefined;
+  const measured = hasActuals(s);
   return (
     <Modal
-      title={s.title}
+      title={s.name}
       onClose={onClose}
       width="max-w-2xl"
       footer={
@@ -352,187 +383,62 @@ function SchedaView({ scheda: s, user, onClose, onEdit }: { scheda: Scheda; user
         </>
       }
     >
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[12.5px]">
-        {user && (
-          <Link href={`/azienda/utenti/${user.id}`} className="font-semibold text-brand hover:underline">
-            {fullName(user)}
-          </Link>
-        )}
-        <span className="text-muted">Anno {s.year}</span>
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12.5px]">
+        <span className="text-muted">{cycleLabel(s.cycle)}</span>
         <StatusPill status={s.status} />
-        <span className="ml-auto font-bold tabular-nums">Raggiungimento {score}%</span>
+        <span className="ml-auto font-bold tabular-nums">{measured ? `Payout ${score}%` : "Da consuntivare"}</span>
       </div>
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {people.map((u) => (
+          <Link key={u.id} href={`/azienda/utenti/${u.id}`} className="rounded-md bg-brand-soft px-2 py-0.5 text-[12px] font-semibold text-brand hover:underline">
+            {fullName(u)}
+          </Link>
+        ))}
+      </div>
+
+      {gate && (
+        <div className={`mt-4 rounded-lg px-3 py-2 text-[12px] ${thresholdMet(s) ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>
+          <span className="font-bold">Obiettivo soglia:</span> {gate.name} ≥ {fmt(gate.levels[0].target)} {gate.unit}
+          {s.threshold?.actual != null && (
+            <>
+              {" "}· consuntivo {fmt(s.threshold.actual)} {gate.unit} — {thresholdMet(s) ? "raggiunta" : "non raggiunta, payout azzerato"}
+            </>
+          )}
+        </div>
+      )}
+
       <table className="mt-4 w-full text-left">
         <thead>
           <tr className="border-b border-line text-[11px] font-bold uppercase text-[#9aa2b1]">
             <th className="py-2">Obiettivo</th>
-            <th className="w-16 py-2 text-right">Peso</th>
-            <th className="w-40 py-2 pl-4">Raggiunto</th>
+            <th className="w-14 py-2 text-right">Peso</th>
+            <th className="w-28 py-2 text-right">Consuntivo</th>
+            <th className="w-20 py-2 text-right">Payout</th>
           </tr>
         </thead>
         <tbody>
-          {s.objectives.map((o) => (
-            <tr key={o.id} className="border-b border-line last:border-0">
-              <td className="py-2.5 text-[13px] font-semibold">{o.title}</td>
-              <td className="py-2.5 text-right text-[13px] tabular-nums text-muted">{o.weight}%</td>
-              <td className="py-2.5 pl-4">
-                <div className="flex items-center gap-2">
-                  <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#eef1f5]">
-                    <div className="h-full rounded-full bg-brand" style={{ width: `${Math.min(o.achieved, 100)}%` }} />
-                  </div>
-                  <span className="w-10 text-right text-[12px] font-semibold tabular-nums">{o.achieved}%</span>
-                </div>
-              </td>
-            </tr>
-          ))}
+          {s.items.map((it) => {
+            const def = itemDef(it);
+            if (!def) return null;
+            return (
+              <tr key={it.id} className="border-b border-line last:border-0">
+                <td className="py-2.5">
+                  <span className="block text-[13px] font-semibold">
+                    {def.name}
+                    {it.custom && <span className="ml-1.5 rounded bg-violet-50 px-1.5 py-[1px] text-[10px] font-bold uppercase text-violet-700">Unico</span>}
+                  </span>
+                  <span className="block text-[11.5px] text-muted">
+                    {def.calc === "lineare" ? "Lineare" : "A scaglioni"} · {def.levels.map((l) => `${fmt(l.target)} ${def.unit} → ${l.payout}%`).join(" · ")}
+                  </span>
+                </td>
+                <td className="py-2.5 text-right text-[13px] tabular-nums text-muted">{it.weight}%</td>
+                <td className="py-2.5 text-right text-[13px] tabular-nums">{it.actual != null ? `${fmt(it.actual)} ${def.unit}` : "—"}</td>
+                <td className="py-2.5 text-right text-[13px] font-semibold tabular-nums">{it.actual != null ? `${payoutFor(def, it.actual)}%` : "—"}</td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
-    </Modal>
-  );
-}
-
-function SchedaForm({ scheda, onClose }: { scheda?: Scheda; onClose: () => void }) {
-  const { users, addScheda, updateScheda, notify } = useStore();
-  const activeUsers = useMemo(
-    () => users.filter((u) => u.status === "attivo").sort((a, b) => collator.compare(a.lastName, b.lastName)),
-    [users],
-  );
-  const [userId, setUserId] = useState(scheda?.userId ?? activeUsers[0]?.id ?? "");
-  const [year, setYear] = useState(scheda?.year ?? 2026);
-  const [title, setTitle] = useState(scheda?.title ?? "");
-  const [status, setStatus] = useState<SchedaStatus>(scheda?.status ?? "bozza");
-  const [objectives, setObjectives] = useState<Objective[]>(
-    scheda?.objectives ?? [{ id: "o-new-0", title: "", weight: 100, achieved: 0 }],
-  );
-  const [submitted, setSubmitted] = useState(false);
-
-  const totalWeight = objectives.reduce((a, o) => a + (Number(o.weight) || 0), 0);
-  const errors: string[] = [];
-  if (!title.trim()) errors.push("Inserisci un titolo");
-  if (objectives.some((o) => !o.title.trim())) errors.push("Ogni obiettivo deve avere un nome");
-  if (totalWeight !== 100) errors.push(`La somma dei pesi deve essere 100% (ora ${totalWeight}%)`);
-
-  const setObj = (id: string, patch: Partial<Objective>) => setObjectives((os) => os.map((o) => (o.id === id ? { ...o, ...patch } : o)));
-
-  const save = () => {
-    setSubmitted(true);
-    if (errors.length) return;
-    if (scheda) {
-      updateScheda(scheda.id, { userId, year, title, status, objectives });
-      notify("Scheda aggiornata");
-    } else {
-      addScheda({ userId, year, title, status, objectives });
-      notify("Scheda creata");
-    }
-    onClose();
-  };
-
-  return (
-    <Modal
-      title={scheda ? "Modifica scheda" : "Nuova scheda obiettivo"}
-      onClose={onClose}
-      width="max-w-2xl"
-      footer={
-        <>
-          <GhostButton onClick={onClose}>Annulla</GhostButton>
-          <PrimaryButton onClick={save}>{scheda ? "Salva modifiche" : "Crea scheda"}</PrimaryButton>
-        </>
-      }
-    >
-      <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-3">
-        <div className="sm:col-span-3">
-          <Field label="Titolo">
-            <input autoFocus className={inputCls} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="es. MBO 2026 · Plant Manager" />
-          </Field>
-        </div>
-        <Field label="Dipendente">
-          <select className={inputCls} value={userId} onChange={(e) => setUserId(e.target.value)}>
-            {activeUsers.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.lastName} {u.firstName}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Anno">
-          <select className={inputCls} value={year} onChange={(e) => setYear(Number(e.target.value))}>
-            {YEARS.map((y) => (
-              <option key={y}>{y}</option>
-            ))}
-          </select>
-        </Field>
-        <Field label="Stato">
-          <select className={inputCls} value={status} onChange={(e) => setStatus(e.target.value as SchedaStatus)}>
-            {SCHEDA_STATUSES.filter((s) => s.value !== "archiviata").map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-      </div>
-
-      <div className="mt-5">
-        <div className="mb-2 flex items-center justify-between">
-          <span className="text-[11px] font-bold uppercase tracking-wide text-muted">Obiettivi</span>
-          <span className={`text-[12px] font-semibold tabular-nums ${totalWeight === 100 ? "text-emerald-600" : "text-amber-600"}`}>
-            Peso totale {totalWeight}%
-          </span>
-        </div>
-        <div className="space-y-2">
-          <div className="grid grid-cols-[1fr_72px_88px_28px] gap-2 text-[11px] font-semibold text-faint">
-            <span>Nome</span>
-            <span>Peso %</span>
-            <span>Raggiunto %</span>
-            <span />
-          </div>
-          {objectives.map((o) => (
-            <div key={o.id} className="grid grid-cols-[1fr_72px_88px_28px] items-center gap-2">
-              <input className={inputCls} value={o.title} onChange={(e) => setObj(o.id, { title: e.target.value })} placeholder="Nome obiettivo" />
-              <input
-                type="number"
-                min={0}
-                max={100}
-                className={inputCls}
-                value={o.weight}
-                onChange={(e) => setObj(o.id, { weight: Number(e.target.value) })}
-              />
-              <input
-                type="number"
-                min={0}
-                max={200}
-                className={inputCls}
-                value={o.achieved}
-                onChange={(e) => setObj(o.id, { achieved: Number(e.target.value) })}
-              />
-              <button
-                type="button"
-                aria-label="Rimuovi obiettivo"
-                disabled={objectives.length === 1}
-                onClick={() => setObjectives((os) => os.filter((x) => x.id !== o.id))}
-                className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => setObjectives((os) => [...os, { id: `o${Date.now()}`, title: "", weight: 0, achieved: 0 }])}
-          className="mt-2.5 flex items-center gap-1.5 text-[12.5px] font-semibold text-brand hover:underline"
-        >
-          <Plus className="h-3.5 w-3.5" /> Aggiungi obiettivo
-        </button>
-      </div>
-
-      {submitted && errors.length > 0 && (
-        <ul className="mt-4 space-y-0.5 rounded-lg bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-700">
-          {errors.map((e) => (
-            <li key={e}>{e}</li>
-          ))}
-        </ul>
-      )}
     </Modal>
   );
 }
