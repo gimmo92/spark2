@@ -3,11 +3,10 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { ArrowLeft, ChevronDown, Copy, Library, Plus, Sparkles, Trash2, TriangleAlert } from "lucide-react";
+import { ArrowLeft, ChevronDown, Copy, Plus, Sparkles, Trash2, TriangleAlert } from "lucide-react";
 import { fullName } from "@/lib/data";
 import {
   CYCLES,
-  OBJECTIVE_CATALOG,
   SCHEDA_STATUSES,
   catalogById,
   itemDef,
@@ -27,8 +26,8 @@ const collator = new Intl.Collator("it", { sensitivity: "base" });
 let seq = 0;
 const uid = (p: string) => `${p}${Date.now().toString(36)}${(seq++).toString(36)}`;
 
-const fmt = (n: number) => n.toLocaleString("it-IT", { maximumFractionDigits: 2 });
-const levelsSummary = (d: ObjectiveDef) => d.levels.map((l) => `${fmt(l.target)} ${d.unit} → ${l.payout}%`).join("  ·  ");
+export const fmt = (n: number) => n.toLocaleString("it-IT", { maximumFractionDigits: 2 });
+export const levelsSummary = (d: ObjectiveDef) => d.levels.map((l) => `${fmt(l.target)} ${d.unit} → ${l.payout}%`).join("  ·  ");
 
 /** Route entry: /mbo/schede/[id] (edit) or /mbo/schede/nuova (create). */
 export function SchedaEditorPage({ isNew }: { isNew?: boolean }) {
@@ -51,14 +50,14 @@ export function SchedaEditorPage({ isNew }: { isNew?: boolean }) {
 
 function SchedaEditor({ scheda }: { scheda?: Scheda }) {
   const router = useRouter();
-  const { users, addScheda, updateScheda, notify } = useStore();
+  const { users, addScheda, updateScheda, notify, objectives } = useStore();
 
   const [name, setName] = useState(scheda?.name ?? "");
   const [assigneeIds, setAssigneeIds] = useState<string[]>(scheda?.assigneeIds ?? []);
   const [cycle, setCycle] = useState(scheda?.cycle ?? "2026");
   const [status, setStatus] = useState<SchedaStatus>(scheda?.status ?? "bozza");
   const [items, setItems] = useState<SchedaItem[]>(scheda?.items ?? []);
-  const [advancedOpen, setAdvancedOpen] = useState(!!scheda?.threshold);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
   const [thresholdOn, setThresholdOn] = useState(!!scheda?.threshold);
   const [thresholdId, setThresholdId] = useState(scheda?.threshold?.objectiveId ?? "");
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -72,7 +71,8 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
         .map((u) => ({ value: u.id, label: fullName(u), hint: `${u.role}${u.team ? ` · ${u.team}` : ""}` })),
     [users, assigneeIds],
   );
-  const catalogOptions = OBJECTIVE_CATALOG.map((o) => ({
+  const usedIds = new Set([...items.map((i) => i.objectiveId), thresholdId]);
+  const catalogOptions = objectives.filter((o) => !o.archived || usedIds.has(o.id)).map((o) => ({
     value: o.id,
     label: o.name,
     hint: `${o.calc === "lineare" ? "Lineare" : "A scaglioni"} · ${levelsSummary(o)}`,
@@ -115,15 +115,10 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
     setExpanded(id);
   };
   const personalize = (it: SchedaItem) => {
-    const def = catalogById(it.objectiveId);
+    const def = catalogById(objectives, it.objectiveId);
     if (!def) return;
     updateItem(it.id, { objectiveId: undefined, custom: { ...def, id: uid("cu"), levels: def.levels.map((l) => ({ ...l })) } });
     setExpanded(it.id);
-  };
-  const distribute = () => {
-    if (!items.length) return;
-    const base = Math.floor(100 / items.length);
-    setItems((p) => p.map((i, k) => ({ ...i, weight: k === 0 ? 100 - base * (p.length - 1) : base })));
   };
 
   // validation
@@ -166,7 +161,7 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
     router.push("/mbo/schede");
   };
 
-  const thresholdDef = catalogById(thresholdId);
+  const thresholdDef = catalogById(objectives, thresholdId);
 
   return (
     <div className="mx-auto max-w-[920px] space-y-4 pb-20">
@@ -270,7 +265,7 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
                         options={catalogOptions}
                         value={thresholdId ? [thresholdId] : []}
                         onChange={(v) => setThresholdId(v[0] ?? "")}
-                        placeholder="Seleziona dal catalogo"
+                        placeholder="Seleziona obiettivo"
                         searchPlaceholder="Cerca obiettivo…"
                         invalid={!!err("threshold")}
                       />
@@ -297,7 +292,7 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
         </div>
 
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-          <Block label="Seleziona obiettivi dal catalogo">
+          <Block label="Seleziona obiettivi">
             <MultiSelect
               options={catalogOptions}
               value={catalogIds}
@@ -311,7 +306,7 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
             onClick={addCustom}
             className="flex h-[38px] items-center justify-center gap-1.5 rounded-lg border border-dashed border-brand/50 px-3.5 text-[12.5px] font-bold text-brand transition-colors hover:bg-brand-soft"
           >
-            <Sparkles className="h-3.5 w-3.5" /> Crea obiettivo unico
+            <Sparkles className="h-3.5 w-3.5" /> Crea nuovo obiettivo
           </button>
         </div>
 
@@ -324,17 +319,12 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
         {items.length === 0 ? (
           <div className="mt-4 rounded-xl border border-dashed border-[#dfe3ea] px-4 py-8 text-center">
             <p className="text-[13px] font-semibold">Nessun obiettivo nella scheda</p>
-            <p className="mt-0.5 text-[12px] text-muted">Selezionali dal catalogo oppure crea un obiettivo unico.</p>
+            <p className="mt-0.5 text-[12px] text-muted">Selezionali dall&apos;elenco oppure creane uno nuovo.</p>
           </div>
         ) : (
           <div className="mt-4 space-y-2">
-            <div className="flex justify-end">
-              <button type="button" onClick={distribute} className="text-[12px] font-semibold text-brand hover:underline">
-                Distribuisci pesi equamente
-              </button>
-            </div>
             {items.map((it) => {
-              const def = itemDef(it);
+              const def = itemDef(objectives, it);
               if (!def) return null;
               const isOpen = expanded === it.id;
               const e = err(it.id);
@@ -346,13 +336,6 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
                       <span className="min-w-0">
                         <span className="flex items-center gap-2">
                           <span className="truncate text-[13px] font-semibold">{def.name || "Obiettivo senza nome"}</span>
-                          <span
-                            className={`shrink-0 rounded px-1.5 py-[1px] text-[10px] font-bold uppercase ${
-                              it.custom ? "bg-violet-50 text-violet-700" : "bg-brand-soft text-brand"
-                            }`}
-                          >
-                            {it.custom ? "Unico" : "Catalogo"}
-                          </span>
                           <span className="shrink-0 text-[11px] text-muted">{def.calc === "lineare" ? "Lineare" : "A scaglioni"}</span>
                         </span>
                         <span className="block truncate text-[11.5px] text-muted">{levelsSummary(def)}</span>
@@ -409,9 +392,6 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
             })}
           </div>
         )}
-        <p className="mt-4 flex items-center gap-1.5 text-[11.5px] text-muted">
-          <Library className="h-3.5 w-3.5" /> Gli obiettivi da catalogo sono condivisi; quelli unici esistono solo in questa scheda.
-        </p>
       </section>
 
       <div className="flex justify-end gap-2">
@@ -422,7 +402,7 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
   );
 }
 
-function customError(d: ObjectiveDef): string | null {
+export function customError(d: ObjectiveDef): string | null {
   if (!d.name.trim()) return "Inserisci il nome dell'obiettivo";
   if (!d.levels.length) return "Aggiungi almeno un livello";
   for (let i = 1; i < d.levels.length; i++)
@@ -431,7 +411,7 @@ function customError(d: ObjectiveDef): string | null {
   return null;
 }
 
-function CustomObjectiveEditor({ def, onChange, error }: { def: ObjectiveDef; onChange: (p: Partial<ObjectiveDef>) => void; error?: string }) {
+export function CustomObjectiveEditor({ def, onChange, error }: { def: ObjectiveDef; onChange: (p: Partial<ObjectiveDef>) => void; error?: string }) {
   const setLevel = (i: number, patch: Partial<Level>) => onChange({ levels: def.levels.map((l, k) => (k === i ? { ...l, ...patch } : l)) });
   return (
     <div className="grid gap-4 sm:grid-cols-[1fr_220px]">
@@ -516,7 +496,7 @@ function CustomObjectiveEditor({ def, onChange, error }: { def: ObjectiveDef; on
   );
 }
 
-function LevelsReadOnly({ def }: { def: ObjectiveDef }) {
+export function LevelsReadOnly({ def }: { def: ObjectiveDef }) {
   return (
     <table className="w-full text-left text-[12.5px]">
       <thead>
@@ -542,7 +522,7 @@ function LevelsReadOnly({ def }: { def: ObjectiveDef }) {
 }
 
 /** Small chart of payout % vs actual value, so the calc mode is visible at a glance. */
-function PayoutCurve({ def }: { def: ObjectiveDef }) {
+export function PayoutCurve({ def }: { def: ObjectiveDef }) {
   const lv = [...def.levels].filter((l) => Number.isFinite(l.target)).sort((a, b) => a.target - b.target);
   const W = 220;
   const H = 120;
@@ -611,7 +591,7 @@ function WeightMeter({ total }: { total: number }) {
   );
 }
 
-function SectionTitle({ n, title }: { n: number; title: string }) {
+export function SectionTitle({ n, title }: { n: number; title: string }) {
   return (
     <h2 className="mb-4 flex items-center gap-2.5 text-[14px] font-bold">
       <span className="grid h-6 w-6 place-items-center rounded-full bg-brand-soft text-[12px] font-extrabold text-brand">{n}</span>
@@ -620,7 +600,7 @@ function SectionTitle({ n, title }: { n: number; title: string }) {
   );
 }
 
-function Block({
+export function Block({
   label,
   hint,
   error,
@@ -645,7 +625,7 @@ function Block({
   );
 }
 
-function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+export function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
       type="button"

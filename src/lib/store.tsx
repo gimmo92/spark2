@@ -2,10 +2,11 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { buildSeedUsers, type User } from "./data";
-import { buildSeedSchede, type Scheda } from "./mbo";
+import { SEED_OBJECTIVES, buildSeedSchede, type ObjectiveDef, type Scheda } from "./mbo";
 
-const KEY = "spark.users.v2";
-const SCHEDE_KEY = "spark.schede.v3";
+const KEY = "spark.users.v3";
+const SCHEDE_KEY = "spark.schede.v4";
+const OBJ_KEY = "spark.objectives.v1";
 
 interface Toast {
   id: number;
@@ -19,6 +20,9 @@ interface Store {
   schede: Scheda[];
   addScheda: (s: Omit<Scheda, "id" | "updatedAt">) => Scheda;
   updateScheda: (id: string, patch: Partial<Scheda>) => void;
+  objectives: ObjectiveDef[];
+  addObjective: (o: Omit<ObjectiveDef, "id" | "updatedAt">) => ObjectiveDef;
+  updateObjective: (id: string, patch: Partial<ObjectiveDef>) => void;
   resetData: () => void;
   hydrated: boolean;
   toasts: Toast[];
@@ -31,6 +35,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<User[]>(() => buildSeedUsers());
   const [schede, setSchede] = useState<Scheda[]>(() => buildSeedSchede(buildSeedUsers()));
+  const [objectives, setObjectives] = useState<ObjectiveDef[]>(SEED_OBJECTIVES);
   const [hydrated, setHydrated] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -41,6 +46,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (raw) setUsers(JSON.parse(raw));
       const rawS = localStorage.getItem(SCHEDE_KEY);
       if (rawS) setSchede(JSON.parse(rawS));
+      const rawO = localStorage.getItem(OBJ_KEY);
+      if (rawO) setObjectives(JSON.parse(rawO));
     } catch {}
     setHydrated(true);
   }, []);
@@ -50,8 +57,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     try {
       localStorage.setItem(KEY, JSON.stringify(users));
       localStorage.setItem(SCHEDE_KEY, JSON.stringify(schede));
+      localStorage.setItem(OBJ_KEY, JSON.stringify(objectives));
     } catch {}
-  }, [users, schede, hydrated]);
+  }, [users, schede, objectives, hydrated]);
 
   const notify = useCallback((message: string) => {
     const id = Date.now() + Math.random();
@@ -79,15 +87,26 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setSchede((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch, updatedAt: today() } : s)));
   }, []);
 
+  const addObjective = useCallback((o: Omit<ObjectiveDef, "id" | "updatedAt">) => {
+    const obj: ObjectiveDef = { ...o, id: `ob${Date.now().toString(36)}`, updatedAt: today() };
+    setObjectives((prev) => [obj, ...prev]);
+    return obj;
+  }, []);
+
+  const updateObjective = useCallback((id: string, patch: Partial<ObjectiveDef>) => {
+    setObjectives((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch, updatedAt: today() } : o)));
+  }, []);
+
   const resetData = useCallback(() => {
     const seed = buildSeedUsers();
     setUsers(seed);
     setSchede(buildSeedSchede(seed));
+    setObjectives(SEED_OBJECTIVES);
   }, []);
 
   const value = useMemo(
-    () => ({ users, addUser, updateUser, schede, addScheda, updateScheda, resetData, hydrated, toasts, notify }),
-    [users, addUser, updateUser, schede, addScheda, updateScheda, resetData, hydrated, toasts, notify],
+    () => ({ users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, resetData, hydrated, toasts, notify }),
+    [users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, resetData, hydrated, toasts, notify],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

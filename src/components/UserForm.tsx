@@ -89,7 +89,7 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
                 setEmailTouched(true);
                 set("email", e.target.value);
               }}
-              placeholder="nome.cognome@rossi.com"
+              placeholder="nome.cognome@tryspark.co"
             />
           </Field>
         </div>

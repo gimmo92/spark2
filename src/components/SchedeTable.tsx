@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import {
   Archive,
   ArchiveRestore,
+  Building2,
   CalendarDays,
   ChevronDown,
   ChevronUp,
@@ -18,7 +19,7 @@ import {
   ShieldAlert,
   UserRound,
 } from "lucide-react";
-import { TEAMS, fullName, type User } from "@/lib/data";
+import { COMPANIES, TEAMS, fullName, type User } from "@/lib/data";
 import {
   SCHEDA_STATUSES,
   YEARS,
@@ -59,12 +60,13 @@ const fmt = (n: number) => n.toLocaleString("it-IT", { maximumFractionDigits: 2 
 
 export function SchedeTable() {
   const router = useRouter();
-  const { schede, users, updateScheda, notify } = useStore();
+  const { schede, users, updateScheda, notify, objectives } = useStore();
   const byId = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
 
   const [status, setStatus] = useState("");
   const [year, setYear] = useState("2026");
   const [team, setTeam] = useState("");
+  const [company, setCompany] = useState("");
   const [showArchived, setShowArchived] = useState("");
   const [q, setQ] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "name", dir: 1 });
@@ -80,7 +82,7 @@ export function SchedeTable() {
         return u ? `${u.lastName} ${u.firstName}` : s.name;
       }
       if (k === "team") return first(s)?.team ?? "";
-      if (k === "score") return schedaScore(s);
+      if (k === "score") return schedaScore(objectives, s);
       if (k === "status") return SCHEDA_STATUSES.findIndex((x) => x.value === s.status);
       return s[k];
     };
@@ -90,6 +92,7 @@ export function SchedeTable() {
         if (status ? s.status !== status : s.status === "archiviata" && !showArchived) return false;
         if (year && cycleYear(s.cycle) !== Number(year)) return false;
         if (team && !people.some((u) => u.team === team)) return false;
+        if (company && !people.some((u) => u.company === company)) return false;
         if (needle && !`${people.map(fullName).join(" ")} ${s.name}`.toLowerCase().includes(needle)) return false;
         return true;
       })
@@ -99,10 +102,10 @@ export function SchedeTable() {
         const c = typeof x === "number" && typeof y === "number" ? x - y : collator.compare(String(x), String(y));
         return c * sort.dir;
       });
-  }, [schede, byId, status, year, team, showArchived, q, sort]);
+  }, [schede, byId, status, year, team, company, showArchived, q, sort, objectives]);
 
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
-  const anyFilter = status || year !== "2026" || team || showArchived || q;
+  const anyFilter = status || year !== "2026" || team || company || showArchived || q;
   const viewed = viewing ? schede.find((s) => s.id === viewing) : undefined;
 
   const cols: { key: SortKey | "objectives"; label: string }[] = [
@@ -159,11 +162,19 @@ export function SchedeTable() {
         />
         <FilterMenu
           icon={<UserRound className="h-3.5 w-3.5 fill-[#7d8698] text-[#7d8698]" />}
-          label="Filtra per team"
-          activeLabel="Team"
+          label="Filtra per gruppo"
+          activeLabel="Gruppo"
           value={team}
           onChange={setTeam}
           options={TEAMS.map((t) => ({ value: t, label: t }))}
+        />
+        <FilterMenu
+          icon={<Building2 className="h-3.5 w-3.5 text-[#7d8698]" />}
+          label="Filtra per società"
+          activeLabel="Società"
+          value={company}
+          onChange={setCompany}
+          options={COMPANIES.map((c) => ({ value: c, label: c }))}
         />
         {!status && (
           <FilterMenu
@@ -181,6 +192,7 @@ export function SchedeTable() {
               setStatus("");
               setYear("2026");
               setTeam("");
+              setCompany("");
               setShowArchived("");
               setQ("");
             }}
@@ -241,7 +253,7 @@ export function SchedeTable() {
           <tbody>
             {rows.map((s) => {
               const people = s.assigneeIds.map((id) => byId.get(id)).filter(Boolean) as User[];
-              const score = schedaScore(s);
+              const score = schedaScore(objectives, s);
               const measured = hasActuals(s);
               return (
                 <tr key={s.id} className={`group border-b border-line last:border-0 hover:bg-[#f8fafd] ${s.status === "archiviata" ? "opacity-60" : ""}`}>
@@ -262,7 +274,7 @@ export function SchedeTable() {
                     <span className="inline-flex items-center gap-1.5">
                       {s.items.length}
                       {s.threshold && (
-                        <span title={`Obiettivo soglia: ${catalogById(s.threshold.objectiveId)?.name ?? ""}`}>
+                        <span title={`Obiettivo soglia: ${catalogById(objectives, s.threshold.objectiveId)?.name ?? ""}`}>
                           <ShieldAlert className="h-3.5 w-3.5 text-amber-500" />
                         </span>
                       )}
@@ -368,8 +380,9 @@ export function SchedeTable() {
 }
 
 function SchedaView({ scheda: s, people, onClose, onEdit }: { scheda: Scheda; people: User[]; onClose: () => void; onEdit: () => void }) {
-  const score = schedaScore(s);
-  const gate = s.threshold ? catalogById(s.threshold.objectiveId) : undefined;
+  const { objectives } = useStore();
+  const score = schedaScore(objectives, s);
+  const gate = s.threshold ? catalogById(objectives, s.threshold.objectiveId) : undefined;
   const measured = hasActuals(s);
   return (
     <Modal
@@ -397,11 +410,11 @@ function SchedaView({ scheda: s, people, onClose, onEdit }: { scheda: Scheda; pe
       </div>
 
       {gate && (
-        <div className={`mt-4 rounded-lg px-3 py-2 text-[12px] ${thresholdMet(s) ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>
+        <div className={`mt-4 rounded-lg px-3 py-2 text-[12px] ${thresholdMet(objectives, s) ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>
           <span className="font-bold">Obiettivo soglia:</span> {gate.name} ≥ {fmt(gate.levels[0].target)} {gate.unit}
           {s.threshold?.actual != null && (
             <>
-              {" "}· consuntivo {fmt(s.threshold.actual)} {gate.unit} — {thresholdMet(s) ? "raggiunta" : "non raggiunta, payout azzerato"}
+              {" "}· consuntivo {fmt(s.threshold.actual)} {gate.unit} — {thresholdMet(objectives, s) ? "raggiunta" : "non raggiunta, payout azzerato"}
             </>
           )}
         </div>
@@ -418,14 +431,13 @@ function SchedaView({ scheda: s, people, onClose, onEdit }: { scheda: Scheda; pe
         </thead>
         <tbody>
           {s.items.map((it) => {
-            const def = itemDef(it);
+            const def = itemDef(objectives, it);
             if (!def) return null;
             return (
               <tr key={it.id} className="border-b border-line last:border-0">
                 <td className="py-2.5">
                   <span className="block text-[13px] font-semibold">
                     {def.name}
-                    {it.custom && <span className="ml-1.5 rounded bg-violet-50 px-1.5 py-[1px] text-[10px] font-bold uppercase text-violet-700">Unico</span>}
                   </span>
                   <span className="block text-[11.5px] text-muted">
                     {def.calc === "lineare" ? "Lineare" : "A scaglioni"} · {def.levels.map((l) => `${fmt(l.target)} ${def.unit} → ${l.payout}%`).join(" · ")}

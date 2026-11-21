@@ -15,7 +15,14 @@ export interface ObjectiveDef {
   unit: string;
   calc: CalcMode;
   levels: Level[]; // ordered by ascending target
+  /** Catalog-only metadata (absent on one-off objectives inside a scheda). */
+  description?: string;
+  category?: string;
+  archived?: boolean;
+  updatedAt?: string;
 }
+
+export const CATEGORIES = ["Economico-finanziario", "Operations", "Clienti", "Persone", "Sicurezza", "Sostenibilità"];
 
 /** An objective inside a scheda: either from the catalog (objectiveId) or a one-off custom definition. */
 export interface SchedaItem {
@@ -59,24 +66,40 @@ export const cycleLabel = (c: string) => CYCLES.find((x) => x.value === c)?.labe
 export const cycleYear = (c: string) => Number(c.slice(0, 4));
 export const YEARS = [2026, 2025, 2024];
 
-export const OBJECTIVE_CATALOG: ObjectiveDef[] = [
-  { id: "ob-fatturato", name: "Fatturato area di competenza", unit: "M€", calc: "lineare", levels: [{ target: 8, payout: 50 }, { target: 10, payout: 100 }, { target: 12, payout: 150 }] },
-  { id: "ob-oee", name: "Efficienza OEE impianti", unit: "%", calc: "lineare", levels: [{ target: 70, payout: 50 }, { target: 78, payout: 100 }, { target: 85, payout: 130 }] },
-  { id: "ob-nps", name: "Customer satisfaction (NPS)", unit: "pt", calc: "lineare", levels: [{ target: 30, payout: 50 }, { target: 40, payout: 100 }, { target: 50, payout: 120 }] },
-  { id: "ob-consegne", name: "Puntualità consegne", unit: "%", calc: "lineare", levels: [{ target: 90, payout: 50 }, { target: 95, payout: 100 }, { target: 98, payout: 120 }] },
-  { id: "ob-formazione", name: "Ore di formazione completate", unit: "h", calc: "scaglioni", levels: [{ target: 20, payout: 50 }, { target: 32, payout: 100 }, { target: 40, payout: 110 }] },
-  { id: "ob-clienti", name: "Nuovi clienti acquisiti", unit: "n.", calc: "scaglioni", levels: [{ target: 5, payout: 50 }, { target: 8, payout: 100 }, { target: 12, payout: 150 }] },
-  { id: "ob-margine", name: "Margine operativo di reparto", unit: "%", calc: "lineare", levels: [{ target: 12, payout: 50 }, { target: 15, payout: 100 }, { target: 18, payout: 140 }] },
-  { id: "ob-energia", name: "Risparmio costi energetici", unit: "k€", calc: "lineare", levels: [{ target: 50, payout: 50 }, { target: 80, payout: 100 }, { target: 120, payout: 150 }] },
-  { id: "ob-digitale", name: "Processi digitalizzati", unit: "n.", calc: "scaglioni", levels: [{ target: 2, payout: 50 }, { target: 4, payout: 100 }, { target: 6, payout: 120 }] },
-  { id: "ob-sicurezza", name: "Giorni senza infortuni", unit: "gg", calc: "scaglioni", levels: [{ target: 300, payout: 50 }, { target: 340, payout: 100 }, { target: 365, payout: 120 }] },
-  { id: "ob-magazzino", name: "Rotazione di magazzino", unit: "volte", calc: "lineare", levels: [{ target: 4, payout: 50 }, { target: 6, payout: 100 }, { target: 8, payout: 130 }] },
-  { id: "ob-ebitda", name: "EBITDA di Gruppo", unit: "M€", calc: "scaglioni", levels: [{ target: 40, payout: 100 }] },
-  { id: "ob-utile", name: "Utile netto aziendale", unit: "M€", calc: "scaglioni", levels: [{ target: 18, payout: 100 }] },
+const o = (
+  id: string,
+  name: string,
+  category: string,
+  description: string,
+  unit: string,
+  calc: CalcMode,
+  levels: [number, number][],
+): ObjectiveDef => ({ id, name, category, description, unit, calc, levels: levels.map(([target, payout]) => ({ target, payout })), updatedAt: "2026-01-15" });
+
+export const SEED_OBJECTIVES: ObjectiveDef[] = [
+  o("ob-fatturato", "Fatturato area di competenza", "Economico-finanziario", "Ricavi netti fatturati nell'area o nel portafoglio clienti assegnato.", "M€", "lineare", [[8, 50], [10, 100], [12, 150]]),
+  o("ob-oee", "Efficienza OEE impianti", "Operations", "Overall Equipment Effectiveness media degli impianti di competenza.", "%", "lineare", [[70, 50], [78, 100], [85, 130]]),
+  o("ob-nps", "Customer satisfaction (NPS)", "Clienti", "Net Promoter Score rilevato dalla survey clienti annuale.", "pt", "lineare", [[30, 50], [40, 100], [50, 120]]),
+  o("ob-consegne", "Puntualità consegne", "Clienti", "Percentuale di ordini consegnati entro la data confermata.", "%", "lineare", [[90, 50], [95, 100], [98, 120]]),
+  o("ob-formazione", "Ore di formazione completate", "Persone", "Ore medie di formazione completate dal team nel periodo.", "h", "scaglioni", [[20, 50], [32, 100], [40, 110]]),
+  o("ob-clienti", "Nuovi clienti acquisiti", "Clienti", "Numero di nuovi clienti con almeno un ordine nel periodo.", "n.", "scaglioni", [[5, 50], [8, 100], [12, 150]]),
+  o("ob-margine", "Margine operativo di reparto", "Economico-finanziario", "Margine operativo sul fatturato del reparto, da controllo di gestione.", "%", "lineare", [[12, 50], [15, 100], [18, 140]]),
+  o("ob-energia", "Risparmio costi energetici", "Sostenibilità", "Riduzione dei costi energetici rispetto all'anno precedente.", "k€", "lineare", [[50, 50], [80, 100], [120, 150]]),
+  o("ob-digitale", "Processi digitalizzati", "Operations", "Processi passati da gestione cartacea a strumenti digitali.", "n.", "scaglioni", [[2, 50], [4, 100], [6, 120]]),
+  o("ob-sicurezza", "Giorni senza infortuni", "Sicurezza", "Giorni consecutivi senza infortuni registrati nello stabilimento.", "gg", "scaglioni", [[300, 50], [340, 100], [365, 120]]),
+  o("ob-magazzino", "Rotazione di magazzino", "Operations", "Indice di rotazione delle scorte (costo del venduto / giacenza media).", "volte", "lineare", [[4, 50], [6, 100], [8, 130]]),
+  o("ob-ebitda", "EBITDA di Gruppo", "Economico-finanziario", "EBITDA consolidato di Gruppo. Usato tipicamente come obiettivo soglia.", "M€", "scaglioni", [[40, 100]]),
+  o("ob-utile", "Utile netto aziendale", "Economico-finanziario", "Utile netto da bilancio civilistico. Usato tipicamente come obiettivo soglia.", "M€", "scaglioni", [[18, 100]]),
+  { ...o("ob-carta", "Riduzione consumo carta", "Sostenibilità", "Risme di carta acquistate in meno rispetto all'anno precedente.", "%", "scaglioni", [[10, 50], [20, 100]]), archived: true },
 ];
 
-export const catalogById = (id?: string) => OBJECTIVE_CATALOG.find((o) => o.id === id);
-export const itemDef = (it: SchedaItem): ObjectiveDef | undefined => it.custom ?? catalogById(it.objectiveId);
+export type Catalog = ObjectiveDef[];
+export const catalogById = (catalog: Catalog, id?: string) => catalog.find((o) => o.id === id);
+export const itemDef = (catalog: Catalog, it: SchedaItem): ObjectiveDef | undefined => it.custom ?? catalogById(catalog, it.objectiveId);
+
+/** Schede that use a catalog objective, as a weighted item or as threshold. */
+export const schedeUsing = (schede: Scheda[], objectiveId: string) =>
+  schede.filter((s) => s.threshold?.objectiveId === objectiveId || s.items.some((i) => !i.custom && i.objectiveId === objectiveId));
 
 /** Payout % for an objective given the actual value. */
 export function payoutFor(def: ObjectiveDef, actual?: number): number {
@@ -91,18 +114,18 @@ export function payoutFor(def: ObjectiveDef, actual?: number): number {
   return Math.round(a.payout + ((actual - a.target) / (b.target - a.target)) * (b.payout - a.payout));
 }
 
-export const thresholdMet = (s: Scheda) => {
+export const thresholdMet = (catalog: Catalog, s: Scheda) => {
   if (!s.threshold) return true;
-  const def = catalogById(s.threshold.objectiveId);
+  const def = catalogById(catalog, s.threshold.objectiveId);
   return !def || payoutFor(def, s.threshold.actual) > 0;
 };
 
 /** Weighted payout of the scheda in % (0 if the threshold objective is missed). */
-export function schedaScore(s: Scheda): number {
-  if (!thresholdMet(s)) return 0;
+export function schedaScore(catalog: Catalog, s: Scheda): number {
+  if (!thresholdMet(catalog, s)) return 0;
   return Math.round(
     s.items.reduce((acc, it) => {
-      const def = itemDef(it);
+      const def = itemDef(catalog, it);
       return acc + (def ? (it.weight * payoutFor(def, it.actual)) / 100 : 0);
     }, 0),
   );
@@ -119,7 +142,7 @@ function rng(seed: number) {
 
 export function buildSeedSchede(users: User[]): Scheda[] {
   const rand = rng(7);
-  const pickable = OBJECTIVE_CATALOG.filter((o) => o.levels.length > 1);
+  const pickable = SEED_OBJECTIVES.filter((o) => o.levels.length > 1 && !o.archived);
   const people = users.filter((u) => u.status === "attivo").slice(0, 46);
   const out: Scheda[] = [];
   const actualFor = (def: ObjectiveDef) => {
@@ -145,7 +168,7 @@ export function buildSeedSchede(users: User[]): Scheda[] {
       // group a few schede with colleagues of the same team
       const extra =
         i % 5 === 0 ? users.filter((x) => x.status === "attivo" && x.team === u.team && x.id !== u.id).slice(0, 2).map((x) => x.id) : [];
-      const gate = rand() < 0.4 ? catalogById(rand() < 0.5 ? "ob-ebitda" : "ob-utile")! : undefined;
+      const gate = rand() < 0.4 ? catalogById(SEED_OBJECTIVES, rand() < 0.5 ? "ob-ebitda" : "ob-utile")! : undefined;
       out.push({
         id: `s${i + 1}-${cycle}`,
         name: `MBO ${cycle.slice(0, 4)} · ${u.role}`,

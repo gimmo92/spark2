@@ -74,14 +74,14 @@ const ROLES = [
 // Hand-picked demo rows shown first in the list (fictional people).
 const SEED: Array<[string, string, AccessLevel, string, string]> = [
   ["Aurelio", "Abbondanza", "UTENTE", "GROUPE B1 - INDIA", ROLES[0]],
-  ["Meera", "Acharvani", "UTENTE", "GROUPE B1 - INDIA", ROLES[1]],
+  ["Marta", "Acquaviva", "UTENTE", "GROUPE B1 - INDIA", ROLES[1]],
   ["Tommaso", "Adornetti", "UTENTE", "GROUPE A", ROLES[2]],
-  ["Farid", "Adzlan Rahimi", "UTENTE", "GROUPE B1 - SOUTH EAST ASIA", ROLES[3]],
-  ["Samir", "Al-Qasrawi", "MANAGER", "GROUPE B2 - ITALY", ROLES[4]],
+  ["Fabrizio", "Agostinelli", "UTENTE", "GROUPE B1 - SOUTH EAST ASIA", ROLES[3]],
+  ["Saverio", "Alboreto", "MANAGER", "GROUPE B2 - ITALY", ROLES[4]],
   ["Ludovica", "Albertazzi", "MANAGER", "GROUPE A", ROLES[5]],
-  ["Callum", "Alderwick", "UTENTE", "GROUPE B1 - AUSTRALIA", ROLES[6]],
+  ["Corrado", "Alderisi", "UTENTE", "GROUPE B1 - AUSTRALIA", ROLES[6]],
   ["Beatrice", "Amorevole", "UTENTE", "GROUPE A", ROLES[7]],
-  ["Yanis", "Ardouane", "UTENTE", "GROUPE B1 - FRANCE", ROLES[8]],
+  ["Ivano", "Ardenghi", "UTENTE", "GROUPE B1 - FRANCE", ROLES[8]],
   ["Ginevra", "Arpinelli", "UTENTE", "GROUPE B2 - ITALY", ROLES[9]],
   ["Ettore", "Ascanelli", "UTENTE", "GROUPE A", ROLES[10]],
   ["Noemi", "Astorrino", "UTENTE", "GROUPE A", ROLES[11]],
@@ -90,15 +90,15 @@ const SEED: Array<[string, string, AccessLevel, string, string]> = [
 const FIRST = [
   "Marco", "Giulia", "Luca", "Francesca", "Matteo", "Chiara", "Andrea", "Sara", "Davide", "Valentina",
   "Simone", "Martina", "Federico", "Elena", "Stefano", "Paola", "Riccardo", "Silvia", "Lorenzo", "Anna",
-  "Priya", "Rahul", "Arjun", "Deepa", "Wei Ming", "Siti", "Hafiz", "Nurul", "Jack", "Olivia",
-  "Liam", "Chloe", "Pierre", "Camille", "Julien", "Léa", "Mohamed", "Nadia", "Giorgio", "Roberta",
+  "Alessio", "Irene", "Gabriele", "Camilla", "Nicola", "Alice", "Pietro", "Serena", "Filippo", "Laura",
+  "Giacomo", "Elisa", "Emanuele", "Roberta", "Daniele", "Federica", "Massimo", "Ilaria", "Giorgio", "Monica",
 ];
 const LAST = [
   "Bianchi", "Romano", "Colombo", "Ricci", "Marino", "Greco", "Bruno", "Gallo", "Conti", "De Luca",
   "Mancini", "Costa", "Giordano", "Rizzo", "Lombardi", "Moretti", "Barbieri", "Fontana", "Santoro", "Mariani",
   "Rinaldi", "Caruso", "Ferrara", "Galli", "Martini", "Leone", "Longo", "Gentile", "Martinelli", "Vitale",
-  "Sharma", "Patel", "Iyer", "Tan", "Lim", "Yusof", "Smith", "Wilson", "Dubois", "Lefèvre",
-  "Bernard", "Pellegrini", "Serra", "Ferri", "Fabbri", "Villa", "Cattaneo", "Testa", "Parisi", "Sala",
+  "Benedetti", "Pellegrini", "Serra", "Ferri", "Fabbri", "Villa", "Cattaneo", "Testa", "Parisi", "Sala",
+  "Bellini", "Marchetti", "Guerra", "Sartori", "Grasso", "Monti", "Silvestri", "Orlando", "Neri", "Valentini",
 ];
 
 function mulberry32(seed: number) {
@@ -120,7 +120,7 @@ export function slugEmail(first: string, last: string) {
       .replace(/[^a-z]/g, "");
   const f = clean(first.split(" ")[0]);
   const l = clean(last);
-  return `${f}.${l}@rossi.com`;
+  return `${f}.${l}@tryspark.co`;
 }
 
 function isoDaysAgo(days: number) {
