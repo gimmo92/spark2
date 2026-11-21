@@ -82,14 +82,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <nav className="flex h-full flex-col">
-      <div className="flex items-center gap-2.5 border-b border-line px-9 pb-7 pt-8">
-        <SparkLogo className="h-8 w-6" />
-        <span className="text-[17px] font-semibold tracking-tight text-ink">Spark</span>
+      <div className="flex items-center gap-2.5 border-b border-line px-6 pb-4 pt-5">
+        <SparkLogo className="h-6 w-[18px]" />
+        <span className="text-[14px] font-semibold tracking-tight text-ink">Spark</span>
       </div>
 
       <div className="thin-scroll flex-1 overflow-y-auto pb-6">
-        <p className="px-9 pb-3 pt-9 text-[12px] font-bold uppercase tracking-wide text-[#3d8be8]">Sezioni</p>
-        <ul className="space-y-1">
+        <p className="px-6 pb-2 pt-5 text-[11px] font-bold uppercase tracking-wide text-[#3d8be8]">Sezioni</p>
+        <ul className="space-y-0.5">
           {NAV.map((item) => {
             if ("children" in item) {
               const isOpen = !!open[item.id];
@@ -101,11 +101,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     type="button"
                     onClick={() => setOpen((o) => ({ ...o, [item.id]: !o[item.id] }))}
                     aria-expanded={isOpen}
-                    className={`flex w-full items-center gap-4 rounded-r-xl px-9 py-4 text-left text-[16px] transition-colors ${
+                    className={`flex w-full items-center gap-3 rounded-r-xl px-6 py-2.5 text-left text-[13px] transition-colors ${
                       childActive || isOpen ? "bg-[#f6f8fb] font-semibold text-ink" : "text-ink/85 hover:bg-[#f8f9fb]"
                     }`}
                   >
-                    <Icon className="h-[22px] w-[22px] shrink-0 text-[#7d8698]" strokeWidth={1.4} />
+                    <Icon className="h-[18px] w-[18px] shrink-0 text-[#7d8698]" strokeWidth={1.4} />
                     <span className="flex-1">{item.label}</span>
                     <ChevronDown
                       className={`h-3.5 w-3.5 fill-current text-ink/70 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
@@ -115,7 +115,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     className={`grid transition-[grid-template-rows] duration-200 ease-out ${isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}
                   >
                     <div className="overflow-hidden" inert={!isOpen}>
-                      <ul className="py-2">
+                      <ul className="py-1">
                         {item.children.map((c) => {
                           const active = pathname.startsWith(c.href);
                           return (
@@ -123,7 +123,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                               <Link
                                 href={c.href}
                                 onClick={onNavigate}
-                                className={`flex items-center gap-5 py-2.5 pl-[50px] pr-5 text-[15px] transition-colors ${
+                                className={`flex items-center gap-4 py-1.5 pl-[34px] pr-4 text-[13px] transition-colors ${
                                   active ? "font-semibold text-ink" : "text-muted hover:text-ink"
                                 }`}
                               >
@@ -153,12 +153,12 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 <Link
                   href={item.href}
                   onClick={onNavigate}
-                  className={`flex items-center gap-4 rounded-r-xl px-9 py-4 text-[16px] transition-colors ${
+                  className={`flex items-center gap-3 rounded-r-xl px-6 py-2.5 text-[13px] transition-colors ${
                     active ? "bg-[#f6f8fb] font-semibold text-ink" : item.muted ? "text-faint hover:text-muted" : "text-ink/85 hover:bg-[#f8f9fb]"
                   }`}
                 >
                   <Icon
-                    className={`h-[22px] w-[22px] shrink-0 ${item.muted && !active ? "text-[#c3c8d1]" : "text-[#7d8698]"}`}
+                    className={`h-[18px] w-[18px] shrink-0 ${item.muted && !active ? "text-[#c3c8d1]" : "text-[#7d8698]"}`}
                     strokeWidth={1.4}
                   />
                   {item.label}
@@ -169,12 +169,12 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </ul>
       </div>
 
-      <div className="border-t border-line px-6 py-4">
+      <div className="border-t border-line px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="grid h-9 w-9 place-items-center rounded-full bg-brand-soft text-[13px] font-bold text-brand">GB</div>
+          <div className="grid h-8 w-8 place-items-center rounded-full bg-brand-soft text-[12px] font-bold text-brand">GB</div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[14px] font-semibold">Amministratore</p>
-            <p className="truncate text-[12px] text-muted">Rossi S.p.A.</p>
+            <p className="truncate text-[12.5px] font-semibold">Amministratore</p>
+            <p className="truncate text-[11px] text-muted">Rossi S.p.A.</p>
           </div>
           <button
             type="button"

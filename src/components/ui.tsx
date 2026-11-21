@@ -11,7 +11,7 @@ export function Badge({ children, tone = "blue" }: { children: React.ReactNode; 
   };
   return (
     <span
-      className={`inline-block whitespace-nowrap rounded-[3px] px-[7px] py-[3px] text-[9.5px] font-extrabold uppercase leading-none tracking-[0.01em] ${tones[tone]}`}
+      className={`inline-block whitespace-nowrap rounded-[3px] px-[6px] py-[3px] text-[8.5px] font-extrabold uppercase leading-none tracking-[0.01em] ${tones[tone]}`}
     >
       {children}
     </span>
@@ -67,7 +67,7 @@ export function FilterMenu({
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
-        className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-3 py-2 text-[15px] transition-colors ${
+        className={`flex items-center gap-1.5 whitespace-nowrap rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${
           isActive ? "bg-brand-soft text-brand" : "text-[#3f4757] hover:bg-white"
         }`}
       >
@@ -91,7 +91,7 @@ export function FilterMenu({
               onChange("");
               setOpen(false);
             }}
-            className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[14px] text-muted hover:bg-canvas"
+            className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left text-[12.5px] text-muted hover:bg-canvas"
           >
             Tutti
             {value === "" && <Check className="h-4 w-4 text-brand" />}
@@ -104,7 +104,7 @@ export function FilterMenu({
                 onChange(o.value);
                 setOpen(false);
               }}
-              className="flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-[14px] hover:bg-canvas"
+              className="flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-1.5 text-left text-[12.5px] hover:bg-canvas"
             >
               {o.label}
               {value === o.value && <Check className="h-4 w-4 text-brand" />}
@@ -149,7 +149,7 @@ export function Modal({
   onClose,
   children,
   footer,
-  width = "max-w-xl",
+  width = "max-w-lg",
 }: {
   title: string;
   onClose: () => void;
@@ -177,8 +177,8 @@ export function Modal({
         aria-label={title}
         className={`animate-dialog relative flex max-h-[90vh] w-full ${width} flex-col overflow-hidden rounded-2xl bg-white shadow-2xl`}
       >
-        <div className="flex items-center justify-between border-b border-line px-6 py-4">
-          <h2 className="text-[17px] font-bold">{title}</h2>
+        <div className="flex items-center justify-between border-b border-line px-5 py-3">
+          <h2 className="text-[14px] font-bold">{title}</h2>
           <button
             type="button"
             onClick={onClose}
@@ -188,8 +188,8 @@ export function Modal({
             <X className="h-4 w-4" />
           </button>
         </div>
-        <div className="overflow-y-auto px-6 py-5">{children}</div>
-        {footer && <div className="flex justify-end gap-2 border-t border-line bg-[#fafbfc] px-6 py-3.5">{footer}</div>}
+        <div className="overflow-y-auto px-5 py-4">{children}</div>
+        {footer && <div className="flex justify-end gap-2 border-t border-line bg-[#fafbfc] px-5 py-3">{footer}</div>}
       </div>
     </div>
   );
@@ -198,22 +198,22 @@ export function Modal({
 export function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[12px] font-bold uppercase tracking-wide text-muted">{label}</span>
+      <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">{label}</span>
       {children}
-      {error && <span className="mt-1 block text-[12px] font-semibold text-red-600">{error}</span>}
+      {error && <span className="mt-1 block text-[11px] font-semibold text-red-600">{error}</span>}
     </label>
   );
 }
 
 export const inputCls =
-  "w-full rounded-lg border border-[#dfe3ea] bg-white px-3 py-2.5 text-[15px] outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-brand focus:ring-3 focus:ring-brand/15";
+  "w-full rounded-lg border border-[#dfe3ea] bg-white px-3 py-2 text-[13px] outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-brand focus:ring-3 focus:ring-brand/15";
 
 export function GhostButton(props: React.ButtonHTMLAttributes<HTMLButtonElement>) {
   return (
     <button
       type="button"
       {...props}
-      className={`rounded-lg px-4 py-2 text-[14px] font-semibold text-muted transition-colors hover:bg-canvas hover:text-ink ${props.className ?? ""}`}
+      className={`rounded-lg px-4 py-2 text-[12.5px] font-semibold text-muted transition-colors hover:bg-canvas hover:text-ink ${props.className ?? ""}`}
     />
   );
 }
@@ -223,7 +223,7 @@ export function PrimaryButton(props: React.ButtonHTMLAttributes<HTMLButtonElemen
     <button
       type="button"
       {...props}
-      className={`btn-gradient rounded-lg px-5 py-2 text-[13px] font-extrabold uppercase tracking-tight text-white disabled:opacity-50 ${props.className ?? ""}`}
+      className={`btn-gradient rounded-lg px-4 py-2 text-[11.5px] font-extrabold uppercase tracking-tight text-white disabled:opacity-50 ${props.className ?? ""}`}
     />
   );
 }

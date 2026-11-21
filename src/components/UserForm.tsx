@@ -122,7 +122,7 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
             />
           </Field>
         </div>
-        <p className="text-[13px] text-muted sm:col-span-2">
+        <p className="text-[12px] text-muted sm:col-span-2">
           Società: <span className="font-semibold text-ink">{d.company}</span>
         </p>
         <button type="submit" hidden />
