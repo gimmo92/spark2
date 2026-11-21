@@ -82,7 +82,18 @@ body {
   animation: fade 160ms ease-out;
 }
 
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    translate: 0 3px;
+  }
+}
+.tooltip-in {
+  animation: tooltip-in 120ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .tooltip-in,
   .animate-pop,
   .animate-dialog,
   .animate-fade {

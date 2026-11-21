@@ -21,7 +21,7 @@ import {
 } from "lucide-react";
 import { ACCESS_LEVELS, COMPANIES, TEAMS, fullName, type User } from "@/lib/data";
 import { useStore } from "@/lib/store";
-import { Badge, FilterMenu, GhostButton, Modal, Popover, PrimaryButton } from "./ui";
+import { Badge, FilterMenu, GhostButton, Modal, Popover, PrimaryButton, Tooltip } from "./ui";
 import { UserFormModal } from "./UserForm";
 
 type SortKey = "name" | "level" | "email" | "team" | "role";
@@ -449,18 +449,24 @@ function IconBtn({
     danger ? "hover:bg-red-50 hover:text-red-600" : "hover:bg-brand-soft hover:text-brand"
   }`;
   if (href)
-    return href.startsWith("/") ? (
-      <Link href={href} title={label} aria-label={label} className={cls}>
+    return (
+      <Tooltip label={label}>
+        {href.startsWith("/") ? (
+      <Link href={href} aria-label={label} className={cls}>
         {children}
       </Link>
     ) : (
-      <a href={href} title={label} aria-label={label} className={cls}>
+      <a href={href} aria-label={label} className={cls}>
         {children}
       </a>
+        )}
+      </Tooltip>
     );
   return (
-    <button type="button" onClick={onClick} title={label} aria-label={label} className={cls}>
-      {children}
-    </button>
+    <Tooltip label={label}>
+      <button type="button" onClick={onClick} aria-label={label} className={cls}>
+        {children}
+      </button>
+    </Tooltip>
   );
 }

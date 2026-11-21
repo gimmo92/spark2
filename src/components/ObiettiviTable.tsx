@@ -26,7 +26,7 @@ import { CATEGORIES, cycleLabel, schedeUsing, type ObjectiveDef } from "@/lib/mb
 import { useStore } from "@/lib/store";
 import { LevelsReadOnly, PayoutCurve, fmt } from "./SchedaEditor";
 import { StatusPill } from "./SchedeTable";
-import { FilterMenu, GhostButton, Modal, PrimaryButton } from "./ui";
+import { FilterMenu, GhostButton, Modal, PrimaryButton, Tooltip } from "./ui";
 
 type SortKey = "name" | "category" | "calc" | "usage" | "updatedAt";
 const collator = new Intl.Collator("it", { sensitivity: "base" });
@@ -454,11 +454,11 @@ function IconBtn({
   disabled?: boolean;
 }) {
   return (
+    <Tooltip label={label}>
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      title={label}
       aria-label={label}
       className={`grid h-7 w-7 place-items-center rounded-md text-[#6c7486] transition-colors disabled:pointer-events-none disabled:opacity-30 ${
         danger ? "hover:bg-red-50 hover:text-red-600" : "hover:bg-brand-soft hover:text-brand"
@@ -466,5 +466,6 @@ function IconBtn({
     >
       {children}
     </button>
+    </Tooltip>
   );
 }

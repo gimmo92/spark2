@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Check, ChevronDown, X } from "lucide-react";
 
 export function Badge({ children, tone = "blue" }: { children: React.ReactNode; tone?: "blue" | "navy" | "grey" }) {
@@ -225,5 +226,56 @@ export function PrimaryButton(props: React.ButtonHTMLAttributes<HTMLButtonElemen
       {...props}
       className={`btn-gradient rounded-lg px-4 py-2 text-[11.5px] font-extrabold uppercase tracking-tight text-white disabled:opacity-50 ${props.className ?? ""}`}
     />
+  );
+}
+
+/**
+ * Small dark tooltip shown on hover/focus. Rendered in a portal with fixed positioning so it
+ * isn't clipped by scrolling table containers, and clamped to the viewport edges.
+ */
+export function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+
+  const show = () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      const r = ref.current?.getBoundingClientRect();
+      if (r) setPos({ x: r.left + r.width / 2, y: r.top });
+    }, 120);
+  };
+  const hide = () => {
+    if (timer.current) clearTimeout(timer.current);
+    setPos(null);
+  };
+  useEffect(() => {
+    if (!pos) return;
+    window.addEventListener("scroll", hide, true);
+    return () => window.removeEventListener("scroll", hide, true);
+  }, [pos]);
+  useEffect(() => () => {
+    if (timer.current) clearTimeout(timer.current);
+  }, []);
+
+  return (
+    <span ref={ref} className="inline-flex" onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide} onClick={hide}>
+      {children}
+      {pos &&
+        createPortal(
+          <span
+            role="tooltip"
+            className="tooltip-in pointer-events-none fixed z-[70] whitespace-nowrap rounded-md bg-ink px-2 py-1 text-[11.5px] font-semibold text-white shadow-lg"
+            style={{
+              left: Math.min(Math.max(pos.x, 60), window.innerWidth - 60),
+              top: pos.y - 6,
+              transform: "translate(-50%, -100%)",
+            }}
+          >
+            {label}
+          </span>,
+          document.body,
+        )}
+    </span>
   );
 }

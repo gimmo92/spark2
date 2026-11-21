@@ -36,7 +36,7 @@ import {
   type SchedaStatus,
 } from "@/lib/mbo";
 import { useStore } from "@/lib/store";
-import { Badge, FilterMenu, GhostButton, Modal, PrimaryButton } from "./ui";
+import { Badge, FilterMenu, GhostButton, Modal, PrimaryButton, Tooltip } from "./ui";
 
 const STATUS_STYLE: Record<SchedaStatus, string> = {
   bozza: "bg-[#eef1f5] text-[#5b6476]",
@@ -469,11 +469,11 @@ function IconBtn({
   disabled?: boolean;
 }) {
   return (
+    <Tooltip label={label}>
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      title={label}
       aria-label={label}
       className={`grid h-7 w-7 place-items-center rounded-md text-[#6c7486] transition-colors disabled:pointer-events-none disabled:opacity-30 ${
         danger ? "hover:bg-red-50 hover:text-red-600" : "hover:bg-brand-soft hover:text-brand"
@@ -481,5 +481,6 @@ function IconBtn({
     >
       {children}
     </button>
+    </Tooltip>
   );
 }
