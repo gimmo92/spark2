@@ -24,20 +24,19 @@ import {
 import { COMPANIES, TEAMS, fullName } from "@/lib/data";
 import { CATEGORIES, cycleLabel, schedeUsing, type ObjectiveDef } from "@/lib/mbo";
 import { useStore } from "@/lib/store";
-import { LevelsReadOnly, PayoutCurve, fmt } from "./SchedaEditor";
+import { LevelsReadOnly, PayoutCurve } from "./SchedaEditor";
 import { StatusPill } from "./SchedeTable";
 import { FilterMenu, GhostButton, Modal, PrimaryButton, Tooltip } from "./ui";
 
-type SortKey = "name" | "category" | "calc" | "usage" | "updatedAt";
+type SortKey = "name" | "category" | "usage" | "updatedAt";
 const collator = new Intl.Collator("it", { sensitivity: "base" });
 
 const CATEGORY_STYLE: Record<string, string> = {
-  "Economico-finanziario": "bg-blue-50 text-blue-700",
-  Operations: "bg-violet-50 text-violet-700",
-  Clienti: "bg-cyan-50 text-cyan-700",
-  Persone: "bg-pink-50 text-pink-700",
-  Sicurezza: "bg-amber-50 text-amber-700",
-  Sostenibilità: "bg-emerald-50 text-emerald-700",
+  Gruppo: "bg-[#1b3f8f] text-white",
+  Società: "bg-badge text-white",
+  "Business Unit": "bg-cyan-50 text-cyan-800",
+  Team: "bg-violet-50 text-violet-700",
+  Utente: "bg-[#eef1f5] text-[#5b6476]",
 };
 
 export function CategoryPill({ category }: { category?: string }) {
@@ -84,7 +83,13 @@ export function ObiettiviTable() {
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const val = (o: ObjectiveDef, k: SortKey): string | number =>
-      k === "usage" ? (usageMap.get(o.id)?.total ?? 0) : k === "name" ? o.name : (o[k] ?? "");
+      k === "usage"
+        ? (usageMap.get(o.id)?.total ?? 0)
+        : k === "category"
+          ? CATEGORIES.indexOf(o.category ?? "")
+          : k === "name"
+            ? o.name
+            : (o[k] ?? "");
     return objectives
       .filter((o) => {
         const u = usageMap.get(o.id);
@@ -109,42 +114,41 @@ export function ObiettiviTable() {
 
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
   const anyFilter = category || calc || usage || team || company || showArchived || q;
-  const activeCount = objectives.filter((o) => !o.archived).length;
   const viewed = viewing ? objectives.find((o) => o.id === viewing) : undefined;
 
   const cols: { key: SortKey | "levels"; label: string; sortable: boolean }[] = [
     { key: "name", label: "Obiettivo", sortable: true },
     { key: "category", label: "Categoria", sortable: true },
-    { key: "calc", label: "Calcolo", sortable: true },
     { key: "usage", label: "Schede", sortable: true },
-    { key: "levels", label: "Livelli target → payout", sortable: false },
+    { key: "updatedAt", label: "Aggiornato", sortable: true },
   ];
 
   return (
     <div className="space-y-3.5">
-      <div className="flex items-center gap-3 sm:gap-4">
+      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+        <h1 className="sr-only">Obiettivi</h1>
         <Link
           href="/mbo/obiettivi/nuovo"
           className="btn-gradient flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[11.5px] font-extrabold uppercase tracking-[-0.02em] text-white sm:px-5"
         >
           <Plus className="h-3.5 w-3.5" strokeWidth={3} /> Nuovo obiettivo
         </Link>
-      </div>
-
-      <div className="card px-4 py-2.5">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <h1 className="text-[14px] font-semibold text-ink">{showArchived ? "Obiettivi Archiviati" : "Catalogo Obiettivi"}</h1>
-          <span className="text-[13px] font-semibold tabular-nums text-ink">
-            {rows.length}/{showArchived ? objectives.length - activeCount : activeCount}
-          </span>
+        <div className="relative ml-auto w-full sm:w-[280px]">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Cerca obiettivo..."
+            aria-label="Cerca obiettivo"
+            className="w-full rounded-lg border border-[#e3e7ee] bg-white py-2 pl-9 pr-3 text-[13px] outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-brand focus:ring-3 focus:ring-brand/15"
+          />
         </div>
-        <p className="mt-0.5 text-[12px] text-muted">Obiettivi condivisi selezionabili nelle schede MBO, con livelli target, payout e modalità di calcolo.</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
         <FilterMenu
           icon={<Tag className="h-3.5 w-3.5 text-[#7d8698]" />}
-          label="Filtra per categoria"
+          label="Categoria"
           activeLabel="Categoria"
           value={category}
           onChange={setCategory}
@@ -212,19 +216,10 @@ export function ObiettiviTable() {
             Azzera
           </button>
         )}
-        <div className="relative ml-auto w-full sm:w-[240px]">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Cerca obiettivo..."
-            className="w-full rounded-lg border border-[#e3e7ee] bg-white py-1.5 pl-9 pr-3 text-[13px] outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-brand focus:ring-3 focus:ring-brand/15"
-          />
-        </div>
       </div>
 
       <div className="card overflow-x-auto">
-        <table className="w-full min-w-[900px] border-collapse text-left">
+        <table className="w-full min-w-[640px] border-collapse text-left">
           <thead>
             <tr className="border-b border-line">
               {cols.map((c) => {
@@ -268,8 +263,8 @@ export function ObiettiviTable() {
                 <tr key={o.id} className={`group border-b border-line last:border-0 hover:bg-[#f8fafd] ${o.archived ? "opacity-60" : ""}`}>
                   <td className="px-3 py-[9px] pl-4">
                     <button type="button" onClick={() => setViewing(o.id)} className="block text-left">
-                      <span className="block max-w-[250px] truncate text-[13.5px] font-semibold text-brand hover:underline">{o.name}</span>
-                      <span className="block max-w-[250px] truncate text-[11.5px] text-muted" title={o.description}>
+                      <span className="block max-w-[520px] truncate text-[13.5px] font-semibold text-brand hover:underline">{o.name}</span>
+                      <span className="block max-w-[520px] truncate text-[11.5px] text-muted" title={o.description}>
                         {o.description || "Nessuna descrizione"}
                       </span>
                     </button>
@@ -277,7 +272,6 @@ export function ObiettiviTable() {
                   <td className="px-3">
                     <CategoryPill category={o.category} />
                   </td>
-                  <td className="whitespace-nowrap px-3 text-[12.5px] text-[#5b6476]">{o.calc === "lineare" ? "Lineare" : "A scaglioni"}</td>
                   <td className="px-3">
                     <span className="inline-flex items-center gap-1.5 text-[13px] tabular-nums text-[#5b6476]">
                       {u.total || <span className="text-faint">0</span>}
@@ -288,15 +282,8 @@ export function ObiettiviTable() {
                       )}
                     </span>
                   </td>
-                  <td className="px-3">
-                    <div className="flex items-center gap-1">
-                      {o.levels.map((l, i) => (
-                        <span key={i} className="whitespace-nowrap rounded-md bg-canvas px-1.5 py-0.5 text-[11.5px] tabular-nums text-[#5b6476]">
-                          {fmt(l.target)}
-                          <span className="text-faint"> {o.unit}</span> → <span className="font-semibold text-ink">{l.payout}%</span>
-                        </span>
-                      ))}
-                    </div>
+                  <td className="whitespace-nowrap px-3 text-[12px] tabular-nums text-muted">
+                    {o.updatedAt ? new Date(o.updatedAt).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
                   </td>
                   <td className="sticky right-0 border-l border-line bg-white px-3 py-1 group-hover:bg-[#f8fafd]">
                     <div className="flex items-center gap-0.5">

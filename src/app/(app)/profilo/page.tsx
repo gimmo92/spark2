@@ -12,7 +12,7 @@ export default function ProfiloPage() {
         </div>
         <div>
           <p className="text-[16px] font-bold">Amministratore</p>
-          <p className="text-[13px] text-muted">Rossi S.p.A. · Livello ADMIN</p>
+          <p className="text-[13px] text-muted">Valmec S.p.A. · Livello ADMIN</p>
         </div>
       </div>
     </div>

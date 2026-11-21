@@ -115,9 +115,9 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
     setExpanded(id);
   };
   const personalize = (it: SchedaItem) => {
-    const def = catalogById(objectives, it.objectiveId);
+    const def = itemDef(objectives, it);
     if (!def) return;
-    updateItem(it.id, { objectiveId: undefined, custom: { ...def, id: uid("cu"), levels: def.levels.map((l) => ({ ...l })) } });
+    updateItem(it.id, { objectiveId: undefined, levels: undefined, custom: { ...def, id: uid("cu"), levels: def.levels.map((l) => ({ ...l })) } });
     setExpanded(it.id);
   };
 
@@ -402,17 +402,19 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
   );
 }
 
-export function customError(d: ObjectiveDef): string | null {
-  if (!d.name.trim()) return "Inserisci il nome dell'obiettivo";
-  if (!d.levels.length) return "Aggiungi almeno un livello";
-  for (let i = 1; i < d.levels.length; i++)
-    if (!(d.levels[i].target > d.levels[i - 1].target)) return "I livelli target devono essere crescenti";
-  if (d.levels.some((l) => l.payout < 0 || Number.isNaN(l.payout) || Number.isNaN(l.target))) return "Controlla i valori dei livelli";
+export function levelsError(levels: Level[]): string | null {
+  if (!levels.length) return "Aggiungi almeno un livello";
+  for (let i = 1; i < levels.length; i++) if (!(levels[i].target > levels[i - 1].target)) return "I livelli target devono essere crescenti";
+  if (levels.some((l) => l.payout < 0 || Number.isNaN(l.payout) || Number.isNaN(l.target))) return "Controlla i valori dei livelli";
   return null;
 }
 
+export function customError(d: ObjectiveDef): string | null {
+  if (!d.name.trim()) return "Inserisci il nome dell'obiettivo";
+  return levelsError(d.levels);
+}
+
 export function CustomObjectiveEditor({ def, onChange, error }: { def: ObjectiveDef; onChange: (p: Partial<ObjectiveDef>) => void; error?: string }) {
-  const setLevel = (i: number, patch: Partial<Level>) => onChange({ levels: def.levels.map((l, k) => (k === i ? { ...l, ...patch } : l)) });
   return (
     <div className="grid gap-4 sm:grid-cols-[1fr_220px]">
       <div className="space-y-3.5">
@@ -447,44 +449,7 @@ export function CustomObjectiveEditor({ def, onChange, error }: { def: Objective
           </p>
         </Block>
 
-        <div>
-          <div className="mb-1.5 grid grid-cols-[64px_1fr_1fr_28px] gap-2 text-[11px] font-bold uppercase tracking-wide text-muted">
-            <span>Livello</span>
-            <span>Target ({def.unit || "valore"})</span>
-            <span>Payout %</span>
-            <span />
-          </div>
-          <div className="space-y-1.5">
-            {def.levels.map((l, i) => (
-              <div key={i} className="grid grid-cols-[64px_1fr_1fr_28px] items-center gap-2">
-                <span className="text-[12.5px] font-semibold text-muted">
-                  {i === 0 ? "Minimo" : i === def.levels.length - 1 && def.levels.length > 1 ? "Massimo" : `Livello ${i + 1}`}
-                </span>
-                <input type="number" className={inputCls} value={l.target} onChange={(e) => setLevel(i, { target: Number(e.target.value) })} />
-                <input type="number" min={0} className={inputCls} value={l.payout} onChange={(e) => setLevel(i, { payout: Number(e.target.value) })} />
-                <button
-                  type="button"
-                  aria-label="Rimuovi livello"
-                  disabled={def.levels.length === 1}
-                  onClick={() => onChange({ levels: def.levels.filter((_, k) => k !== i) })}
-                  className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))}
-          </div>
-          <button
-            type="button"
-            onClick={() => {
-              const last = def.levels[def.levels.length - 1];
-              onChange({ levels: [...def.levels, { target: last ? last.target + 10 : 100, payout: last ? last.payout + 25 : 100 }] });
-            }}
-            className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline"
-          >
-            <Plus className="h-3.5 w-3.5" /> Aggiungi livello
-          </button>
-        </div>
+        <LevelsEditor unit={def.unit} levels={def.levels} onChange={(levels) => onChange({ levels })} />
         {error && (
           <p className="flex items-center gap-1.5 text-[12px] font-semibold text-red-600">
             <TriangleAlert className="h-3.5 w-3.5" /> {error}
@@ -492,6 +457,51 @@ export function CustomObjectiveEditor({ def, onChange, error }: { def: Objective
         )}
       </div>
       <PayoutCurve def={def} />
+    </div>
+  );
+}
+
+/** Editable table of target → payout levels. */
+export function LevelsEditor({ unit, levels, onChange }: { unit: string; levels: Level[]; onChange: (levels: Level[]) => void }) {
+  const setLevel = (i: number, patch: Partial<Level>) => onChange(levels.map((l, k) => (k === i ? { ...l, ...patch } : l)));
+  return (
+    <div>
+      <div className="mb-1.5 grid grid-cols-[64px_1fr_1fr_28px] gap-2 text-[11px] font-bold uppercase tracking-wide text-muted">
+        <span>Livello</span>
+        <span>Target ({unit || "valore"})</span>
+        <span>Payout %</span>
+        <span />
+      </div>
+      <div className="space-y-1.5">
+        {levels.map((l, i) => (
+          <div key={i} className="grid grid-cols-[64px_1fr_1fr_28px] items-center gap-2">
+            <span className="text-[12.5px] font-semibold text-muted">
+              {i === 0 ? "Minimo" : i === levels.length - 1 && levels.length > 1 ? "Massimo" : `Livello ${i + 1}`}
+            </span>
+            <input type="number" className={inputCls} value={l.target} onChange={(e) => setLevel(i, { target: Number(e.target.value) })} />
+            <input type="number" min={0} className={inputCls} value={l.payout} onChange={(e) => setLevel(i, { payout: Number(e.target.value) })} />
+            <button
+              type="button"
+              aria-label="Rimuovi livello"
+              disabled={levels.length === 1}
+              onClick={() => onChange(levels.filter((_, k) => k !== i))}
+              className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          const last = levels[levels.length - 1];
+          onChange([...levels, { target: last ? last.target + 10 : 100, payout: last ? last.payout + 25 : 100 }]);
+        }}
+        className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline"
+      >
+        <Plus className="h-3.5 w-3.5" /> Aggiungi livello
+      </button>
     </div>
   );
 }

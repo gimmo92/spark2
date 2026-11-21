@@ -22,7 +22,8 @@ export interface ObjectiveDef {
   updatedAt?: string;
 }
 
-export const CATEGORIES = ["Economico-finanziario", "Operations", "Clienti", "Persone", "Sicurezza", "Sostenibilità"];
+/** Objective category = organisational level it is measured at. */
+export const CATEGORIES = ["Gruppo", "Società", "Business Unit", "Team", "Utente"];
 
 /** An objective inside a scheda: either from the catalog (objectiveId) or a one-off custom definition. */
 export interface SchedaItem {
@@ -31,6 +32,8 @@ export interface SchedaItem {
   actual?: number;
   objectiveId?: string;
   custom?: ObjectiveDef;
+  /** Per-scheda target/payout levels overriding the catalog objective's defaults. */
+  levels?: Level[];
 }
 
 export interface Scheda {
@@ -77,25 +80,29 @@ const o = (
 ): ObjectiveDef => ({ id, name, category, description, unit, calc, levels: levels.map(([target, payout]) => ({ target, payout })), updatedAt: "2026-01-15" });
 
 export const SEED_OBJECTIVES: ObjectiveDef[] = [
-  o("ob-fatturato", "Fatturato area di competenza", "Economico-finanziario", "Ricavi netti fatturati nell'area o nel portafoglio clienti assegnato.", "M€", "lineare", [[8, 50], [10, 100], [12, 150]]),
-  o("ob-oee", "Efficienza OEE impianti", "Operations", "Overall Equipment Effectiveness media degli impianti di competenza.", "%", "lineare", [[70, 50], [78, 100], [85, 130]]),
-  o("ob-nps", "Customer satisfaction (NPS)", "Clienti", "Net Promoter Score rilevato dalla survey clienti annuale.", "pt", "lineare", [[30, 50], [40, 100], [50, 120]]),
-  o("ob-consegne", "Puntualità consegne", "Clienti", "Percentuale di ordini consegnati entro la data confermata.", "%", "lineare", [[90, 50], [95, 100], [98, 120]]),
-  o("ob-formazione", "Ore di formazione completate", "Persone", "Ore medie di formazione completate dal team nel periodo.", "h", "scaglioni", [[20, 50], [32, 100], [40, 110]]),
-  o("ob-clienti", "Nuovi clienti acquisiti", "Clienti", "Numero di nuovi clienti con almeno un ordine nel periodo.", "n.", "scaglioni", [[5, 50], [8, 100], [12, 150]]),
-  o("ob-margine", "Margine operativo di reparto", "Economico-finanziario", "Margine operativo sul fatturato del reparto, da controllo di gestione.", "%", "lineare", [[12, 50], [15, 100], [18, 140]]),
-  o("ob-energia", "Risparmio costi energetici", "Sostenibilità", "Riduzione dei costi energetici rispetto all'anno precedente.", "k€", "lineare", [[50, 50], [80, 100], [120, 150]]),
-  o("ob-digitale", "Processi digitalizzati", "Operations", "Processi passati da gestione cartacea a strumenti digitali.", "n.", "scaglioni", [[2, 50], [4, 100], [6, 120]]),
-  o("ob-sicurezza", "Giorni senza infortuni", "Sicurezza", "Giorni consecutivi senza infortuni registrati nello stabilimento.", "gg", "scaglioni", [[300, 50], [340, 100], [365, 120]]),
-  o("ob-magazzino", "Rotazione di magazzino", "Operations", "Indice di rotazione delle scorte (costo del venduto / giacenza media).", "volte", "lineare", [[4, 50], [6, 100], [8, 130]]),
-  o("ob-ebitda", "EBITDA di Gruppo", "Economico-finanziario", "EBITDA consolidato di Gruppo. Usato tipicamente come obiettivo soglia.", "M€", "scaglioni", [[40, 100]]),
-  o("ob-utile", "Utile netto aziendale", "Economico-finanziario", "Utile netto da bilancio civilistico. Usato tipicamente come obiettivo soglia.", "M€", "scaglioni", [[18, 100]]),
-  { ...o("ob-carta", "Riduzione consumo carta", "Sostenibilità", "Risme di carta acquistate in meno rispetto all'anno precedente.", "%", "scaglioni", [[10, 50], [20, 100]]), archived: true },
+  o("ob-fatturato", "Fatturato area di competenza", "Business Unit", "Ricavi netti fatturati nell'area o nel portafoglio clienti assegnato.", "M€", "lineare", [[8, 50], [10, 100], [12, 150]]),
+  o("ob-oee", "Efficienza OEE impianti", "Team", "Overall Equipment Effectiveness media degli impianti di competenza.", "%", "lineare", [[70, 50], [78, 100], [85, 130]]),
+  o("ob-nps", "Customer satisfaction (NPS)", "Società", "Net Promoter Score rilevato dalla survey clienti annuale.", "pt", "lineare", [[30, 50], [40, 100], [50, 120]]),
+  o("ob-consegne", "Puntualità consegne", "Società", "Percentuale di ordini consegnati entro la data confermata.", "%", "lineare", [[90, 50], [95, 100], [98, 120]]),
+  o("ob-formazione", "Ore di formazione completate", "Utente", "Ore medie di formazione completate dal team nel periodo.", "h", "scaglioni", [[20, 50], [32, 100], [40, 110]]),
+  o("ob-clienti", "Nuovi clienti acquisiti", "Utente", "Numero di nuovi clienti con almeno un ordine nel periodo.", "n.", "scaglioni", [[5, 50], [8, 100], [12, 150]]),
+  o("ob-margine", "Margine operativo di reparto", "Business Unit", "Margine operativo sul fatturato del reparto, da controllo di gestione.", "%", "lineare", [[12, 50], [15, 100], [18, 140]]),
+  o("ob-energia", "Risparmio costi energetici", "Società", "Riduzione dei costi energetici rispetto all'anno precedente.", "k€", "lineare", [[50, 50], [80, 100], [120, 150]]),
+  o("ob-digitale", "Processi digitalizzati", "Team", "Processi passati da gestione cartacea a strumenti digitali.", "n.", "scaglioni", [[2, 50], [4, 100], [6, 120]]),
+  o("ob-sicurezza", "Giorni senza infortuni", "Società", "Giorni consecutivi senza infortuni registrati nello stabilimento.", "gg", "scaglioni", [[300, 50], [340, 100], [365, 120]]),
+  o("ob-magazzino", "Rotazione di magazzino", "Team", "Indice di rotazione delle scorte (costo del venduto / giacenza media).", "volte", "lineare", [[4, 50], [6, 100], [8, 130]]),
+  o("ob-ebitda", "EBITDA di Gruppo", "Gruppo", "EBITDA consolidato di Gruppo. Usato tipicamente come obiettivo soglia.", "M€", "scaglioni", [[40, 100]]),
+  o("ob-utile", "Utile netto aziendale", "Gruppo", "Utile netto da bilancio civilistico. Usato tipicamente come obiettivo soglia.", "M€", "scaglioni", [[18, 100]]),
+  { ...o("ob-carta", "Riduzione consumo carta", "Società", "Risme di carta acquistate in meno rispetto all'anno precedente.", "%", "scaglioni", [[10, 50], [20, 100]]), archived: true },
 ];
 
 export type Catalog = ObjectiveDef[];
 export const catalogById = (catalog: Catalog, id?: string) => catalog.find((o) => o.id === id);
-export const itemDef = (catalog: Catalog, it: SchedaItem): ObjectiveDef | undefined => it.custom ?? catalogById(catalog, it.objectiveId);
+export const itemDef = (catalog: Catalog, it: SchedaItem): ObjectiveDef | undefined => {
+  if (it.custom) return it.custom;
+  const def = catalogById(catalog, it.objectiveId);
+  return def && it.levels ? { ...def, levels: it.levels } : def;
+};
 
 /** Schede that use a catalog objective, as a weighted item or as threshold. */
 export const schedeUsing = (schede: Scheda[], objectiveId: string) =>

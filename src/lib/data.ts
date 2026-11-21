@@ -26,20 +26,20 @@ export const TEAMS = [
 ];
 
 export const COMPANIES = [
-  "Rossi S.p.A.",
-  "Rossi India Pvt Ltd",
-  "Rossi Asia Sdn Bhd",
-  "Rossi Australia Pty",
-  "Rossi France SAS",
+  "Valmec S.p.A.",
+  "Valmec Engineering India Pvt Ltd",
+  "Valmec Asia Pacific Sdn Bhd",
+  "Valmec Australia Pty Ltd",
+  "Valmec France SAS",
 ];
 
 const TEAM_COMPANY: Record<string, string> = {
-  "GROUPE A": "Rossi S.p.A.",
-  "GROUPE B1 - INDIA": "Rossi India Pvt Ltd",
-  "GROUPE B1 - SOUTH EAST ASIA": "Rossi Asia Sdn Bhd",
-  "GROUPE B1 - AUSTRALIA": "Rossi Australia Pty",
-  "GROUPE B1 - FRANCE": "Rossi France SAS",
-  "GROUPE B2 - ITALY": "Rossi S.p.A.",
+  "GROUPE A": "Valmec S.p.A.",
+  "GROUPE B1 - INDIA": "Valmec Engineering India Pvt Ltd",
+  "GROUPE B1 - SOUTH EAST ASIA": "Valmec Asia Pacific Sdn Bhd",
+  "GROUPE B1 - AUSTRALIA": "Valmec Australia Pty Ltd",
+  "GROUPE B1 - FRANCE": "Valmec France SAS",
+  "GROUPE B2 - ITALY": "Valmec S.p.A.",
 };
 
 export const companyForTeam = (team: string) => TEAM_COMPANY[team] ?? COMPANIES[0];

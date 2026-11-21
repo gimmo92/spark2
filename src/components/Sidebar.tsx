@@ -174,7 +174,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           <div className="grid h-8 w-8 place-items-center rounded-full bg-brand-soft text-[12px] font-bold text-brand">GB</div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[12.5px] font-semibold">Amministratore</p>
-            <p className="truncate text-[11px] text-muted">Rossi S.p.A.</p>
+            <p className="truncate text-[11px] text-muted">Valmec S.p.A.</p>
           </div>
           <button
             type="button"

@@ -4,9 +4,9 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { buildSeedUsers, type User } from "./data";
 import { SEED_OBJECTIVES, buildSeedSchede, type ObjectiveDef, type Scheda } from "./mbo";
 
-const KEY = "spark.users.v3";
+const KEY = "spark.users.v4";
 const SCHEDE_KEY = "spark.schede.v4";
-const OBJ_KEY = "spark.objectives.v1";
+const OBJ_KEY = "spark.objectives.v2";
 
 interface Toast {
   id: number;
