@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { getSupabaseBrowser } from "@/lib/supabase/client";
+import { Tooltip } from "./ui";
 import {
   ChartColumn,
   ChevronDown,
@@ -171,22 +173,58 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </ul>
       </div>
 
-      <div className="border-t border-line px-4 py-3">
-        <div className="flex items-center gap-3">
-          <div className="grid h-8 w-8 place-items-center rounded-full bg-brand-soft text-[12px] font-bold text-brand">GB</div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[12.5px] font-semibold">Amministratore</p>
-            <p className="truncate text-[11px] text-muted">Valmec S.p.A.</p>
-          </div>
-          <button
-            type="button"
-            title="Esci"
-            className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-canvas hover:text-ink"
-          >
-            <LogOut className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
+      <AccountFooter />
     </nav>
+  );
+}
+
+/** Signed-in user (from Supabase) + logout. Falls back to a demo identity when auth isn't configured. */
+function AccountFooter() {
+  const [who, setWho] = useState<{ name: string; email: string } | null>(null);
+
+  useEffect(() => {
+    const supabase = getSupabaseBrowser();
+    if (!supabase) return;
+    let alive = true;
+    supabase.auth.getUser().then(({ data }) => {
+      const u = data.user;
+      if (!alive || !u) return;
+      const meta = (u.user_metadata ?? {}) as Record<string, string | undefined>;
+      setWho({ name: meta.full_name ?? meta.name ?? u.email?.split("@")[0] ?? "Utente", email: u.email ?? "" });
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const name = who?.name ?? "Amministratore";
+  const initials = name
+    .split(/[\s.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("");
+
+  return (
+    <div className="border-t border-line px-4 py-3">
+      <div className="flex items-center gap-3">
+        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft text-[12px] font-bold text-brand">{initials || "U"}</div>
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-[12.5px] font-semibold">{name}</p>
+          <p className="truncate text-[11px] text-muted">{who?.email || "Valmec S.p.A."}</p>
+        </div>
+        <form action="/auth/signout" method="post">
+          <Tooltip label="Esci">
+            <button
+              type="submit"
+              aria-label="Esci"
+              className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-canvas hover:text-ink"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          </Tooltip>
+        </form>
+      </div>
+    </div>
   );
 }
