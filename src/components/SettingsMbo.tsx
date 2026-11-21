@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
-import { Pencil, Plus, Trash2 } from "lucide-react";
-import type { CalcMode, Preset } from "@/lib/mbo";
+import { Pencil, Plus, ShieldAlert, Trash2 } from "lucide-react";
+import { catalogById, type CalcMode, type Preset } from "@/lib/mbo";
 import { useStore } from "@/lib/store";
 import { Block, LevelsEditor, PayoutCurve, fmt, levelsError } from "./SchedaEditor";
 import { GhostButton, Modal, PrimaryButton, Tooltip, inputCls } from "./ui";
@@ -47,6 +47,8 @@ export function SettingsMbo() {
   return (
     <div className="space-y-4">
       <SettingsTabs />
+
+      <ThresholdSettings />
 
       <section className="card p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
@@ -232,5 +234,95 @@ function PresetModal({ preset, onClose }: { preset?: Preset; onClose: () => void
         <PayoutCurve def={asDef({ name, calc, levels })} />
       </div>
     </Modal>
+  );
+}
+
+/** Company-wide default threshold (gate) objective for MBO schede. */
+function ThresholdSettings() {
+  const { objectives, schede, mboSettings, setMboSettings, updateScheda, notify, hydrated } = useStore();
+  const [confirming, setConfirming] = useState(false);
+  const def = catalogById(objectives, mboSettings.defaultThresholdId);
+  const candidates = objectives.filter((o) => !o.archived || o.id === mboSettings.defaultThresholdId);
+  const withoutGate = schede.filter((s) => !s.threshold && s.status !== "archiviata" && s.status !== "consuntivata");
+
+  return (
+    <section className="card p-5">
+      <div className="flex items-start gap-3">
+        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-amber-50 text-amber-600">
+          <ShieldAlert className="h-4 w-4" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-[14px] font-bold">Obiettivo soglia</h2>
+          <p className="mt-0.5 max-w-xl text-[12.5px] text-muted">
+            Se l&apos;obiettivo soglia non raggiunge il primo livello target, la scheda non matura alcun payout. Quello scelto qui viene
+            impostato in automatico su ogni nuova scheda (modificabile nelle opzioni avanzate della scheda).
+          </p>
+
+          <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,360px)_1fr] sm:items-end">
+            <Block label="Obiettivo soglia predefinito">
+              <select
+                className={inputCls}
+                disabled={!hydrated}
+                value={mboSettings.defaultThresholdId ?? ""}
+                onChange={(e) => {
+                  setMboSettings({ defaultThresholdId: e.target.value || undefined });
+                  notify(e.target.value ? "Obiettivo soglia predefinito aggiornato" : "Nessun obiettivo soglia predefinito");
+                }}
+              >
+                <option value="">Nessuno</option>
+                {candidates.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.name}
+                    {o.category ? ` · ${o.category}` : ""}
+                  </option>
+                ))}
+              </select>
+            </Block>
+            {def && (
+              <p className="rounded-lg bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
+                Soglia raggiunta con almeno <strong>{fmt(def.levels[0].target)} {def.unit}</strong>
+              </p>
+            )}
+          </div>
+
+          {def && withoutGate.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setConfirming(true)}
+              className="mt-3 text-[12.5px] font-semibold text-brand hover:underline"
+            >
+              Applica alle {withoutGate.length} schede aperte senza soglia
+            </button>
+          )}
+        </div>
+      </div>
+
+      {confirming && def && (
+        <Modal
+          title="Applicare l'obiettivo soglia?"
+          onClose={() => setConfirming(false)}
+          width="max-w-md"
+          footer={
+            <>
+              <GhostButton onClick={() => setConfirming(false)}>Annulla</GhostButton>
+              <PrimaryButton
+                onClick={() => {
+                  for (const s of withoutGate) updateScheda(s.id, { threshold: { objectiveId: def.id } });
+                  notify(`Soglia applicata a ${withoutGate.length} schede`);
+                  setConfirming(false);
+                }}
+              >
+                Applica
+              </PrimaryButton>
+            </>
+          }
+        >
+          <p className="text-[13px] leading-relaxed text-muted">
+            <span className="font-semibold text-ink">{def.name}</span> diventerà l&apos;obiettivo soglia di {withoutGate.length} schede in
+            bozza, in approvazione o approvate che non ne hanno uno. Le schede consuntivate e quelle con una soglia propria non cambiano.
+          </p>
+        </Modal>
+      )}
+    </section>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Building2, CalendarDays } from "lucide-react";
-import { COMPANIES, TEAMS, type User } from "@/lib/data";
+import { COMPANIES, type User } from "@/lib/data";
 import { SCHEDA_STATUSES, YEARS, cycleYear, hasActuals, itemDef, payoutFor, schedaScore, type Scheda } from "@/lib/mbo";
 import { useStore } from "@/lib/store";
 import { DashboardTabs } from "./DashboardTabs";
@@ -47,13 +47,6 @@ export function DashboardMbo() {
       value: scope.filter((s) => s.status === x.value).length,
     }));
 
-    const byTeam = TEAMS.map((t) => {
-      const ss = measured.filter((s) => byId.get(s.assigneeIds[0])?.team === t);
-      return { label: t, value: avg(ss.map((s) => schedaScore(objectives, s))), n: ss.length };
-    })
-      .filter((x) => x.n > 0)
-      .sort((a, b) => b.value - a.value);
-
     const histogram = BUCKETS.map((b) => ({ label: b.label, value: scores.filter(b.test).length }));
 
     // per catalog objective: average payout across the measured schede that use it
@@ -80,7 +73,6 @@ export function DashboardMbo() {
       assignees: assignees.size,
       gatesMissed,
       byStatus,
-      byTeam,
       histogram,
       objRank,
     };
@@ -133,27 +125,14 @@ export function DashboardMbo() {
             <ChartCard title="Schede per stato" note="Numero di schede">
               <HBars rows={data.byStatus.map((r) => ({ ...r, tip: `${r.label}: ${r.value} schede` }))} format={(v) => String(v)} />
             </ChartCard>
-            <ChartCard title="Payout medio per gruppo" note="Linea tratteggiata = 100% del target">
-              {data.byTeam.length ? (
-                <HBars
-                  rows={data.byTeam.map((r) => ({ ...r, tip: `${r.label}: payout medio ${r.value}% su ${r.n} schede` }))}
-                  format={(v) => `${v}%`}
-                  reference={100}
-                />
-              ) : (
-                <Empty />
-              )}
-            </ChartCard>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-[1fr_1.2fr]">
             <ChartCard title="Distribuzione del payout" note="Schede consuntivate per fascia di payout">
               {data.measured ? <Histogram cols={data.histogram} /> : <Empty />}
             </ChartCard>
-            <ChartCard title="Raggiungimento per obiettivo" note="Payout medio sulle schede che lo usano">
-              {data.objRank.length ? <ObjectiveTable rows={data.objRank} /> : <Empty />}
-            </ChartCard>
           </div>
+
+          <ChartCard title="Raggiungimento per obiettivo" note="Payout medio sulle schede che lo usano">
+            {data.objRank.length ? <ObjectiveTable rows={data.objRank} /> : <Empty />}
+          </ChartCard>
         </>
       )}
     </div>

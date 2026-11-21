@@ -51,7 +51,8 @@ export function SchedaEditorPage({ isNew }: { isNew?: boolean }) {
 
 function SchedaEditor({ scheda }: { scheda?: Scheda }) {
   const router = useRouter();
-  const { users, addScheda, updateScheda, notify, objectives } = useStore();
+  const { users, addScheda, updateScheda, notify, objectives, mboSettings } = useStore();
+  const defaultGate = scheda ? undefined : catalogById(objectives, mboSettings.defaultThresholdId);
 
   const [name, setName] = useState(scheda?.name ?? "");
   const [assigneeIds, setAssigneeIds] = useState<string[]>(scheda?.assigneeIds ?? []);
@@ -59,8 +60,8 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
   const [status, setStatus] = useState<SchedaStatus>(scheda?.status ?? "bozza");
   const [items, setItems] = useState<SchedaItem[]>(scheda?.items ?? []);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [thresholdOn, setThresholdOn] = useState(!!scheda?.threshold);
-  const [thresholdId, setThresholdId] = useState(scheda?.threshold?.objectiveId ?? "");
+  const [thresholdOn, setThresholdOn] = useState(!!scheda?.threshold || !!defaultGate);
+  const [thresholdId, setThresholdId] = useState(scheda?.threshold?.objectiveId ?? defaultGate?.id ?? "");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 

@@ -17,9 +17,8 @@ import {
   Search,
   ShieldAlert,
   Tag,
-  UserRound,
 } from "lucide-react";
-import { COMPANIES, TEAMS, fullName } from "@/lib/data";
+import { COMPANIES, fullName } from "@/lib/data";
 import { CATEGORIES, cycleLabel, schedeUsing, type ObjectiveDef } from "@/lib/mbo";
 import { useStore } from "@/lib/store";
 import { LevelsReadOnly, PayoutCurve } from "./SchedaEditor";
@@ -51,7 +50,6 @@ export function ObiettiviTable() {
   const { objectives, schede, users, updateObjective, notify } = useStore();
 
   const [category, setCategory] = useState("");
-  const [team, setTeam] = useState("");
   const [company, setCompany] = useState("");
   const [showArchived, setShowArchived] = useState("");
   const [q, setQ] = useState("");
@@ -91,7 +89,6 @@ export function ObiettiviTable() {
         const u = usageMap.get(o.id);
         if (!!o.archived !== !!showArchived) return false;
         if (category && o.category !== category) return false;
-        if (team && !u?.teams.has(team)) return false;
         if (company && !u?.companies.has(company)) return false;
         if (needle && !`${o.name} ${o.description ?? ""}`.toLowerCase().includes(needle)) return false;
         return true;
@@ -102,10 +99,10 @@ export function ObiettiviTable() {
         const c = typeof x === "number" && typeof y === "number" ? x - y : collator.compare(String(x), String(y));
         return c * sort.dir;
       });
-  }, [objectives, usageMap, category, team, company, showArchived, q, sort]);
+  }, [objectives, usageMap, category, company, showArchived, q, sort]);
 
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
-  const anyFilter = category || team || company || showArchived || q;
+  const anyFilter = category || company || showArchived || q;
   const viewed = viewing ? objectives.find((o) => o.id === viewing) : undefined;
 
   const cols: { key: SortKey | "levels"; label: string; sortable: boolean }[] = [
@@ -147,14 +144,6 @@ export function ObiettiviTable() {
           options={CATEGORIES.map((c) => ({ value: c, label: c }))}
         />
         <FilterMenu
-          icon={<UserRound className="h-3.5 w-3.5 fill-[#7d8698] text-[#7d8698]" />}
-          label="Filtra per gruppo"
-          activeLabel="Gruppo"
-          value={team}
-          onChange={setTeam}
-          options={TEAMS.map((t) => ({ value: t, label: t }))}
-        />
-        <FilterMenu
           icon={<Building2 className="h-3.5 w-3.5 text-[#7d8698]" />}
           label="Filtra per società"
           activeLabel="Società"
@@ -174,7 +163,6 @@ export function ObiettiviTable() {
             type="button"
             onClick={() => {
               setCategory("");
-              setTeam("");
               setCompany("");
               setShowArchived("");
               setQ("");

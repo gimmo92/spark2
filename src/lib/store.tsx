@@ -8,6 +8,12 @@ const KEY = "spark.users.v4";
 const SCHEDE_KEY = "spark.schede.v4";
 const OBJ_KEY = "spark.objectives.v3";
 const PRESET_KEY = "spark.presets.v1";
+const SETTINGS_KEY = "spark.mbo-settings.v1";
+
+export interface MboSettings {
+  /** Threshold objective pre-set on every new scheda (catalog id). */
+  defaultThresholdId?: string;
+}
 
 interface Toast {
   id: number;
@@ -25,6 +31,8 @@ interface Store {
   addObjective: (o: Omit<ObjectiveDef, "id" | "updatedAt">) => ObjectiveDef;
   updateObjective: (id: string, patch: Partial<ObjectiveDef>) => void;
   presets: Preset[];
+  mboSettings: MboSettings;
+  setMboSettings: (patch: Partial<MboSettings>) => void;
   savePreset: (p: Omit<Preset, "id"> & { id?: string }) => Preset;
   deletePreset: (id: string) => void;
   resetData: () => void;
@@ -41,6 +49,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [schede, setSchede] = useState<Scheda[]>(() => buildSeedSchede(buildSeedUsers()));
   const [objectives, setObjectives] = useState<ObjectiveDef[]>(SEED_OBJECTIVES);
   const [presets, setPresets] = useState<Preset[]>(SEED_PRESETS);
+  const [mboSettings, setMboSettingsState] = useState<MboSettings>({ defaultThresholdId: "ob-ebitda" });
   const [hydrated, setHydrated] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
@@ -55,6 +64,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (rawO) setObjectives(JSON.parse(rawO));
       const rawP = localStorage.getItem(PRESET_KEY);
       if (rawP) setPresets(JSON.parse(rawP));
+      const rawSt = localStorage.getItem(SETTINGS_KEY);
+      if (rawSt) setMboSettingsState(JSON.parse(rawSt));
     } catch {}
     setHydrated(true);
   }, []);
@@ -66,8 +77,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(SCHEDE_KEY, JSON.stringify(schede));
       localStorage.setItem(OBJ_KEY, JSON.stringify(objectives));
       localStorage.setItem(PRESET_KEY, JSON.stringify(presets));
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(mboSettings));
     } catch {}
-  }, [users, schede, objectives, presets, hydrated]);
+  }, [users, schede, objectives, presets, mboSettings, hydrated]);
 
   const notify = useCallback((message: string) => {
     const id = Date.now() + Math.random();
@@ -111,6 +123,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     return preset;
   }, []);
 
+  const setMboSettings = useCallback((patch: Partial<MboSettings>) => setMboSettingsState((s) => ({ ...s, ...patch })), []);
+
   const deletePreset = useCallback((id: string) => setPresets((prev) => prev.filter((p) => p.id !== id)), []);
 
   const resetData = useCallback(() => {
@@ -122,8 +136,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, resetData, hydrated, toasts, notify }),
-    [users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, resetData, hydrated, toasts, notify],
+    () => ({ users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, mboSettings, setMboSettings, resetData, hydrated, toasts, notify }),
+    [users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, mboSettings, setMboSettings, resetData, hydrated, toasts, notify],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
