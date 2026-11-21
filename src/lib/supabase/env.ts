@@ -7,8 +7,8 @@ export const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? 
 
 export const authConfigured = Boolean(SUPABASE_URL && SUPABASE_KEY);
 
-/** Login methods shown on /login, e.g. "sso,azure,google". */
-export const AUTH_METHODS = (process.env.NEXT_PUBLIC_AUTH_METHODS ?? "sso,azure,google")
+/** Login methods shown on /login: any of password,otp,sso,azure,google. */
+export const AUTH_METHODS = (process.env.NEXT_PUBLIC_AUTH_METHODS ?? "password,otp")
   .split(",")
   .map((s) => s.trim())
   .filter(Boolean);
