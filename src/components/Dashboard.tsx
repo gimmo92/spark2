@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ACCESS_LEVELS, TEAMS } from "@/lib/data";
 import { useStore } from "@/lib/store";
+import { DashboardTabs } from "./DashboardTabs";
 
 export function Dashboard() {
   const { users } = useStore();
@@ -20,7 +21,7 @@ export function Dashboard() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-[17px] font-bold">Dashboard</h1>
+      <DashboardTabs />
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="card p-5">

@@ -233,7 +233,7 @@ export function PrimaryButton(props: React.ButtonHTMLAttributes<HTMLButtonElemen
  * Small dark tooltip shown on hover/focus. Rendered in a portal with fixed positioning so it
  * isn't clipped by scrolling table containers, and clamped to the viewport edges.
  */
-export function Tooltip({ label, children }: { label: string; children: React.ReactNode }) {
+export function Tooltip({ label, children, className = "inline-flex" }: { label: string; children: React.ReactNode; className?: string }) {
   const ref = useRef<HTMLSpanElement>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -259,7 +259,7 @@ export function Tooltip({ label, children }: { label: string; children: React.Re
   }, []);
 
   return (
-    <span ref={ref} className="inline-flex" onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide} onClick={hide}>
+    <span ref={ref} className={className} onMouseEnter={show} onMouseLeave={hide} onFocus={show} onBlur={hide} onClick={hide}>
       {children}
       {pos &&
         createPortal(
