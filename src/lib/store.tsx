@@ -3,12 +3,14 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { buildSeedUsers, type User } from "./data";
 import { INVITE_ERRORS, type InviteDTO, type InvitesStatus } from "./invites";
+import { SEED_WORKFLOWS, type Workflow } from "./workflow";
 import { SEED_OBJECTIVES, SEED_PRESETS, buildSeedSchede, type GlobalGate, type ObjectiveDef, type Preset, type Scheda } from "./mbo";
 
 const KEY = "spark.users.v4";
 const SCHEDE_KEY = "spark.schede.v4";
 const OBJ_KEY = "spark.objectives.v3";
 const PRESET_KEY = "spark.presets.v1";
+const WORKFLOW_KEY = "spark.workflows.v1";
 const SETTINGS_KEY = "spark.mbo-settings.v1";
 
 export interface MboSettings {
@@ -34,6 +36,9 @@ interface Store {
   addObjective: (o: Omit<ObjectiveDef, "id" | "updatedAt">) => ObjectiveDef;
   updateObjective: (id: string, patch: Partial<ObjectiveDef>) => void;
   presets: Preset[];
+  workflows: Workflow[];
+  saveWorkflow: (w: Omit<Workflow, "id" | "updatedAt"> & { id?: string }) => Workflow;
+  updateWorkflow: (id: string, patch: Partial<Workflow>) => void;
   /** Registration invites keyed by lowercase email (from /api/invites). */
   invites: Record<string, InviteDTO>;
   invitesStatus: InvitesStatus;
@@ -58,6 +63,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [schede, setSchede] = useState<Scheda[]>(() => buildSeedSchede(buildSeedUsers()));
   const [objectives, setObjectives] = useState<ObjectiveDef[]>(SEED_OBJECTIVES);
   const [presets, setPresets] = useState<Preset[]>(SEED_PRESETS);
+  const [workflows, setWorkflows] = useState<Workflow[]>(SEED_WORKFLOWS);
   const [mboSettings, setMboSettingsState] = useState<MboSettings>({ globalThresholdId: "ob-ebitda" });
   const [hydrated, setHydrated] = useState(false);
   const [invites, setInvites] = useState<Record<string, InviteDTO>>({});
@@ -76,6 +82,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       if (rawO) setObjectives(JSON.parse(rawO));
       const rawP = localStorage.getItem(PRESET_KEY);
       if (rawP) setPresets(JSON.parse(rawP));
+      const rawW = localStorage.getItem(WORKFLOW_KEY);
+      if (rawW) setWorkflows(JSON.parse(rawW));
       const rawSt = localStorage.getItem(SETTINGS_KEY);
       if (rawSt) {
         const st = JSON.parse(rawSt) as MboSettings & { defaultThresholdId?: string };
@@ -95,9 +103,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(SCHEDE_KEY, JSON.stringify(schede));
       localStorage.setItem(OBJ_KEY, JSON.stringify(objectives));
       localStorage.setItem(PRESET_KEY, JSON.stringify(presets));
+      localStorage.setItem(WORKFLOW_KEY, JSON.stringify(workflows));
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(mboSettings));
     } catch {}
-  }, [users, schede, objectives, presets, mboSettings, hydrated]);
+  }, [users, schede, objectives, presets, workflows, mboSettings, hydrated]);
 
   // invites live on the server: load once
   useEffect(() => {
@@ -183,6 +192,16 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const setMboSettings = useCallback((patch: Partial<MboSettings>) => setMboSettingsState((s) => ({ ...s, ...patch })), []);
 
+  const saveWorkflow = useCallback((w: Omit<Workflow, "id" | "updatedAt"> & { id?: string }) => {
+    const wf: Workflow = { ...w, id: w.id ?? `wf${Date.now().toString(36)}`, updatedAt: today() };
+    setWorkflows((prev) => (prev.some((x) => x.id === wf.id) ? prev.map((x) => (x.id === wf.id ? wf : x)) : [wf, ...prev]));
+    return wf;
+  }, []);
+
+  const updateWorkflow = useCallback((id: string, patch: Partial<Workflow>) => {
+    setWorkflows((prev) => prev.map((w) => (w.id === id ? { ...w, ...patch, updatedAt: today() } : w)));
+  }, []);
+
   const deletePreset = useCallback((id: string) => setPresets((prev) => prev.filter((p) => p.id !== id)), []);
 
   const globalGate = useMemo<GlobalGate>(
@@ -196,11 +215,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setSchede(buildSeedSchede(seed));
     setObjectives(SEED_OBJECTIVES);
     setPresets(SEED_PRESETS);
+    setWorkflows(SEED_WORKFLOWS);
   }, []);
 
   const value = useMemo(
-    () => ({ users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, mboSettings, setMboSettings, globalGate, invites, invitesStatus, invitesMessage, sendInvite, resetData, hydrated, toasts, notify }),
-    [users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, mboSettings, setMboSettings, globalGate, invites, invitesStatus, invitesMessage, sendInvite, resetData, hydrated, toasts, notify],
+    () => ({ users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, workflows, saveWorkflow, updateWorkflow, mboSettings, setMboSettings, globalGate, invites, invitesStatus, invitesMessage, sendInvite, resetData, hydrated, toasts, notify }),
+    [users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, workflows, saveWorkflow, updateWorkflow, mboSettings, setMboSettings, globalGate, invites, invitesStatus, invitesMessage, sendInvite, resetData, hydrated, toasts, notify],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

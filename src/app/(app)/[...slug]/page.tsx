@@ -8,7 +8,6 @@ const PAGES: Record<string, { title: string; module?: boolean }> = {
   "azienda/ruoli": { title: "Gestione Ruoli" },
   "azienda/organigramma": { title: "Organigramma" },
   "azienda/lettere": { title: "Gestione Lettere" },
-  "mbo/workflow": { title: "Workflow" },
   competenze: { title: "Competenze", module: true },
   valutazioni: { title: "Valutazioni", module: true },
   okr: { title: "OKR", module: true },

@@ -33,7 +33,7 @@ All business data is **demo data in `localStorage`** via `src/lib/store.tsx` (`S
 ## Sections
 
 - La mia azienda → Lista Utenti (invite icon), user profile (registration card), Lista Team.
-- MBO → Schede obiettivo (list + full-page editor `/mbo/schede/[id]`), Obiettivi (catalog list + editor with per-scheda assignment, weight and levels), Workflow (**to build**: editor with tasks Definizione / Approvazione / Consuntivazione obiettivi, Invio e firma lettera), Forecast.
+- MBO → Schede obiettivo (list + full-page editor `/mbo/schede/[id]`), Obiettivi (catalog list + editor with per-scheda assignment, weight and levels), Workflow (list + editor `/mbo/workflow/[id]`: ordered tasks Definizione / Approvazione / Consuntivazione obiettivi / Invio e firma lettera, each with owner role, due date, reminder and type-specific settings; model in `src/lib/workflow.ts`), Forecast.
 - Dashboard → tabs Generale / MBO (analytics; charts follow the dataviz skill: single hue for magnitude, validated categorical slots for levels).
 - Impostazioni → tab MBO: global threshold objective, target/payout presets.
 
@@ -46,6 +46,6 @@ All business data is **demo data in `localStorage`** via `src/lib/store.tsx` (`S
 
 ## Next steps / open points
 
-- Build the Workflow editor.
+- Link workflows to schede (which workflow a scheda follows, current task, notifications).
 - Move users, schede, objectives, presets from localStorage to Supabase tables with RLS, and link the user list to real accounts (today invites from demo rows would email invented addresses).
 - Optional: lock out after N wrong login codes (needs a small table).
