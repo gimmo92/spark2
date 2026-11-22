@@ -132,9 +132,22 @@ export const thresholdMet = (catalog: Catalog, s: Scheda) => {
   return !def || payoutFor(def, s.threshold.actual) > 0;
 };
 
-/** Weighted payout of the scheda in % (0 if the threshold objective is missed). */
-export function schedaScore(catalog: Catalog, s: Scheda): number {
-  if (!thresholdMet(catalog, s)) return 0;
+/** Company-wide threshold set in Impostazioni → MBO: applies to every scheda. */
+export interface GlobalGate {
+  objectiveId?: string;
+  actual?: number;
+}
+
+/** Global threshold reached? Not configured or not yet measured counts as reached. */
+export function globalGateMet(catalog: Catalog, g?: GlobalGate) {
+  if (!g?.objectiveId || g.actual == null) return true;
+  const def = catalogById(catalog, g.objectiveId);
+  return !def || payoutFor(def, g.actual) > 0;
+}
+
+/** Weighted payout of the scheda in % (0 if the global or the scheda's own threshold is missed). */
+export function schedaScore(catalog: Catalog, s: Scheda, global?: GlobalGate): number {
+  if (!globalGateMet(catalog, global) || !thresholdMet(catalog, s)) return 0;
   return Math.round(
     s.items.reduce((acc, it) => {
       const def = itemDef(catalog, it);

@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { Building2, CalendarDays } from "lucide-react";
 import { COMPANIES, type User } from "@/lib/data";
-import { CATEGORIES, SCHEDA_STATUSES, YEARS, catalogById, cycleYear, hasActuals, itemDef, payoutFor, schedaScore, thresholdMet, type Scheda } from "@/lib/mbo";
+import { CATEGORIES, SCHEDA_STATUSES, globalGateMet, YEARS, catalogById, cycleYear, hasActuals, itemDef, payoutFor, schedaScore, thresholdMet, type Scheda } from "@/lib/mbo";
 import { useStore } from "@/lib/store";
 import { DashboardTabs } from "./DashboardTabs";
 import { FilterMenu, Tooltip } from "./ui";
@@ -32,7 +32,7 @@ const LEVEL_COLOR: Record<string, string> = {
 const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0);
 
 export function DashboardMbo() {
-  const { schede, users, objectives, hydrated } = useStore();
+  const { schede, users, objectives, hydrated, globalGate } = useStore();
   const [year, setYear] = useState("2026");
   const [company, setCompany] = useState("");
 
@@ -46,11 +46,11 @@ export function DashboardMbo() {
         (!company || people(s).some((u) => u.company === company)),
     );
     const measured = scope.filter(hasActuals);
-    const scores = measured.map((s) => schedaScore(objectives, s));
+    const scores = measured.map((s) => schedaScore(objectives, s, globalGate));
     const advanced = scope.filter((s) => s.status === "approvata" || s.status === "consuntivata").length;
     const assignees = new Set(scope.flatMap((s) => s.assigneeIds));
     const eligible = users.filter((u) => u.status === "attivo" && (!company || u.company === company)).length;
-    const gatesMissed = measured.filter((s) => s.threshold && schedaScore(objectives, s) === 0).length;
+    const gatesMissed = measured.filter((s) => !globalGateMet(objectives, globalGate) || !thresholdMet(objectives, s)).length;
 
     const byStatus = SCHEDA_STATUSES.filter((x) => x.value !== "archiviata").map((x) => ({
       label: x.label,
@@ -77,7 +77,7 @@ export function DashboardMbo() {
     // payout by company (company of the scheda's first assignee)
     const byCompany = COMPANIES.map((c) => {
       const ss = measured.filter((s) => byId.get(s.assigneeIds[0])?.company === c);
-      return { label: c, value: avg(ss.map((s) => schedaScore(objectives, s))), n: ss.length };
+      return { label: c, value: avg(ss.map((s) => schedaScore(objectives, s, globalGate))), n: ss.length };
     })
       .filter((x) => x.n > 0)
       .sort((a, b) => b.value - a.value);
@@ -133,7 +133,11 @@ export function DashboardMbo() {
       gate,
       gateNames,
     };
-  }, [schede, users, objectives, year, company]);
+  }, [schede, users, objectives, year, company, globalGate]);
+
+  const globalDef = catalogById(objectives, globalGate.objectiveId);
+  const globalName = globalDef?.name;
+  const globalStatus = globalGate.actual == null ? "da consuntivare" : globalGateMet(objectives, globalGate) ? "raggiunta" : "non raggiunta";
 
   return (
     <div className="space-y-4">
@@ -218,7 +222,12 @@ export function DashboardMbo() {
             </ChartCard>
             <ChartCard
               title="Esito obiettivo soglia"
-              note={data.gateNames.length ? `Soglie usate: ${data.gateNames.join(", ")}` : "Nessuna scheda con obiettivo soglia"}
+              note={[
+                globalName ? `Globale: ${globalName} (${globalStatus})` : null,
+                data.gateNames.length ? `Soglie delle schede: ${data.gateNames.join(", ")}` : "Nessuna scheda con soglia propria",
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             >
               <HBars rows={data.gate.map((r) => ({ ...r, tip: `${r.label}: ${r.value} schede` }))} format={(v) => String(v)} />
             </ChartCard>

@@ -52,7 +52,7 @@ export function SchedaEditorPage({ isNew }: { isNew?: boolean }) {
 function SchedaEditor({ scheda }: { scheda?: Scheda }) {
   const router = useRouter();
   const { users, addScheda, updateScheda, notify, objectives, mboSettings } = useStore();
-  const defaultGate = scheda ? undefined : catalogById(objectives, mboSettings.defaultThresholdId);
+  const globalDef = catalogById(objectives, mboSettings.globalThresholdId);
 
   const [name, setName] = useState(scheda?.name ?? "");
   const [assigneeIds, setAssigneeIds] = useState<string[]>(scheda?.assigneeIds ?? []);
@@ -60,8 +60,8 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
   const [status, setStatus] = useState<SchedaStatus>(scheda?.status ?? "bozza");
   const [items, setItems] = useState<SchedaItem[]>(scheda?.items ?? []);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [thresholdOn, setThresholdOn] = useState(!!scheda?.threshold || !!defaultGate);
-  const [thresholdId, setThresholdId] = useState(scheda?.threshold?.objectiveId ?? defaultGate?.id ?? "");
+  const [thresholdOn, setThresholdOn] = useState(!!scheda?.threshold);
+  const [thresholdId, setThresholdId] = useState(scheda?.threshold?.objectiveId ?? "");
   const [expanded, setExpanded] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
@@ -249,10 +249,16 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
           <div className={`grid transition-[grid-template-rows] duration-200 ease-out ${advancedOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"}`}>
             <div className="overflow-hidden" inert={!advancedOpen}>
               <div className="border-t border-line px-4 py-4">
+                {globalDef && (
+                  <p className="mb-4 rounded-lg bg-canvas px-3 py-2 text-[12px] text-muted">
+                    Soglia globale attiva per tutte le schede: <span className="font-semibold text-ink">{globalDef.name}</span> (Impostazioni → MBO).
+                    Qui puoi aggiungere una soglia che vale solo per questa scheda.
+                  </p>
+                )}
                 <label className="flex cursor-pointer items-start gap-3">
                   <Switch checked={thresholdOn} onChange={setThresholdOn} />
                   <span>
-                    <span className="block text-[13px] font-semibold">Imposta un obiettivo soglia</span>
+                    <span className="block text-[13px] font-semibold">Imposta un obiettivo soglia per questa scheda</span>
                     <span className="block text-[12px] text-muted">
                       Se l&apos;obiettivo soglia non raggiunge il primo livello target, la scheda non matura alcun payout,
                       indipendentemente dagli altri obiettivi.

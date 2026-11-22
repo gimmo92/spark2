@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { buildSeedUsers, type User } from "./data";
 import { INVITE_ERRORS, type InviteDTO, type InvitesStatus } from "./invites";
-import { SEED_OBJECTIVES, SEED_PRESETS, buildSeedSchede, type ObjectiveDef, type Preset, type Scheda } from "./mbo";
+import { SEED_OBJECTIVES, SEED_PRESETS, buildSeedSchede, type GlobalGate, type ObjectiveDef, type Preset, type Scheda } from "./mbo";
 
 const KEY = "spark.users.v4";
 const SCHEDE_KEY = "spark.schede.v4";
@@ -12,8 +12,10 @@ const PRESET_KEY = "spark.presets.v1";
 const SETTINGS_KEY = "spark.mbo-settings.v1";
 
 export interface MboSettings {
-  /** Threshold objective pre-set on every new scheda (catalog id). */
-  defaultThresholdId?: string;
+  /** Global threshold objective (catalog id): if missed, no scheda pays out. */
+  globalThresholdId?: string;
+  /** Actual result of the global threshold objective (undefined = not measured yet). */
+  globalThresholdActual?: number;
 }
 
 interface Toast {
@@ -38,6 +40,7 @@ interface Store {
   invitesMessage: string | null;
   sendInvite: (email: string, fullName: string) => Promise<{ ok: boolean; message?: string }>;
   mboSettings: MboSettings;
+  globalGate: GlobalGate;
   setMboSettings: (patch: Partial<MboSettings>) => void;
   savePreset: (p: Omit<Preset, "id"> & { id?: string }) => Preset;
   deletePreset: (id: string) => void;
@@ -55,7 +58,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [schede, setSchede] = useState<Scheda[]>(() => buildSeedSchede(buildSeedUsers()));
   const [objectives, setObjectives] = useState<ObjectiveDef[]>(SEED_OBJECTIVES);
   const [presets, setPresets] = useState<Preset[]>(SEED_PRESETS);
-  const [mboSettings, setMboSettingsState] = useState<MboSettings>({ defaultThresholdId: "ob-ebitda" });
+  const [mboSettings, setMboSettingsState] = useState<MboSettings>({ globalThresholdId: "ob-ebitda" });
   const [hydrated, setHydrated] = useState(false);
   const [invites, setInvites] = useState<Record<string, InviteDTO>>({});
   const [invitesStatus, setInvitesStatus] = useState<InvitesStatus>("loading");
@@ -74,7 +77,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       const rawP = localStorage.getItem(PRESET_KEY);
       if (rawP) setPresets(JSON.parse(rawP));
       const rawSt = localStorage.getItem(SETTINGS_KEY);
-      if (rawSt) setMboSettingsState(JSON.parse(rawSt));
+      if (rawSt) {
+        const st = JSON.parse(rawSt) as MboSettings & { defaultThresholdId?: string };
+        // migrate the old "default for new schede" setting to the global threshold
+        if (st.defaultThresholdId && !st.globalThresholdId) st.globalThresholdId = st.defaultThresholdId;
+        delete st.defaultThresholdId;
+        setMboSettingsState(st);
+      }
     } catch {}
     setHydrated(true);
   }, []);
@@ -176,6 +185,11 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
 
   const deletePreset = useCallback((id: string) => setPresets((prev) => prev.filter((p) => p.id !== id)), []);
 
+  const globalGate = useMemo<GlobalGate>(
+    () => ({ objectiveId: mboSettings.globalThresholdId, actual: mboSettings.globalThresholdActual }),
+    [mboSettings],
+  );
+
   const resetData = useCallback(() => {
     const seed = buildSeedUsers();
     setUsers(seed);
@@ -185,8 +199,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, mboSettings, setMboSettings, invites, invitesStatus, invitesMessage, sendInvite, resetData, hydrated, toasts, notify }),
-    [users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, mboSettings, setMboSettings, invites, invitesStatus, invitesMessage, sendInvite, resetData, hydrated, toasts, notify],
+    () => ({ users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, mboSettings, setMboSettings, globalGate, invites, invitesStatus, invitesMessage, sendInvite, resetData, hydrated, toasts, notify }),
+    [users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, mboSettings, setMboSettings, globalGate, invites, invitesStatus, invitesMessage, sendInvite, resetData, hydrated, toasts, notify],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

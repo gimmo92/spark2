@@ -36,7 +36,7 @@ function load<T>(key: string, fallback: T): T {
 }
 
 export function Forecast() {
-  const { schede, users, objectives, hydrated, notify } = useStore();
+  const { schede, users, objectives, hydrated, notify, globalGate } = useStore();
   const [year, setYear] = useState("2026");
   const [company, setCompany] = useState("");
   const [sc, setSc] = useState<ForecastScenario>(emptyScenario);
@@ -88,14 +88,19 @@ export function Forecast() {
         .map(([id, n]) => ({ def: catalogById(objectives, id), n }))
         .filter((x): x is { def: ObjectiveDef; n: number } => !!x.def)
         .sort((a, b) => b.n - a.n);
-    return { weighted: pick(count), gates: pick(gateCount) };
-  }, [scope, objectives]);
+    const globalDef = catalogById(objectives, globalGate.objectiveId);
+    const own: { def: ObjectiveDef; n: number; global?: boolean }[] = pick(gateCount).filter((g) => g.def.id !== globalDef?.id);
+    return { weighted: pick(count), gates: globalDef ? [{ def: globalDef, n: scope.length, global: true }, ...own] : own };
+  }, [scope, objectives, globalGate]);
 
-  const results = useMemo(() => scope.map((s) => forecastScheda(s, objectives, sc)).sort((a, b) => b.score - a.score), [scope, objectives, sc]);
+  const results = useMemo(
+    () => scope.map((s) => forecastScheda(s, objectives, sc, globalGate)).sort((a, b) => b.score - a.score),
+    [scope, objectives, sc, globalGate],
+  );
 
   const kpi = useMemo(() => {
     const scores = results.map((r) => r.score);
-    const actualScores = scope.filter(hasActuals).map((s) => schedaScore(objectives, s));
+    const actualScores = scope.filter(hasActuals).map((s) => schedaScore(objectives, s, globalGate));
     const bonusAtTarget = results.reduce((a, r) => a + bonusFor(sc, r.scheda.id) * r.scheda.assigneeIds.length, 0);
     const bonusForecast = results.reduce((a, r) => a + (bonusFor(sc, r.scheda.id) * r.scheda.assigneeIds.length * r.score) / 100, 0);
     return {
@@ -107,7 +112,7 @@ export function Forecast() {
       bonusForecast,
       histogram: BUCKETS.map((b) => ({ label: b.label, value: scores.filter(b.test).length })),
     };
-  }, [results, scope, objectives, sc]);
+  }, [results, scope, objectives, sc, globalGate]);
 
   const setEstimate = (id: string, value: number | undefined) =>
     setSc((s) => {
@@ -292,8 +297,8 @@ export function Forecast() {
                       <ShieldAlert className="h-3.5 w-3.5" /> Obiettivi soglia
                     </p>
                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                      {gates.map(({ def, n }) => (
-                        <EstimateRow key={def.id} def={def} n={n} gate sc={sc} onChange={(v) => setEstimate(def.id, v)} />
+                      {gates.map(({ def, n, ...g }) => (
+                        <EstimateRow key={def.id} def={def} n={n} gate global={"global" in g} sc={sc} onChange={(v) => setEstimate(def.id, v)} />
                       ))}
                     </div>
                   </div>
@@ -480,12 +485,14 @@ function EstimateRow({
   def,
   n,
   gate,
+  global,
   sc,
   onChange,
 }: {
   def: ObjectiveDef;
   n: number;
   gate?: boolean;
+  global?: boolean;
   sc: ForecastScenario;
   onChange: (v: number | undefined) => void;
 }) {
@@ -503,7 +510,7 @@ function EstimateRow({
             {def.name}
           </p>
           <p className="text-[11px] text-muted">
-            {n} {n === 1 ? "scheda" : "schede"} · {def.levels.map((l) => `${fmt(l.target)}→${l.payout}%`).join(" · ")}
+            {global ? "Soglia globale · tutte le schede" : `${n} ${n === 1 ? "scheda" : "schede"}`} · {def.levels.map((l) => `${fmt(l.target)}→${l.payout}%`).join(" · ")}
           </p>
         </div>
         {gate ? (

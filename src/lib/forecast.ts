@@ -1,4 +1,4 @@
-import { catalogById, itemDef, payoutFor, type Catalog, type ObjectiveDef, type Scheda } from "./mbo";
+import { catalogById, itemDef, payoutFor, type Catalog, type GlobalGate, type ObjectiveDef, type Scheda } from "./mbo";
 
 /** Starting point for every objective that has no explicit estimate. */
 export type ForecastBase = "min" | "target" | "max" | "actual";
@@ -67,7 +67,7 @@ export interface SchedaForecast {
 }
 
 /** Forecast a scheda: each item uses the scenario estimate, else the scenario base; a missed threshold zeroes it. */
-export function forecastScheda(s: Scheda, catalog: Catalog, sc: ForecastScenario): SchedaForecast {
+export function forecastScheda(s: Scheda, catalog: Catalog, sc: ForecastScenario, global?: GlobalGate): SchedaForecast {
   const items = s.items.flatMap((it) => {
     const def = itemDef(catalog, it);
     if (!def) return [];
@@ -77,7 +77,12 @@ export function forecastScheda(s: Scheda, catalog: Catalog, sc: ForecastScenario
   });
 
   let gateOk = true;
-  if (s.threshold) {
+  const globalDef = catalogById(catalog, global?.objectiveId);
+  if (globalDef) {
+    const v = sc.estimates[globalDef.id] ?? baseValue(globalDef, sc.base, global?.actual);
+    gateOk = payoutFor(globalDef, v) > 0;
+  }
+  if (gateOk && s.threshold) {
     const gate = catalogById(catalog, s.threshold.objectiveId);
     if (gate) {
       const v = sc.estimates[gate.id] ?? baseValue(gate, sc.base, s.threshold.actual);

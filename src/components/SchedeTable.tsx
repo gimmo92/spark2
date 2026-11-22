@@ -59,7 +59,7 @@ const fmt = (n: number) => n.toLocaleString("it-IT", { maximumFractionDigits: 2 
 
 export function SchedeTable() {
   const router = useRouter();
-  const { schede, users, updateScheda, notify, objectives } = useStore();
+  const { schede, users, updateScheda, notify, objectives, globalGate } = useStore();
   const byId = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
 
   const [status, setStatus] = useState("");
@@ -81,7 +81,7 @@ export function SchedeTable() {
         return u ? `${u.lastName} ${u.firstName}` : s.name;
       }
       if (k === "team") return first(s)?.team ?? "";
-      if (k === "score") return schedaScore(objectives, s);
+      if (k === "score") return schedaScore(objectives, s, globalGate);
       if (k === "status") return SCHEDA_STATUSES.findIndex((x) => x.value === s.status);
       return s[k];
     };
@@ -101,7 +101,7 @@ export function SchedeTable() {
         const c = typeof x === "number" && typeof y === "number" ? x - y : collator.compare(String(x), String(y));
         return c * sort.dir;
       });
-  }, [schede, byId, status, year, team, company, showArchived, q, sort, objectives]);
+  }, [schede, byId, status, year, team, company, showArchived, q, sort, objectives, globalGate]);
 
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
   const anyFilter = status || year !== "2026" || team || company || showArchived || q;
@@ -252,7 +252,7 @@ export function SchedeTable() {
           <tbody>
             {rows.map((s) => {
               const people = s.assigneeIds.map((id) => byId.get(id)).filter(Boolean) as User[];
-              const score = schedaScore(objectives, s);
+              const score = schedaScore(objectives, s, globalGate);
               const measured = hasActuals(s);
               return (
                 <tr key={s.id} className={`group border-b border-line last:border-0 hover:bg-[#f8fafd] ${s.status === "archiviata" ? "opacity-60" : ""}`}>
@@ -374,8 +374,8 @@ export function SchedeTable() {
 }
 
 function SchedaView({ scheda: s, people, onClose, onEdit }: { scheda: Scheda; people: User[]; onClose: () => void; onEdit: () => void }) {
-  const { objectives } = useStore();
-  const score = schedaScore(objectives, s);
+  const { objectives, globalGate } = useStore();
+  const score = schedaScore(objectives, s, globalGate);
   const gate = s.threshold ? catalogById(objectives, s.threshold.objectiveId) : undefined;
   const measured = hasActuals(s);
   return (
