@@ -15,7 +15,6 @@ import {
   Pencil,
   Plus,
   Search,
-  ShieldAlert,
   Tag,
 } from "lucide-react";
 import { COMPANIES, fullName } from "@/lib/data";
@@ -231,11 +230,6 @@ export function ObiettiviTable() {
                   <td className="px-3">
                     <span className="inline-flex items-center gap-1.5 text-[13px] tabular-nums text-[#5b6476]">
                       {u.total || <span className="text-faint">0</span>}
-                      {u.asThreshold > 0 && (
-                        <span title={`Obiettivo soglia in ${u.asThreshold} schede`}>
-                          <ShieldAlert className="h-3.5 w-3.5 text-amber-500" />
-                        </span>
-                      )}
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-3 text-[12.5px] text-[#5b6476]">{o.cycle ? cycleLabel(o.cycle) : "—"}</td>

@@ -16,7 +16,6 @@ import {
   Pencil,
   Plus,
   Search,
-  ShieldAlert,
   UserRound,
 } from "lucide-react";
 import { COMPANIES, TEAMS, fullName, type User } from "@/lib/data";
@@ -273,11 +272,6 @@ export function SchedeTable() {
                   <td className="px-3 text-[13px] tabular-nums text-[#5b6476]">
                     <span className="inline-flex items-center gap-1.5">
                       {s.items.length}
-                      {s.threshold && (
-                        <span title={`Obiettivo soglia: ${catalogById(objectives, s.threshold.objectiveId)?.name ?? ""}`}>
-                          <ShieldAlert className="h-3.5 w-3.5 text-amber-500" />
-                        </span>
-                      )}
                     </span>
                   </td>
                   <td className="px-3">
