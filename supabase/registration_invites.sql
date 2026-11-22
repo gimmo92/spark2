@@ -14,5 +14,9 @@ create table if not exists public.registration_invites (
 
 alter table public.registration_invites enable row level security;
 
+-- Newer Supabase projects don't grant API roles on tables created via SQL: let the server's
+-- service role use it (anon / authenticated get nothing, and RLS has no policies for them).
+grant select, insert, update, delete on table public.registration_invites to service_role;
+
 -- Previous version of the allow-list, no longer used:
 -- drop table if exists public.allowed_users;
