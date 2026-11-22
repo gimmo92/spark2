@@ -32,8 +32,8 @@ type Step = "credentials" | "code" | "reset";
 
 async function post(url: string, body: unknown) {
   const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-  const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; message?: string };
-  return { ok: res.ok && !!data.ok, error: data.error ?? "unknown", message: data.message };
+  const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; message?: string; missing?: string[] };
+  return { ok: res.ok && !!data.ok, error: data.error ?? "unknown", message: data.message, missing: data.missing };
 }
 
 export function AuthCard({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
@@ -102,7 +102,10 @@ export function LoginForm() {
     setBusy("credentials");
     const r = await post("/api/auth/login", { email, password });
     setBusy(null);
-    if (!r.ok) return setError(ERRORS[r.error] ?? ERRORS.credentials);
+    if (!r.ok)
+      return setError(
+        r.error === "config" && r.missing?.length ? `${ERRORS.config} Manca: ${r.missing.join(", ")}.` : (ERRORS[r.error] ?? ERRORS.credentials),
+      );
     setStep("code");
     setCode("");
     setCooldown(60);

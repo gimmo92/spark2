@@ -17,7 +17,7 @@ function sameCode(a: string, b: string) {
  * The user picks the password; the invite is marked as used but the code is kept for the profile.
  */
 export async function POST(request: NextRequest) {
-  if (!adminConfigured()) return NextResponse.json({ error: "config" }, { status: 500 });
+  if (!adminConfigured()) return NextResponse.json({ error: "config", missing: ["SUPABASE_SERVICE_ROLE_KEY"] }, { status: 500 });
 
   const body = (await request.json().catch(() => ({}))) as { email?: string; code?: string; password?: string };
   const email = String(body.email ?? "").trim().toLowerCase();
@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
     .select("email, code, registered_at")
     .eq("email", email)
     .maybeSingle();
-  if (lookupError) return NextResponse.json({ error: "config" }, { status: 500 });
+  if (lookupError) return NextResponse.json({ error: "config", missing: ["tabella registration_invites"], detail: lookupError.code }, { status: 500 });
   // same answer for "no invite" and "wrong code"
   if (!invite || !sameCode(invite.code, code)) return NextResponse.json({ error: "invalid_code" }, { status: 403 });
   if (invite.registered_at) return NextResponse.json({ error: "exists" }, { status: 409 });

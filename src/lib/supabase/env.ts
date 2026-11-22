@@ -7,6 +7,17 @@ export const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? 
 
 export const authConfigured = Boolean(SUPABASE_URL && SUPABASE_KEY);
 
+/** Names (never values) of missing server configuration, to make setup errors diagnosable. */
+export function missingAuthConfig() {
+  const missing: string[] = [];
+  if (!SUPABASE_URL) missing.push("NEXT_PUBLIC_SUPABASE_URL");
+  if (!SUPABASE_KEY) missing.push("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const secret = process.env.AUTH_SECRET ?? "";
+  if (!secret) missing.push("AUTH_SECRET");
+  else if (secret.length < 32) missing.push("AUTH_SECRET (min 32 caratteri)");
+  return missing;
+}
+
 /** Optional server-side allow-list of email domains, e.g. "tryspark.co,valmec.it". Empty = any domain. */
 export const allowedDomains = () =>
   (process.env.ALLOWED_EMAIL_DOMAINS ?? "")

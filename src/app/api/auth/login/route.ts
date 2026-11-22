@@ -2,11 +2,11 @@ import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { PENDING_COOKIE, PENDING_TTL_S, authSecretConfigured, cookieOptions, signToken } from "@/lib/auth/twofa";
 import { getSupabaseStateless } from "@/lib/supabase/admin";
-import { authConfigured } from "@/lib/supabase/env";
+import { authConfigured, missingAuthConfig } from "@/lib/supabase/env";
 
 /** Step 1: verify email + password on the server, then email a one-time code. No session reaches the browser yet. */
 export async function POST(request: NextRequest) {
-  if (!authConfigured || !authSecretConfigured()) return NextResponse.json({ error: "config" }, { status: 500 });
+  if (!authConfigured || !authSecretConfigured()) return NextResponse.json({ error: "config", missing: missingAuthConfig() }, { status: 500 });
 
   const body = (await request.json().catch(() => ({}))) as { email?: string; password?: string };
   const email = String(body.email ?? "").trim().toLowerCase();
