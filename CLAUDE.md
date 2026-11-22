@@ -43,6 +43,24 @@ All business data is **demo data in `localStorage`** via `src/lib/store.tsx` (`S
 - **No self sign-up.** Registration (`/registrazione`) needs the invite code sent from the user list (letter icon → `/api/invites` → SendGrid API). Table `public.registration_invites` (`supabase/registration_invites.sql`); the code stays visible in the user profile after registration.
 - Gate is opt-in: `AUTH_ENABLED=true` on Vercel. Env vars documented in `.env.example`.
 - Privileged routes use `requireAdmin()` (full login + optional `ADMIN_EMAILS`).
+- Setup errors are self-describing: `/api/auth/login` and `/api/auth/register` return `{error:"config", missing:[...]}` with the names (never values) of what's missing; the login page shows them.
+
+## Production setup status (as of 2026-11-22)
+
+Done by the owner:
+- Supabase project `lgfzzdgpviorwdzxmqkt` (URL is public). `registration_invites.sql` run. Custom SMTP = SendGrid (`smtp.sendgrid.net:587`, user `apikey`), needed before Supabase lets you edit email templates. Magic Link template must contain `{{ .Token }}` (it is the login-code email).
+- Vercel env vars set; secrets (`AUTH_SECRET`, `SENDGRID_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`) marked Sensitive, so `vercel env pull` won't fetch them: put them in `.env.local` by hand for local dev.
+- Server-side auth config verified live (`/api/auth/login` answers `credentials` to a fake login).
+
+Pending / to check:
+- `grant select, insert, update, delete on table public.registration_invites to service_role;` — new Supabase projects don't grant API roles on SQL-created tables (error `42501`). Now in the SQL file; confirm it was run in production.
+- First real login with password + code, a test invite to a real address, then `AUTH_ENABLED=true` + Redeploy.
+- Email sender is `noreply@tryspark.co` (domain authenticated in SendGrid). Switching to `@tryspark.it` needs SendGrid domain auth for tryspark.it + update Supabase SMTP sender and `SENDGRID_FROM`.
+
+## Domains and email
+
+- `tryspark.co`: Google Workspace mail (owner `gbasso@tryspark.co`), DNS at dnshigh.
+- `tryspark.it`: DNS managed by **Vercel** (app at `app.tryspark.it`). Added to Google Workspace as secondary domain; MX `smtp.google.com`, SPF `include:_spf.google.com`, Google verification TXT. `info@tryspark.it` is an alias of `gbasso@tryspark.co` (mail sent from the owner's own account to the alias doesn't show in the inbox: test from an external address).
 
 ## Next steps / open points
 
