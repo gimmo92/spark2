@@ -6,12 +6,14 @@ const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   // Override default ignores of eslint-config-next.
+  // Next.js apps live in apps/*; packages/* are shared source compiled by each app.
+  { settings: { next: { rootDir: "apps/*/" } } },
   globalIgnores([
     // Default ignores of eslint-config-next:
-    ".next/**",
-    "out/**",
-    "build/**",
-    "next-env.d.ts",
+    "**/.next/**",
+    "**/out/**",
+    "**/build/**",
+    "**/next-env.d.ts",
   ]),
 ]);
 

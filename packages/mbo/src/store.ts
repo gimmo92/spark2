@@ -1,0 +1,103 @@
+"use client";
+
+import { useCallback, useMemo } from "react";
+import { useCollection, useCore, useSettings } from "@spark/core";
+import type { GlobalGate, ObjectiveDef, Preset, Scheda } from "./lib/mbo";
+import type { Workflow } from "./lib/workflow";
+
+export interface MboSettings {
+  /** Global threshold objective (catalog id): if missed, no scheda pays out. */
+  globalThresholdId?: string;
+  /** Actual result of the global threshold objective (undefined = not measured yet). */
+  globalThresholdActual?: number;
+}
+
+const today = () => new Date().toISOString().slice(0, 10);
+
+/** MBO state and actions. Also exposes the core helpers MBO screens need (users, notify, hydrated). */
+export function useMbo() {
+  const { users, notify, hydrated } = useCore();
+  const [schede, setSchede] = useCollection<Scheda>("schede");
+  const [objectives, setObjectives] = useCollection<ObjectiveDef>("objectives");
+  const [presets, setPresets] = useCollection<Preset>("presets");
+  const [workflows, setWorkflows] = useCollection<Workflow>("workflows");
+  const [mboSettings, setMboSettings] = useSettings<MboSettings>("mbo", {});
+
+  const addScheda = useCallback(
+    (s: Omit<Scheda, "id" | "updatedAt">) => {
+      const scheda: Scheda = { ...s, id: `s${Date.now()}`, updatedAt: today() };
+      setSchede((prev) => [scheda, ...prev]);
+      return scheda;
+    },
+    [setSchede],
+  );
+  const updateScheda = useCallback(
+    (id: string, patch: Partial<Scheda>) =>
+      setSchede((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch, updatedAt: today() } : s))),
+    [setSchede],
+  );
+
+  const addObjective = useCallback(
+    (o: Omit<ObjectiveDef, "id" | "updatedAt">) => {
+      const obj: ObjectiveDef = { ...o, id: `ob${Date.now().toString(36)}`, updatedAt: today() };
+      setObjectives((prev) => [obj, ...prev]);
+      return obj;
+    },
+    [setObjectives],
+  );
+  const updateObjective = useCallback(
+    (id: string, patch: Partial<ObjectiveDef>) =>
+      setObjectives((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch, updatedAt: today() } : o))),
+    [setObjectives],
+  );
+
+  const savePreset = useCallback(
+    (p: Omit<Preset, "id"> & { id?: string }) => {
+      const preset: Preset = { ...p, id: p.id ?? `pr${Date.now().toString(36)}` };
+      setPresets((prev) => (prev.some((x) => x.id === preset.id) ? prev.map((x) => (x.id === preset.id ? preset : x)) : [...prev, preset]));
+      return preset;
+    },
+    [setPresets],
+  );
+  const deletePreset = useCallback((id: string) => setPresets((prev) => prev.filter((p) => p.id !== id)), [setPresets]);
+
+  const saveWorkflow = useCallback(
+    (w: Omit<Workflow, "id" | "updatedAt"> & { id?: string }) => {
+      const wf: Workflow = { ...w, id: w.id ?? `wf${Date.now().toString(36)}`, updatedAt: today() };
+      setWorkflows((prev) => (prev.some((x) => x.id === wf.id) ? prev.map((x) => (x.id === wf.id ? wf : x)) : [wf, ...prev]));
+      return wf;
+    },
+    [setWorkflows],
+  );
+  const updateWorkflow = useCallback(
+    (id: string, patch: Partial<Workflow>) =>
+      setWorkflows((prev) => prev.map((w) => (w.id === id ? { ...w, ...patch, updatedAt: today() } : w))),
+    [setWorkflows],
+  );
+
+  const globalGate = useMemo<GlobalGate>(
+    () => ({ objectiveId: mboSettings.globalThresholdId, actual: mboSettings.globalThresholdActual }),
+    [mboSettings],
+  );
+
+  return {
+    users,
+    notify,
+    hydrated,
+    schede,
+    addScheda,
+    updateScheda,
+    objectives,
+    addObjective,
+    updateObjective,
+    presets,
+    savePreset,
+    deletePreset,
+    workflows,
+    saveWorkflow,
+    updateWorkflow,
+    mboSettings,
+    setMboSettings,
+    globalGate,
+  };
+}

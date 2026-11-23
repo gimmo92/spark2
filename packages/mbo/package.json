@@ -1,0 +1,19 @@
+{
+  "name": "@spark/mbo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Spark standard module: MBO (schede, obiettivi, workflow, forecast).",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@spark/core": "*",
+    "lucide-react": "^1.77.0"
+  },
+  "peerDependencies": {
+    "next": "16.4.6",
+    "react": "19.3.0",
+    "react-dom": "19.3.0"
+  }
+}
