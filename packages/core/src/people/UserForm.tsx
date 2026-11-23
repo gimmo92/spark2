@@ -9,7 +9,7 @@ import { Field, GhostButton, Modal, PrimaryButton, inputCls } from "../ui/ui";
 type Draft = Omit<User, "id" | "createdAt">;
 
 export function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) {
-  const { teamNames: TEAMS, companyForTeam, emailDomain } = useOrg();
+  const { teamNames: TEAMS, companyForTeam, emailDomains } = useOrg();
   const { users, addUser, updateUser, notify } = useCore();
   const [d, setD] = useState<Draft>(
     user ?? {
@@ -29,8 +29,8 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) =>
     setD((prev) => {
       const next = { ...prev, [k]: v };
-      if (!emailTouched && (k === "firstName" || k === "lastName") && next.firstName && next.lastName)
-        next.email = slugEmail(next.firstName, next.lastName, emailDomain);
+      if (!emailTouched && emailDomains[0] && (k === "firstName" || k === "lastName") && next.firstName && next.lastName)
+        next.email = slugEmail(next.firstName, next.lastName, emailDomains[0]);
       if (k === "team") next.company = companyForTeam(v as string);
       return next;
     });

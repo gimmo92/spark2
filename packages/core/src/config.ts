@@ -25,8 +25,8 @@ export interface SparkModule {
 export interface OrgConfig {
   /** Organisation name shown in the shell. */
   name: string;
-  /** Used to suggest emails as nome.cognome@domain. */
-  emailDomain: string;
+  /** Employees' email domains. The first one is used to suggest nome.cognome@domain for new users. */
+  emailDomains: string[];
   companies: string[];
   teams: { name: string; company: string }[];
 }

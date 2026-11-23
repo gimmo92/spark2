@@ -58,7 +58,7 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 ## New client app (checklist)
 
 1. Copy `apps/demo` to `apps/<client>`; set `"name": "@spark/<client>"`; delete `src/seed/` and the `seed`/`migrate` entries (or write the client's own demo seed); edit `src/spark.config.ts` (org, nav, tabs, modules); keep or drop module routes accordingly.
-2. New Supabase project: run core migrations, set SMTP (SendGrid) and the Magic Link template with `{{ .Token }}`.
+2. New Supabase project (Data API on, "grant API access to new tables automatically" off, "enable RLS automatically" on): run core migrations, set SMTP (SendGrid) and the Magic Link template with `{{ .Token }}`.
 3. New Vercel project on the same repo, Root Directory `apps/<client>`, env vars from `.env.example` (secrets Sensitive), domain.
 4. Write `apps/<client>/CLAUDE.md`: who the client is, their processes, specs, what was customised and why.
 
@@ -75,6 +75,7 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 
 ## Next steps / open points
 
+- **Multilingual core** (it / fr / en / de / es): UI strings in packages through a dictionary + `locale` in `SparkConfig` (per app, later per user). Requested by the owner 2026-11-23, not started.
 - Extension points in modules (e.g. client-defined workflow task types), a `new-client` script, link workflows to schede.
 - Link the user list to real accounts; move `app_data` to relational tables per module when a client needs it.
 - Optional: lock out after N wrong login codes.

@@ -12,10 +12,11 @@ export default defineConfig({
   storagePrefix: "spark.cg",
   org: {
     name: "Carlo Gavazzi Services AG",
-    // TODO(owner): confirm the email domain used by the client's employees
-    emailDomain: "carlogavazzi.com",
+    // the group uses several domains (one per business unit): add them here as they come up
+    emailDomains: ["gavazzicbu.it"],
+    // only the group company of the same name, for now
     companies: ["Carlo Gavazzi Services AG"],
-    // TODO(owner): teams and their company, from the client's organisation
+    // TODO(owner): teams, from the client's organisation
     teams: [],
   },
   modules: [mboModule],

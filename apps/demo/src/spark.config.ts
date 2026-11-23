@@ -11,7 +11,7 @@ export default defineConfig({
   home: "/azienda/utenti",
   org: {
     name: "Valmec S.p.A.",
-    emailDomain: EMAIL_DOMAIN,
+    emailDomains: [EMAIL_DOMAIN],
     companies: COMPANIES,
     teams: TEAMS,
   },
