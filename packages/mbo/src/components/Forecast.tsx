@@ -4,18 +4,22 @@ import { useOrg } from "@spark/core";
 import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Building2, CalendarDays, ChevronDown, FolderOpen, RotateCcw, Save, ShieldAlert, Trash2 } from "lucide-react";
-import { fullName, type User } from "@spark/core"
+import { fullName, type User } from "@spark/core";
+import { BASES, baseValue, bonusFor, emptyScenario, forecastScheda, sliderRange, type ForecastBase, type ForecastScenario } from "../lib/forecast";
 import {
-  BASES,
-  baseValue,
-  bonusFor,
-  emptyScenario,
-  forecastScheda,
-  sliderRange,
-  type ForecastBase,
-  type ForecastScenario,
-} from "../lib/forecast";
-import { YEARS, catalogById, cycleLabel, cycleYear, hasActuals, payoutFor, schedaScore, type ObjectiveDef } from "../lib/mbo";
+  YEARS,
+  catalogById,
+  cycleLabel,
+  cycleYear,
+  hasActuals,
+  payoutFor,
+  schedaScore,
+  type ObjectiveDef,
+  fromDay,
+  levelsText,
+  toDay,
+  typeOf,
+} from "../lib/mbo";
 import { useMbo } from "../store";
 import { BUCKETS, ChartCard, Histogram } from "./DashboardMbo";
 import { fmt } from "./SchedaEditor";
@@ -260,7 +264,11 @@ export function Forecast() {
             <Stat
               label="Payout medio stimato"
               value={`${kpi.avg}%`}
-              sub={kpi.actualAvg == null ? `${scope.length} schede` : `Consuntivo attuale ${kpi.actualAvg}% (${kpi.avg - kpi.actualAvg >= 0 ? "+" : ""}${kpi.avg - kpi.actualAvg} pt)`}
+              sub={
+                kpi.actualAvg == null
+                  ? `${scope.length} schede`
+                  : `Consuntivo attuale ${kpi.actualAvg}% (${kpi.avg - kpi.actualAvg >= 0 ? "+" : ""}${kpi.avg - kpi.actualAvg} pt)`
+              }
             />
             <Stat
               label="Costo bonus stimato"
@@ -278,7 +286,9 @@ export function Forecast() {
                 <div>
                   <h2 className="text-[13px] font-bold">Stima dei risultati</h2>
                   <p className="mt-0.5 text-[11.5px] text-muted">
-                    {explicitCount ? `${explicitCount} obiettivi stimati a mano, gli altri dal punto di partenza.` : "Muovi i cursori per stimare il risultato di ogni obiettivo."}
+                    {explicitCount
+                      ? `${explicitCount} obiettivi stimati a mano, gli altri dal punto di partenza.`
+                      : "Muovi i cursori per stimare il risultato di ogni obiettivo."}
                   </p>
                 </div>
                 {explicitCount > 0 && (
@@ -313,7 +323,8 @@ export function Forecast() {
                     ))}
                   </div>
                   <p className="mt-3 text-[11px] text-faint">
-                    Gli obiettivi creati dentro una singola scheda seguono il punto di partenza. Il payout usa i livelli di ogni scheda, anche se personalizzati.
+                    Gli obiettivi creati dentro una singola scheda seguono il punto di partenza. Il payout usa i livelli di ogni scheda, anche se
+                    personalizzati.
                   </p>
                 </div>
               </div>
@@ -379,7 +390,10 @@ export function Forecast() {
                               <td className="px-3">
                                 <div className="flex items-center gap-2">
                                   <span className="relative h-2 w-24">
-                                    <span className="absolute inset-y-0 left-0 rounded-r-[4px] bg-[#1673e6]" style={{ width: `${Math.min(r.score, 150) / 1.5}%` }} />
+                                    <span
+                                      className="absolute inset-y-0 left-0 rounded-r-[4px] bg-[#1673e6]"
+                                      style={{ width: `${Math.min(r.score, 150) / 1.5}%` }}
+                                    />
                                     <span className="absolute -inset-y-1 border-l border-dashed border-[#9aa2b1]" style={{ left: `${100 / 1.5}%` }} />
                                   </span>
                                   <span className="w-10 text-[12.5px] font-semibold tabular-nums">{r.score}%</span>
@@ -406,9 +420,7 @@ export function Forecast() {
                                 />
                                 {ppl.length > 1 && <span className="ml-1 text-[11px] text-muted">×{ppl.length}</span>}
                               </td>
-                              <td className="px-5 text-right text-[13px] font-semibold tabular-nums">
-                                {eur.format((bonus * ppl.length * r.score) / 100)}
-                              </td>
+                              <td className="px-5 text-right text-[13px] font-semibold tabular-nums">{eur.format((bonus * ppl.length * r.score) / 100)}</td>
                             </tr>
                             {isOpen && (
                               <tr className="border-b border-line bg-[#fafbfc]">
@@ -439,7 +451,9 @@ export function Forecast() {
                                           <td className="py-1.5 text-right tabular-nums text-muted">{it.weight}%</td>
                                           <td className="py-1.5 text-right tabular-nums">{fmt(it.value)}</td>
                                           <td className="py-1.5 text-right tabular-nums">{it.payout}%</td>
-                                          <td className="py-1.5 text-right font-semibold tabular-nums">{r.gateOk ? `${Math.round((it.weight * it.payout) / 100)} pt` : "0 pt"}</td>
+                                          <td className="py-1.5 text-right font-semibold tabular-nums">
+                                            {r.gateOk ? `${Math.round((it.weight * it.payout) / 100)} pt` : "0 pt"}
+                                          </td>
                                         </tr>
                                       ))}
                                     </tbody>
@@ -502,6 +516,7 @@ function EstimateRow({
   const value = explicit ?? baseValue(def, sc.base);
   const payout = payoutFor(def, value);
   const { min, max, step } = sliderRange(def);
+  const isDate = typeOf(def) === "data";
   const met = payout > 0;
 
   return (
@@ -512,11 +527,13 @@ function EstimateRow({
             {def.name}
           </p>
           <p className="text-[11px] text-muted">
-            {global ? "Soglia globale · tutte le schede" : `${n} ${n === 1 ? "scheda" : "schede"}`} · {def.levels.map((l) => `${fmt(l.target)}→${l.payout}%`).join(" · ")}
+            {global ? "Soglia globale · tutte le schede" : `${n} ${n === 1 ? "scheda" : "schede"}`} · {levelsText(def)}
           </p>
         </div>
         {gate ? (
-          <span className={`shrink-0 rounded-full px-2 py-[2px] text-[11px] font-bold ${met ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}>
+          <span
+            className={`shrink-0 rounded-full px-2 py-[2px] text-[11px] font-bold ${met ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}
+          >
             {met ? "Raggiunta" : "Non raggiunta"}
           </span>
         ) : (
@@ -532,19 +549,31 @@ function EstimateRow({
           value={Math.min(Math.max(value, min), max)}
           onChange={(e) => onChange(Number(e.target.value))}
           aria-label={`Risultato stimato ${def.name}`}
+          // dates: earlier is better, so the slider grows towards the earliest date
+          style={isDate ? { direction: "rtl" } : undefined}
           className="h-1.5 flex-1 cursor-pointer accent-[#1673e6]"
         />
-        <span className="relative">
+        {isDate ? (
           <input
-            type="number"
-            step={step}
-            value={Number.isFinite(value) ? value : ""}
-            onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
-            aria-label={`Valore stimato ${def.name}`}
-            className="w-[92px] rounded-md border border-[#dfe3ea] bg-white py-1 pl-2 pr-9 text-right text-[12.5px] font-semibold tabular-nums outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
+            type="date"
+            value={Number.isFinite(value) ? fromDay(value) : ""}
+            onChange={(e) => onChange(e.target.value ? toDay(e.target.value) : undefined)}
+            aria-label={`Data stimata ${def.name}`}
+            className="w-[132px] rounded-md border border-[#dfe3ea] bg-white px-2 py-1 text-[12.5px] font-semibold tabular-nums outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
           />
-          <span className="pointer-events-none absolute right-2 top-1/2 max-w-[32px] -translate-y-1/2 truncate text-[10.5px] text-muted">{def.unit}</span>
-        </span>
+        ) : (
+          <span className="relative">
+            <input
+              type="number"
+              step={step}
+              value={Number.isFinite(value) ? value : ""}
+              onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+              aria-label={`Valore stimato ${def.name}`}
+              className="w-[92px] rounded-md border border-[#dfe3ea] bg-white py-1 pl-2 pr-9 text-right text-[12.5px] font-semibold tabular-nums outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
+            />
+            <span className="pointer-events-none absolute right-2 top-1/2 max-w-[32px] -translate-y-1/2 truncate text-[10.5px] text-muted">{def.unit}</span>
+          </span>
+        )}
         {explicit != null && (
           <Tooltip label="Torna al punto di partenza">
             <button

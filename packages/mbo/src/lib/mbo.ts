@@ -7,9 +7,153 @@ export interface Level {
   payout: number;
 }
 
+/**
+ * How an objective is measured. Every type maps onto the same target → payout levels, so scoring
+ * (`payoutFor`) is the same for all of them:
+ * - quantitativo: a number in any unit (€, %, n.);
+ * - qualitativo_pct: a 0–100% assessment;
+ * - qualitativo_5: a 1–5 rating;
+ * - onoff: reached (1) or not (0), a single level at 1;
+ * - progetto: a list of activities, the actual is the % of activities completed;
+ * - data: a deadline, values are days since 1970-01-01 (`toDay`); the earlier, the higher the payout.
+ */
+export type ObjectiveType = "quantitativo" | "qualitativo_pct" | "qualitativo_5" | "onoff" | "progetto" | "data";
+
+export const OBJECTIVE_TYPES: {
+  value: ObjectiveType;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: "quantitativo",
+    label: "Quantitativo",
+    hint: "Un valore misurabile, in qualsiasi unità (€, %, n.)",
+  },
+  {
+    value: "qualitativo_pct",
+    label: "Qualitativo 0-100%",
+    hint: "Una valutazione in percentuale",
+  },
+  {
+    value: "qualitativo_5",
+    label: "Qualitativo 1-5",
+    hint: "Una valutazione su scala da 1 a 5",
+  },
+  { value: "onoff", label: "On/Off", hint: "Raggiunto o non raggiunto" },
+  {
+    value: "progetto",
+    label: "Progetto",
+    hint: "Una lista di attività: conta la % di attività completate",
+  },
+  {
+    value: "data",
+    label: "Data",
+    hint: "Una scadenza: prima si chiude, più alto è il payout",
+  },
+];
+
+/** "2026-06-30" → days since 1970-01-01 (how "data" objectives store dates). */
+export const toDay = (iso: string) => Math.round(Date.parse(`${iso}T00:00:00Z`) / 86_400_000);
+/** Days since 1970-01-01 → "2026-06-30". */
+export const fromDay = (n: number) => new Date(n * 86_400_000).toISOString().slice(0, 10);
+const dateLabel = (n: number) => new Date(n * 86_400_000).toLocaleDateString("it-IT", { timeZone: "UTC" });
+export const typeOf = (d: Pick<ObjectiveDef, "type">): ObjectiveType => d.type ?? "quantitativo";
+export const typeLabel = (d: Pick<ObjectiveDef, "type">) => OBJECTIVE_TYPES.find((t) => t.value === typeOf(d))?.label ?? "Quantitativo";
+
+/** One activity of a "progetto" objective. */
+export interface Activity {
+  id: string;
+  title: string;
+}
+
+/** Unit, calc mode and levels a new objective of this type starts from. */
+export function typeDefaults(type: ObjectiveType): Pick<ObjectiveDef, "unit" | "calc" | "levels"> {
+  switch (type) {
+    case "qualitativo_pct":
+      return {
+        unit: "%",
+        calc: "lineare",
+        levels: [
+          { target: 60, payout: 50 },
+          { target: 80, payout: 100 },
+          { target: 100, payout: 150 },
+        ],
+      };
+    case "qualitativo_5":
+      return {
+        unit: "/5",
+        calc: "scaglioni",
+        levels: [
+          { target: 3, payout: 50 },
+          { target: 4, payout: 100 },
+          { target: 5, payout: 150 },
+        ],
+      };
+    case "onoff":
+      return {
+        unit: "",
+        calc: "scaglioni",
+        levels: [{ target: 1, payout: 100 }],
+      };
+    case "progetto":
+      return {
+        unit: "%",
+        calc: "lineare",
+        levels: [
+          { target: 50, payout: 50 },
+          { target: 100, payout: 100 },
+        ],
+      };
+    case "data":
+      return {
+        unit: "",
+        calc: "scaglioni",
+        levels: [
+          { target: toDay("2026-12-31"), payout: 50 },
+          { target: toDay("2026-09-30"), payout: 100 },
+          { target: toDay("2026-06-30"), payout: 150 },
+        ],
+      };
+    default:
+      return {
+        unit: "%",
+        calc: "lineare",
+        levels: [
+          { target: 80, payout: 50 },
+          { target: 100, payout: 100 },
+          { target: 120, payout: 150 },
+        ],
+      };
+  }
+}
+
+/** Allowed range of the actual value (undefined = any number). */
+export function typeRange(type: ObjectiveType): { min: number; max: number; step: number } | undefined {
+  if (type === "qualitativo_pct" || type === "progetto") return { min: 0, max: 100, step: 1 };
+  if (type === "qualitativo_5") return { min: 1, max: 5, step: 1 };
+  if (type === "onoff") return { min: 0, max: 1, step: 1 };
+  return undefined;
+}
+
+const num = (n: number) => n.toLocaleString("it-IT", { maximumFractionDigits: 2 });
+
+/** An actual (or target) value as people read it: "Raggiunto", "4/5", "60%", "1.200 €". */
+export function formatValue(d: ObjectiveDef, v: number): string {
+  const t = typeOf(d);
+  if (t === "onoff") return v >= 1 ? "Raggiunto" : "Non raggiunto";
+  if (t === "qualitativo_5") return `${num(v)}/5`;
+  if (t === "progetto") return `${num(v)}% attività`;
+  if (t === "data") return dateLabel(v);
+  return `${num(v)}${d.unit ? ` ${d.unit}` : ""}`;
+}
+
 export interface ObjectiveDef {
   id: string;
   name: string;
+  /** Measurement type; missing = "quantitativo" (objectives saved before types existed). */
+  type?: ObjectiveType;
+  /** Activities of a "progetto" objective. */
+  activities?: Activity[];
   unit: string;
   calc: CalcMode;
   levels: Level[]; // ordered by ascending target
@@ -83,6 +227,16 @@ export const schedeUsing = (schede: Scheda[], objectiveId: string) =>
 
 /** Payout % for an objective given the actual value. */
 export function payoutFor(def: ObjectiveDef, actual?: number): number {
+  // dates: earlier is better, so the scale is flipped (a later date is a "smaller" result)
+  if (typeOf(def) === "data")
+    return payoutFor(
+      {
+        ...def,
+        type: "quantitativo",
+        levels: def.levels.map((l) => ({ ...l, target: -l.target })),
+      },
+      actual == null ? undefined : -actual,
+    );
   const lv = [...def.levels].sort((a, b) => a.target - b.target);
   if (actual == null || !lv.length || actual < lv[0].target) return 0;
   const last = lv[lv.length - 1];
@@ -122,6 +276,12 @@ export function schedaScore(catalog: Catalog, s: Scheda, global?: GlobalGate): n
       return acc + (def ? (it.weight * payoutFor(def, it.actual)) / 100 : 0);
     }, 0),
   );
+}
+
+/** Short description of the levels, e.g. "80 % → 50% · 100 % → 100%" or "Raggiunto → 100%". */
+export function levelsText(d: ObjectiveDef, sep = " · "): string {
+  if (typeOf(d) === "onoff") return `Raggiunto → ${d.levels[0]?.payout ?? 100}%`;
+  return d.levels.map((l) => `${formatValue(d, l.target)} → ${l.payout}%`).join(sep);
 }
 
 export const hasActuals = (s: Scheda) => s.items.some((i) => i.actual != null);

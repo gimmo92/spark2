@@ -3,15 +3,39 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { ArrowLeft, ChevronDown, Copy, Plus, Sparkles, Trash2, TriangleAlert } from "lucide-react";
+import {
+  ArrowLeft,
+  CalendarDays,
+  ChevronDown,
+  Copy,
+  Hash,
+  ListChecks,
+  Percent,
+  Plus,
+  Sparkles,
+  Star,
+  ToggleRight,
+  Trash2,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 import { fullName } from "@spark/core";
 import {
   CYCLES,
+  OBJECTIVE_TYPES,
   SCHEDA_STATUSES,
   catalogById,
   itemDef,
-  payoutFor,
+  formatValue,
+  fromDay,
+  levelsText,
+  toDay,
+  typeDefaults,
+  typeOf,
+  typeRange,
+  type Activity,
   type CalcMode,
+  type ObjectiveType,
   type Level,
   type Preset,
   type ObjectiveDef,
@@ -28,7 +52,7 @@ let seq = 0;
 const uid = (p: string) => `${p}${Date.now().toString(36)}${(seq++).toString(36)}`;
 
 export const fmt = (n: number) => n.toLocaleString("it-IT", { maximumFractionDigits: 2 });
-export const levelsSummary = (d: ObjectiveDef) => d.levels.map((l) => `${fmt(l.target)} ${d.unit} → ${l.payout}%`).join("  ·  ");
+export const levelsSummary = (d: ObjectiveDef) => levelsText(d, "  ·  ");
 
 /** Route entry: /mbo/schede/[id] (edit) or /mbo/schede/nuova (create). */
 export function SchedaEditorPage({ isNew }: { isNew?: boolean }) {
@@ -83,15 +107,21 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
       users
         .filter((u) => u.status === "attivo" || assigneeIds.includes(u.id))
         .sort((a, b) => collator.compare(`${a.lastName} ${a.firstName}`, `${b.lastName} ${b.firstName}`))
-        .map((u) => ({ value: u.id, label: fullName(u), hint: `${u.role}${u.team ? ` · ${u.team}` : ""}` })),
+        .map((u) => ({
+          value: u.id,
+          label: fullName(u),
+          hint: `${u.role}${u.team ? ` · ${u.team}` : ""}`,
+        })),
     [users, assigneeIds],
   );
   const usedIds = new Set([...items.map((i) => i.objectiveId), thresholdId]);
-  const catalogOptions = objectives.filter((o) => !o.archived || usedIds.has(o.id)).map((o) => ({
-    value: o.id,
-    label: o.name,
-    hint: `${o.calc === "lineare" ? "Lineare" : "A scaglioni"} · ${levelsSummary(o)}`,
-  }));
+  const catalogOptions = objectives
+    .filter((o) => !o.archived || usedIds.has(o.id))
+    .map((o) => ({
+      value: o.id,
+      label: o.name,
+      hint: `${o.calc === "lineare" ? "Lineare" : "A scaglioni"} · ${levelsSummary(o)}`,
+    }));
 
   const catalogIds = items.filter((i) => i.objectiveId && !i.custom).map((i) => i.objectiveId!);
   const totalWeight = items.reduce((a, i) => a + (Number(i.weight) || 0), 0);
@@ -117,13 +147,8 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
         custom: {
           id: uid("cu"),
           name: "",
-          unit: "%",
-          calc: "lineare",
-          levels: [
-            { target: 80, payout: 50 },
-            { target: 100, payout: 100 },
-            { target: 120, payout: 150 },
-          ],
+          type: "quantitativo",
+          ...typeDefaults("quantitativo"),
         },
       },
     ]);
@@ -132,7 +157,15 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
   const personalize = (it: SchedaItem) => {
     const def = itemDef(objectives, it);
     if (!def) return;
-    updateItem(it.id, { objectiveId: undefined, levels: undefined, custom: { ...def, id: uid("cu"), levels: def.levels.map((l) => ({ ...l })) } });
+    updateItem(it.id, {
+      objectiveId: undefined,
+      levels: undefined,
+      custom: {
+        ...def,
+        id: uid("cu"),
+        levels: def.levels.map((l) => ({ ...l })),
+      },
+    });
     setExpanded(it.id);
   };
 
@@ -264,8 +297,8 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
               <div className="border-t border-line px-4 py-4">
                 {globalDef && (
                   <p className="mb-4 rounded-lg bg-canvas px-3 py-2 text-[12px] text-muted">
-                    Soglia globale attiva per tutte le schede: <span className="font-semibold text-ink">{globalDef.name}</span> (Impostazioni → MBO).
-                    Qui puoi aggiungere una soglia che vale solo per questa scheda.
+                    Soglia globale attiva per tutte le schede: <span className="font-semibold text-ink">{globalDef.name}</span> (Impostazioni → MBO). Qui puoi
+                    aggiungere una soglia che vale solo per questa scheda.
                   </p>
                 )}
                 <label className="flex cursor-pointer items-start gap-3">
@@ -273,8 +306,8 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
                   <span>
                     <span className="block text-[13px] font-semibold">Imposta un obiettivo soglia per questa scheda</span>
                     <span className="block text-[12px] text-muted">
-                      Se l&apos;obiettivo soglia non raggiunge il primo livello target, la scheda non matura alcun payout,
-                      indipendentemente dagli altri obiettivi.
+                      Se l&apos;obiettivo soglia non raggiunge il primo livello target, la scheda non matura alcun payout, indipendentemente dagli altri
+                      obiettivi.
                     </span>
                   </span>
                 </label>
@@ -294,7 +327,7 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
                     {thresholdDef && (
                       <div className="rounded-lg bg-amber-50 px-3 py-2.5 text-[12px] text-amber-800">
                         <span className="block font-bold">Soglia di accesso</span>
-                        Raggiunta con almeno {fmt(thresholdDef.levels[0].target)} {thresholdDef.unit}
+                        Raggiunta con almeno {formatValue(thresholdDef, thresholdDef.levels[0].target)}
                       </div>
                     )}
                   </div>
@@ -370,7 +403,11 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
                           min={0}
                           max={100}
                           value={it.weight}
-                          onChange={(ev) => updateItem(it.id, { weight: Number(ev.target.value) })}
+                          onChange={(ev) =>
+                            updateItem(it.id, {
+                              weight: Number(ev.target.value),
+                            })
+                          }
                           className="w-[72px] rounded-lg border border-[#dfe3ea] py-1.5 pl-2.5 pr-6 text-right text-[13px] font-semibold tabular-nums outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                         />
                         <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[12px] text-muted">%</span>
@@ -423,16 +460,121 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
   );
 }
 
-export function levelsError(levels: Level[]): string | null {
+export function levelsError(levels: Level[], type: ObjectiveType = "quantitativo"): string | null {
   if (!levels.length) return "Aggiungi almeno un livello";
-  for (let i = 1; i < levels.length; i++) if (!(levels[i].target > levels[i - 1].target)) return "I livelli target devono essere crescenti";
+  if (levels.some((l) => !Number.isFinite(l.target))) return type === "data" ? "Inserisci tutte le date" : "Controlla i valori dei livelli";
+  const r = typeRange(type);
+  if (r && type !== "onoff" && levels.some((l) => l.target < r.min || l.target > r.max))
+    return type === "qualitativo_5" ? "I voti devono essere tra 1 e 5" : "I target devono essere tra 0 e 100%";
+  if (type === "data") {
+    for (let i = 1; i < levels.length; i++) if (!(levels[i].target < levels[i - 1].target)) return "Ogni livello successivo deve avere una data più anticipata";
+  } else for (let i = 1; i < levels.length; i++) if (!(levels[i].target > levels[i - 1].target)) return "I livelli target devono essere crescenti";
   if (levels.some((l) => l.payout < 0 || Number.isNaN(l.payout) || Number.isNaN(l.target))) return "Controlla i valori dei livelli";
   return null;
 }
 
 export function customError(d: ObjectiveDef): string | null {
   if (!d.name.trim()) return "Inserisci la descrizione dell'obiettivo";
-  return levelsError(d.levels);
+  if (typeOf(d) === "progetto" && !d.activities?.some((a) => a.title.trim())) return "Aggiungi almeno un'attività al progetto";
+  return levelsError(d.levels, typeOf(d));
+}
+
+/** Icon of each objective type. */
+export const TYPE_ICON: Record<ObjectiveType, LucideIcon> = {
+  quantitativo: Hash,
+  qualitativo_pct: Percent,
+  qualitativo_5: Star,
+  onoff: ToggleRight,
+  progetto: ListChecks,
+  data: CalendarDays,
+};
+
+/** Small icon buttons for a single choice (objective type, level…). */
+export function ChoiceButtons<T extends string>({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: { value: T; label: string; icon: LucideIcon; hint?: string }[];
+  value: T;
+  onChange: (v: T) => void;
+}) {
+  return (
+    <div role="radiogroup" aria-label={label} className="flex flex-wrap gap-1.5">
+      {options.map((o) => {
+        const on = value === o.value;
+        const Icon = o.icon;
+        return (
+          <button
+            key={o.value}
+            type="button"
+            role="radio"
+            aria-checked={on}
+            onClick={() => onChange(o.value)}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-semibold transition-colors ${
+              on ? "border-brand bg-brand-soft text-brand" : "border-[#dfe3ea] bg-white text-muted hover:border-[#c6ccd6] hover:text-ink"
+            }`}
+          >
+            <Icon className="h-3.5 w-3.5" /> {o.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const TYPE_OPTIONS = OBJECTIVE_TYPES.map((t) => ({
+  ...t,
+  icon: TYPE_ICON[t.value],
+}));
+
+/** Fields to set when an objective switches to `type`: that type's unit, calc and levels. */
+export function typePatch(def: ObjectiveDef, type: ObjectiveType): Partial<ObjectiveDef> {
+  return {
+    type,
+    ...typeDefaults(type),
+    activities: type === "progetto" ? (def.activities?.length ? def.activities : [{ id: uid("at"), title: "" }]) : undefined,
+  };
+}
+
+/** Editable list of a project's activities. */
+function ActivitiesEditor({ activities, onChange }: { activities: Activity[]; onChange: (a: Activity[]) => void }) {
+  const set = (id: string, title: string) => onChange(activities.map((a) => (a.id === id ? { ...a, title } : a)));
+  return (
+    <Block label="Attività del progetto" hint="Il consuntivo è la % di attività completate">
+      <div className="space-y-1.5">
+        {activities.map((a, i) => (
+          <div key={a.id} className="flex items-center gap-2">
+            <span className="w-5 shrink-0 text-right text-[12px] font-semibold tabular-nums text-muted">{i + 1}.</span>
+            <input
+              className={inputCls}
+              value={a.title}
+              onChange={(e) => set(a.id, e.target.value)}
+              placeholder={i === 0 ? "es. Analisi dei requisiti" : "Attività"}
+            />
+            <button
+              type="button"
+              aria-label="Rimuovi attività"
+              disabled={activities.length === 1}
+              onClick={() => onChange(activities.filter((x) => x.id !== a.id))}
+              className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={() => onChange([...activities, { id: uid("at"), title: "" }])}
+        className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline"
+      >
+        <Plus className="h-3.5 w-3.5" /> Aggiungi attività
+      </button>
+    </Block>
+  );
 }
 
 /** `showName = false` when the screen shows the objective's description elsewhere (catalog editor). */
@@ -447,64 +589,122 @@ export function CustomObjectiveEditor({
   error?: string;
   showName?: boolean;
 }) {
+  const type = typeOf(def);
+  const presets = type === "quantitativo" || type === "qualitativo_pct" || type === "progetto";
   return (
-    <div className="grid gap-4 sm:grid-cols-[1fr_220px]">
-      <div className="space-y-3.5">
-        <div className={`grid gap-3 ${showName ? "sm:grid-cols-[1fr_110px]" : "sm:grid-cols-[110px]"}`}>
-          {showName && (
-            <Block label="Descrizione obiettivo">
-              <input autoFocus className={inputCls} value={def.name} onChange={(e) => onChange({ name: e.target.value })} placeholder="es. Lancio nuova linea prodotto" />
+    <div className="space-y-3.5">
+      <Block label="Tipo di obiettivo" hint={OBJECTIVE_TYPES.find((t) => t.value === type)?.hint}>
+        <ChoiceButtons label="Tipo di obiettivo" options={TYPE_OPTIONS} value={type} onChange={(t) => t !== type && onChange(typePatch(def, t))} />
+      </Block>
+      <div className="grid gap-4 sm:grid-cols-[1fr_220px]">
+        <div className="space-y-3.5">
+          {(showName || type === "quantitativo") && (
+            <div className={`grid gap-3 ${showName && type === "quantitativo" ? "sm:grid-cols-[1fr_110px]" : showName ? "" : "sm:grid-cols-[110px]"}`}>
+              {showName && (
+                <Block label="Descrizione obiettivo">
+                  <input
+                    autoFocus
+                    className={inputCls}
+                    value={def.name}
+                    onChange={(e) => onChange({ name: e.target.value })}
+                    placeholder="es. Lancio nuova linea prodotto"
+                  />
+                </Block>
+              )}
+              {type === "quantitativo" && (
+                <Block label="Unità di misura">
+                  <input className={inputCls} value={def.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="%, €, n." />
+                </Block>
+              )}
+            </div>
+          )}
+
+          {type === "progetto" && <ActivitiesEditor activities={def.activities ?? []} onChange={(activities) => onChange({ activities })} />}
+          <LevelsEditor unit={def.unit} type={type} levels={def.levels} onChange={(levels) => onChange({ levels })} />
+          {error && (
+            <p className="flex items-center gap-1.5 text-[12px] font-semibold text-red-600">
+              <TriangleAlert className="h-3.5 w-3.5" /> {error}
+            </p>
+          )}
+        </div>
+        <div className="space-y-3.5">
+          <PayoutCurve def={def} />
+          {presets && (
+            <PresetPicker
+              hint=""
+              onApply={(pr) =>
+                onChange({
+                  calc: pr.calc,
+                  levels: pr.levels.map((l) => ({ ...l })),
+                })
+              }
+            />
+          )}
+          {type !== "onoff" && (
+            <Block label="Modalità di calcolo">
+              <div className="inline-flex rounded-lg bg-canvas p-1">
+                {(["lineare", "scaglioni"] as CalcMode[]).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => onChange({ calc: m })}
+                    className={`rounded-md px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                      def.calc === m ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    {m === "lineare" ? "Lineare" : "A scaglioni"}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-[11.5px] text-muted">
+                {def.calc === "lineare"
+                  ? "Il payout cresce in proporzione tra un livello e il successivo."
+                  : "Il payout resta fisso al livello raggiunto fino al successivo."}
+              </p>
             </Block>
           )}
-          <Block label="Unità di misura">
-            <input className={inputCls} value={def.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="%, €, n." />
-          </Block>
         </div>
-
-        <LevelsEditor unit={def.unit} levels={def.levels} onChange={(levels) => onChange({ levels })} />
-        {error && (
-          <p className="flex items-center gap-1.5 text-[12px] font-semibold text-red-600">
-            <TriangleAlert className="h-3.5 w-3.5" /> {error}
-          </p>
-        )}
-      </div>
-      <div className="space-y-3.5">
-        <PayoutCurve def={def} />
-        <PresetPicker hint="" onApply={(pr) => onChange({ calc: pr.calc, levels: pr.levels.map((l) => ({ ...l })) })} />
-        <Block label="Modalità di calcolo">
-          <div className="inline-flex rounded-lg bg-canvas p-1">
-            {(["lineare", "scaglioni"] as CalcMode[]).map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => onChange({ calc: m })}
-                className={`rounded-md px-3.5 py-1.5 text-[12.5px] font-semibold transition-colors ${
-                  def.calc === m ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink"
-                }`}
-              >
-                {m === "lineare" ? "Lineare" : "A scaglioni"}
-              </button>
-            ))}
-          </div>
-          <p className="mt-1.5 text-[11.5px] text-muted">
-            {def.calc === "lineare"
-              ? "Il payout cresce in proporzione tra un livello e il successivo."
-              : "Il payout resta fisso al livello raggiunto fino al successivo."}
-          </p>
-        </Block>
       </div>
     </div>
   );
 }
 
 /** Editable table of target → payout levels. */
-export function LevelsEditor({ unit, levels, onChange }: { unit: string; levels: Level[]; onChange: (levels: Level[]) => void }) {
+export function LevelsEditor({
+  unit,
+  type = "quantitativo",
+  levels,
+  onChange,
+}: {
+  unit: string;
+  type?: ObjectiveType;
+  levels: Level[];
+  onChange: (levels: Level[]) => void;
+}) {
   const setLevel = (i: number, patch: Partial<Level>) => onChange(levels.map((l, k) => (k === i ? { ...l, ...patch } : l)));
+  const r = typeRange(type);
+  if (type === "onoff")
+    return (
+      <Block label="Payout se raggiunto" hint="Non raggiunto = 0%">
+        <span className="relative block w-[110px]">
+          <input
+            type="number"
+            min={0}
+            className={`${inputCls} pr-7 text-right font-semibold tabular-nums`}
+            value={levels[0]?.payout ?? 100}
+            onChange={(e) => onChange([{ target: 1, payout: Number(e.target.value) }])}
+          />
+          <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-muted">%</span>
+        </span>
+      </Block>
+    );
+  const targetHead =
+    type === "qualitativo_5" ? "Voto (1-5)" : type === "progetto" ? "Attività completate %" : type === "data" ? "Entro il" : `Target (${unit || "valore"})`;
   return (
     <div>
       <div className="mb-1.5 grid grid-cols-[64px_1fr_1fr_28px] gap-2 text-[11px] font-bold uppercase tracking-wide text-muted">
         <span>Livello</span>
-        <span>Target ({unit || "valore"})</span>
+        <span>{targetHead}</span>
         <span>Payout %</span>
         <span />
       </div>
@@ -514,7 +714,28 @@ export function LevelsEditor({ unit, levels, onChange }: { unit: string; levels:
             <span className="text-[12.5px] font-semibold text-muted">
               {i === 0 ? "Minimo" : i === levels.length - 1 && levels.length > 1 ? "Massimo" : `Livello ${i + 1}`}
             </span>
-            <input type="number" className={inputCls} value={l.target} onChange={(e) => setLevel(i, { target: Number(e.target.value) })} />
+            {type === "data" ? (
+              <input
+                type="date"
+                className={inputCls}
+                value={Number.isFinite(l.target) ? fromDay(l.target) : ""}
+                onChange={(e) =>
+                  setLevel(i, {
+                    target: e.target.value ? toDay(e.target.value) : NaN,
+                  })
+                }
+              />
+            ) : (
+              <input
+                type="number"
+                min={r?.min}
+                max={r?.max}
+                step={r?.step}
+                className={inputCls}
+                value={l.target}
+                onChange={(e) => setLevel(i, { target: Number(e.target.value) })}
+              />
+            )}
             <input type="number" min={0} className={inputCls} value={l.payout} onChange={(e) => setLevel(i, { payout: Number(e.target.value) })} />
             <button
               type="button"
@@ -532,7 +753,16 @@ export function LevelsEditor({ unit, levels, onChange }: { unit: string; levels:
         type="button"
         onClick={() => {
           const last = levels[levels.length - 1];
-          onChange([...levels, { target: last ? last.target + 10 : 100, payout: last ? last.payout + 25 : 100 }]);
+          // dates: the next level is a month earlier; other types: a step higher (within the type's range)
+          const step = type === "data" ? -30 : type === "qualitativo_5" ? 1 : 10;
+          const next = last ? last.target + step : (r?.max ?? 100);
+          onChange([
+            ...levels,
+            {
+              target: r ? Math.min(next, r.max) : next,
+              payout: last ? last.payout + 25 : 100,
+            },
+          ]);
         }}
         className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline"
       >
@@ -595,9 +825,7 @@ export function LevelsReadOnly({ def }: { def: ObjectiveDef }) {
         {def.levels.map((l, i) => (
           <tr key={i} className="border-t border-line">
             <td className="py-1.5 text-muted">{i === 0 ? "Minimo" : i === def.levels.length - 1 ? "Massimo" : `Livello ${i + 1}`}</td>
-            <td className="py-1.5 font-semibold tabular-nums">
-              {fmt(l.target)} {def.unit}
-            </td>
+            <td className="py-1.5 font-semibold tabular-nums">{formatValue(def, l.target)}</td>
             <td className="py-1.5 font-semibold tabular-nums">{l.payout}%</td>
           </tr>
         ))}
@@ -608,7 +836,31 @@ export function LevelsReadOnly({ def }: { def: ObjectiveDef }) {
 
 /** Small chart of payout % vs actual value, so the calc mode is visible at a glance. */
 export function PayoutCurve({ def }: { def: ObjectiveDef }) {
-  const lv = [...def.levels].filter((l) => Number.isFinite(l.target)).sort((a, b) => a.target - b.target);
+  if (typeOf(def) === "onoff")
+    return (
+      <div className="rounded-xl bg-canvas p-3">
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted">Payout</p>
+        <div className="space-y-1.5 text-[12.5px]">
+          <p className="flex justify-between">
+            <span className="text-muted">Raggiunto</span> <span className="font-bold tabular-nums">{def.levels[0]?.payout ?? 100}%</span>
+          </p>
+          <p className="flex justify-between">
+            <span className="text-muted">Non raggiunto</span> <span className="font-bold tabular-nums">0%</span>
+          </p>
+        </div>
+      </div>
+    );
+  return <Curve def={def} />;
+}
+
+function Curve({ def }: { def: ObjectiveDef }) {
+  // dates are drawn on a flipped axis (later date = left), so the curve still rises to the right
+  const isDate = typeOf(def) === "data";
+  const tick = (v: number) => (isDate ? formatValue(def, -v).slice(0, 5) : fmt(v));
+  const lv = [...def.levels]
+    .filter((l) => Number.isFinite(l.target))
+    .map((l) => ({ ...l, target: isDate ? -l.target : l.target }))
+    .sort((a, b) => a.target - b.target);
   const W = 220;
   const H = 120;
   const pad = { l: 30, r: 8, t: 10, b: 22 };
@@ -621,7 +873,11 @@ export function PayoutCurve({ def }: { def: ObjectiveDef }) {
   const sy = (p: number) => H - pad.b - (p / maxP) * (H - pad.t - pad.b);
 
   // build exact path: flat 0 until first level, then linear or stepped segments, then flat
-  const pts: [number, number][] = [[x0, 0], [lv[0].target, 0], [lv[0].target, lv[0].payout]];
+  const pts: [number, number][] = [
+    [x0, 0],
+    [lv[0].target, 0],
+    [lv[0].target, lv[0].payout],
+  ];
   for (let i = 1; i < lv.length; i++) {
     if (def.calc === "scaglioni") pts.push([lv[i].target, lv[i - 1].payout]);
     pts.push([lv[i].target, lv[i].payout]);
@@ -633,26 +889,29 @@ export function PayoutCurve({ def }: { def: ObjectiveDef }) {
     <div className="rounded-xl bg-canvas p-3">
       <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted">Curva di payout</p>
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={`Curva di payout ${def.calc}`}>
-        {[0, 50, 100].filter((p) => p <= maxP).map((p) => (
-          <g key={p}>
-            <line x1={pad.l} x2={W - pad.r} y1={sy(p)} y2={sy(p)} stroke="#e3e7ee" strokeDasharray={p ? "3 3" : undefined} />
-            <text x={pad.l - 5} y={sy(p) + 3} textAnchor="end" className="fill-[#9aa2b1] text-[9px]">
-              {p}%
-            </text>
-          </g>
-        ))}
+        {[0, 50, 100]
+          .filter((p) => p <= maxP)
+          .map((p) => (
+            <g key={p}>
+              <line x1={pad.l} x2={W - pad.r} y1={sy(p)} y2={sy(p)} stroke="#e3e7ee" strokeDasharray={p ? "3 3" : undefined} />
+              <text x={pad.l - 5} y={sy(p) + 3} textAnchor="end" className="fill-[#9aa2b1] text-[9px]">
+                {p}%
+              </text>
+            </g>
+          ))}
         <path d={d} fill="none" stroke="#1673e6" strokeWidth={2} strokeLinejoin="round" />
         {lv.map((l, i) => (
           <g key={i}>
             <circle cx={sx(l.target)} cy={sy(l.payout)} r={3} fill="#fff" stroke="#1673e6" strokeWidth={1.5} />
             <text x={sx(l.target)} y={H - 7} textAnchor="middle" className="fill-[#6b7486] text-[9px]">
-              {fmt(l.target)}
+              {tick(l.target)}
             </text>
           </g>
         ))}
       </svg>
       <p className="mt-1 text-[11px] text-muted">
-        Esempio: a {fmt(lv[lv.length - 1].target)} {def.unit} il payout è {payoutFor(def, lv[lv.length - 1].target)}%.
+        Esempio: {isDate ? "entro il" : "a"} {formatValue(def, isDate ? -lv[lv.length - 1].target : lv[lv.length - 1].target)} il payout è{" "}
+        {lv[lv.length - 1].payout}%.
       </p>
     </div>
   );
@@ -709,4 +968,3 @@ export function Block({
     </div>
   );
 }
-

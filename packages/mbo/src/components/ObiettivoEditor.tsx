@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { ArrowLeft, ChevronDown, Info, Layers, TriangleAlert, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, ChevronDown, Info, Layers, TriangleAlert, X } from "lucide-react";
 import { fullName } from "@spark/core";
-import { CATEGORIES, CYCLES, cycleLabel, schedeUsing, type Level, type ObjectiveDef, type Scheda } from "../lib/mbo";
+import { CATEGORIES, CYCLES, cycleLabel, schedeUsing, typeDefaults, typeOf, type Level, type ObjectiveDef, type Scheda } from "../lib/mbo";
 import { useMbo } from "../store";
 import { MultiSelect } from "@spark/core";
-import { Block, CustomObjectiveEditor, LevelsEditor, PresetPicker, SectionTitle, customError, levelsError } from "./SchedaEditor";
+import { Block, ChoiceButtons, CustomObjectiveEditor, LevelsEditor, PresetPicker, SectionTitle, customError, levelsError } from "./SchedaEditor";
 import { CATEGORY_ICON } from "./ObiettiviTable";
 import { StatusPill } from "./SchedeTable";
 import { GhostButton, PrimaryButton, inputCls } from "@spark/core";
@@ -55,13 +55,8 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
       description: "",
       category: CATEGORIES[0],
       cycle: "2026",
-      unit: "%",
-      calc: "lineare",
-      levels: [
-        { target: 80, payout: 50 },
-        { target: 100, payout: 100 },
-        { target: 120, payout: 150 },
-      ],
+      type: "quantitativo",
+      ...typeDefaults("quantitativo"),
     },
   );
   // initial assignments = schede that already contain this objective as a weighted item
@@ -97,8 +92,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
   );
 
   /** Sum of the other objectives' weights in a scheda (excluding this objective). */
-  const otherWeight = (s: Scheda) =>
-    s.items.filter((i) => !(def && !i.custom && i.objectiveId === def.id)).reduce((a, i) => a + (Number(i.weight) || 0), 0);
+  const otherWeight = (s: Scheda) => s.items.filter((i) => !(def && !i.custom && i.objectiveId === def.id)).reduce((a, i) => a + (Number(i.weight) || 0), 0);
 
   const setSelection = (ids: string[]) => {
     const added = ids.find((id) => !assignments[id]);
@@ -123,11 +117,15 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
   for (const [id, a] of Object.entries(assignments)) {
     if (!(a.weight > 0 && a.weight <= 100)) rowErrors[id] = "Il peso deve essere tra 1 e 100%";
     else if (a.levels) {
-      const e = levelsError(a.levels);
+      const e = levelsError(a.levels, typeOf(draft));
       if (e) rowErrors[id] = e;
     }
   }
-  const patch = (p: Partial<ObjectiveDef>) => setDraft((d) => ({ ...d, ...p }));
+  const patch = (p: Partial<ObjectiveDef>) => {
+    setDraft((d) => ({ ...d, ...p }));
+    // a new type has a different scale: per-scheda levels of the old type no longer apply
+    if (p.type && p.type !== typeOf(draft)) setAssignments((a) => Object.fromEntries(Object.entries(a).map(([id, x]) => [id, { ...x, levels: undefined }])));
+  };
 
   const save = () => {
     setSubmitted(true);
@@ -140,6 +138,8 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
     const data = {
       name: draft.name.trim(),
       description: draft.description?.trim() ?? "",
+      type: typeOf(draft),
+      activities: typeOf(draft) === "progetto" ? (draft.activities ?? []).map((x) => ({ ...x, title: x.title.trim() })).filter((x) => x.title) : undefined,
       category: draft.category,
       cycle: draft.cycle,
       unit: draft.unit.trim(),
@@ -191,15 +191,33 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-[18px] font-bold leading-tight">{def ? "Modifica obiettivo" : "Nuovo obiettivo"}</h1>
-          {def && <p className="mt-0.5 text-[12.5px] text-muted">{def.name}</p>}
+          <p className="mt-0.5 text-[12.5px] text-muted">{def ? def.name : "Misurazione, livelli e schede a cui assegnarlo"}</p>
         </div>
-        {actions}
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="relative">
+            <span className="sr-only">Anno o periodo di riferimento</span>
+            <CalendarDays className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+            <select
+              className="h-9 rounded-lg border border-[#dfe3ea] bg-white pl-8 pr-2 text-[12.5px] font-semibold outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
+              value={draft.cycle ?? "2026"}
+              onChange={(e) => patch({ cycle: e.target.value })}
+              title="Anno o periodo di riferimento"
+            >
+              {CYCLES.map((c) => (
+                <option key={c.value} value={c.value}>
+                  {c.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {actions}
+        </div>
       </div>
 
       <section className="card p-5">
         <SectionTitle n={1} title="Obiettivo" />
-        <div className="grid gap-4 sm:grid-cols-[1fr_200px]">
-          <Block label="Descrizione obiettivo" error={nameError ?? undefined} className="sm:col-span-2">
+        <div className="grid gap-4">
+          <Block label="Descrizione obiettivo" error={nameError ?? undefined}>
             <input
               autoFocus
               className={inputCls}
@@ -209,37 +227,18 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
             />
           </Block>
           <Block label="Livello" hint="A che livello si misura">
-            <div role="radiogroup" aria-label="Livello" className="flex flex-wrap gap-1.5">
-              {CATEGORIES.map((c) => {
-                const Icon = CATEGORY_ICON[c] ?? Layers;
-                const on = draft.category === c;
-                return (
-                  <button
-                    key={c}
-                    type="button"
-                    role="radio"
-                    aria-checked={on}
-                    onClick={() => patch({ category: c })}
-                    className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-semibold transition-colors ${
-                      on ? "border-brand bg-brand-soft text-brand" : "border-[#dfe3ea] bg-white text-muted hover:border-[#c6ccd6] hover:text-ink"
-                    }`}
-                  >
-                    <Icon className="h-3.5 w-3.5" /> {c}
-                  </button>
-                );
-              })}
-            </div>
+            <ChoiceButtons
+              label="Livello"
+              options={CATEGORIES.map((c) => ({
+                value: c,
+                label: c,
+                icon: CATEGORY_ICON[c] ?? Layers,
+              }))}
+              value={draft.category ?? CATEGORIES[0]}
+              onChange={(category) => patch({ category })}
+            />
           </Block>
-          <Block label="Ciclo di riferimento" hint="Anno o periodo">
-            <select className={inputCls} value={draft.cycle ?? "2026"} onChange={(e) => patch({ cycle: e.target.value })}>
-              {CYCLES.map((c) => (
-                <option key={c.value} value={c.value}>
-                  {c.label}
-                </option>
-              ))}
-            </select>
-          </Block>
-          <Block label="Dettagli" hint="Come si misura, fonte del dato" className="sm:col-span-2">
+          <Block label="Dettagli" hint="Come si misura, fonte del dato">
             <textarea
               rows={2}
               className={`${inputCls} resize-y`}
@@ -342,7 +341,11 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                               max={100}
                               className={`${inputCls} pr-7 text-right font-semibold tabular-nums`}
                               value={a.weight}
-                              onChange={(ev) => patchAssignment(id, { weight: Number(ev.target.value) })}
+                              onChange={(ev) =>
+                                patchAssignment(id, {
+                                  weight: Number(ev.target.value),
+                                })
+                              }
                             />
                             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-muted">%</span>
                           </span>
@@ -353,13 +356,19 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                       </div>
 
                       <div className="space-y-3 rounded-lg bg-canvas p-3">
-                        <div className="max-w-[420px]">
-                          <PresetPicker
-                            hint="Compila i livelli di questa scheda"
-                            onApply={(pr) => patchAssignment(id, { levels: pr.levels.map((l) => ({ ...l })) })}
-                          />
-                        </div>
-                        <LevelsEditor unit={draft.unit} levels={lv} onChange={(levels) => patchAssignment(id, { levels })} />
+                        {["quantitativo", "qualitativo_pct", "progetto"].includes(typeOf(draft)) && (
+                          <div className="max-w-[420px]">
+                            <PresetPicker
+                              hint="Compila i livelli di questa scheda"
+                              onApply={(pr) =>
+                                patchAssignment(id, {
+                                  levels: pr.levels.map((l) => ({ ...l })),
+                                })
+                              }
+                            />
+                          </div>
+                        )}
+                        <LevelsEditor unit={draft.unit} type={typeOf(draft)} levels={lv} onChange={(levels) => patchAssignment(id, { levels })} />
                         {a.levels && (
                           <button
                             type="button"

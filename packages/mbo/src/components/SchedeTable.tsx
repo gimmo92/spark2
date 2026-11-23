@@ -19,7 +19,7 @@ import {
   Search,
   UserRound,
 } from "lucide-react";
-import { fullName, type User } from "@spark/core"
+import { fullName, type User } from "@spark/core";
 import {
   SCHEDA_STATUSES,
   YEARS,
@@ -34,6 +34,10 @@ import {
   thresholdMet,
   type Scheda,
   type SchedaStatus,
+  formatValue,
+  levelsText,
+  typeLabel,
+  typeOf,
 } from "../lib/mbo";
 import { useMbo } from "../store";
 import { Badge, FilterMenu, GhostButton, Modal, PrimaryButton, Tooltip } from "@spark/core";
@@ -48,15 +52,12 @@ const STATUS_STYLE: Record<SchedaStatus, string> = {
 
 export function StatusPill({ status }: { status: SchedaStatus }) {
   return (
-    <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-bold ${STATUS_STYLE[status]}`}>
-      {statusLabel(status)}
-    </span>
+    <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-bold ${STATUS_STYLE[status]}`}>{statusLabel(status)}</span>
   );
 }
 
 type SortKey = "name" | "cycle" | "team" | "score" | "status" | "updatedAt";
 const collator = new Intl.Collator("it", { sensitivity: "base" });
-const fmt = (n: number) => n.toLocaleString("it-IT", { maximumFractionDigits: 2 });
 
 export function SchedeTable() {
   const { teamNames: TEAMS, companies: COMPANIES } = useOrg();
@@ -248,9 +249,7 @@ export function SchedeTable() {
                   </th>
                 );
               })}
-              <th className="sticky right-0 w-[112px] border-l border-line bg-white px-3 py-2.5 text-[11px] font-bold uppercase text-[#9aa2b1]">
-                Azioni
-              </th>
+              <th className="sticky right-0 w-[112px] border-l border-line bg-white px-3 py-2.5 text-[11px] font-bold uppercase text-[#9aa2b1]">Azioni</th>
             </tr>
           </thead>
           <tbody>
@@ -274,9 +273,7 @@ export function SchedeTable() {
                   <td className="whitespace-nowrap px-3 text-[12.5px] text-[#5b6476]">{cycleLabel(s.cycle)}</td>
                   <td className="px-3">{people[0]?.team ? <Badge>{people[0].team}</Badge> : <Badge tone="grey">Nessun team</Badge>}</td>
                   <td className="px-3 text-[13px] tabular-nums text-[#5b6476]">
-                    <span className="inline-flex items-center gap-1.5">
-                      {s.items.length}
-                    </span>
+                    <span className="inline-flex items-center gap-1.5">{s.items.length}</span>
                   </td>
                   <td className="px-3">
                     {measured ? (
@@ -370,8 +367,8 @@ export function SchedeTable() {
           }
         >
           <p className="text-[13px] leading-relaxed text-muted">
-            La scheda <span className="font-semibold text-ink">{archiving.name}</span> non sarà più modificabile. Potrai ripristinarla dal
-            filtro <em>Archiviate</em>.
+            La scheda <span className="font-semibold text-ink">{archiving.name}</span> non sarà più modificabile. Potrai ripristinarla dal filtro{" "}
+            <em>Archiviate</em>.
           </p>
         </Modal>
       )}
@@ -403,18 +400,25 @@ function SchedaView({ scheda: s, people, onClose, onEdit }: { scheda: Scheda; pe
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
         {people.map((u) => (
-          <Link key={u.id} href={`/azienda/utenti/${u.id}`} className="rounded-md bg-brand-soft px-2 py-0.5 text-[12px] font-semibold text-brand hover:underline">
+          <Link
+            key={u.id}
+            href={`/azienda/utenti/${u.id}`}
+            className="rounded-md bg-brand-soft px-2 py-0.5 text-[12px] font-semibold text-brand hover:underline"
+          >
             {fullName(u)}
           </Link>
         ))}
       </div>
 
       {gate && (
-        <div className={`mt-4 rounded-lg px-3 py-2 text-[12px] ${thresholdMet(objectives, s) ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}>
-          <span className="font-bold">Obiettivo soglia:</span> {gate.name} ≥ {fmt(gate.levels[0].target)} {gate.unit}
+        <div
+          className={`mt-4 rounded-lg px-3 py-2 text-[12px] ${thresholdMet(objectives, s) ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}
+        >
+          <span className="font-bold">Obiettivo soglia:</span> {gate.name} · almeno {formatValue(gate, gate.levels[0].target)}
           {s.threshold?.actual != null && (
             <>
-              {" "}· consuntivo {fmt(s.threshold.actual)} {gate.unit} — {thresholdMet(objectives, s) ? "raggiunta" : "non raggiunta, payout azzerato"}
+              {" "}
+              · consuntivo {formatValue(gate, s.threshold.actual)} — {thresholdMet(objectives, s) ? "raggiunta" : "non raggiunta, payout azzerato"}
             </>
           )}
         </div>
@@ -436,15 +440,14 @@ function SchedaView({ scheda: s, people, onClose, onEdit }: { scheda: Scheda; pe
             return (
               <tr key={it.id} className="border-b border-line last:border-0">
                 <td className="py-2.5">
-                  <span className="block text-[13px] font-semibold">
-                    {def.name}
-                  </span>
+                  <span className="block text-[13px] font-semibold">{def.name}</span>
                   <span className="block text-[11.5px] text-muted">
-                    {def.calc === "lineare" ? "Lineare" : "A scaglioni"} · {def.levels.map((l) => `${fmt(l.target)} ${def.unit} → ${l.payout}%`).join(" · ")}
+                    {typeLabel(def)}
+                    {typeOf(def) !== "onoff" && ` · ${def.calc === "lineare" ? "Lineare" : "A scaglioni"}`} · {levelsText(def)}
                   </span>
                 </td>
                 <td className="py-2.5 text-right text-[13px] tabular-nums text-muted">{it.weight}%</td>
-                <td className="py-2.5 text-right text-[13px] tabular-nums">{it.actual != null ? `${fmt(it.actual)} ${def.unit}` : "—"}</td>
+                <td className="py-2.5 text-right text-[13px] tabular-nums">{it.actual != null ? formatValue(def, it.actual) : "—"}</td>
                 <td className="py-2.5 text-right text-[13px] font-semibold tabular-nums">{it.actual != null ? `${payoutFor(def, it.actual)}%` : "—"}</td>
               </tr>
             );
@@ -470,17 +473,17 @@ function IconBtn({
 }) {
   return (
     <Tooltip label={label}>
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      className={`grid h-7 w-7 place-items-center rounded-md text-[#6c7486] transition-colors disabled:pointer-events-none disabled:opacity-30 ${
-        danger ? "hover:bg-red-50 hover:text-red-600" : "hover:bg-brand-soft hover:text-brand"
-      }`}
-    >
-      {children}
-    </button>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        className={`grid h-7 w-7 place-items-center rounded-md text-[#6c7486] transition-colors disabled:pointer-events-none disabled:opacity-30 ${
+          danger ? "hover:bg-red-50 hover:text-red-600" : "hover:bg-brand-soft hover:text-brand"
+        }`}
+      >
+        {children}
+      </button>
     </Tooltip>
   );
 }

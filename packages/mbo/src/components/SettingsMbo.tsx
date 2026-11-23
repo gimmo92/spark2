@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Pencil, Plus, ShieldAlert, Trash2 } from "lucide-react";
-import { catalogById, payoutFor, type CalcMode, type Preset } from "../lib/mbo";
+import { catalogById, payoutFor, type CalcMode, type Preset, formatValue } from "../lib/mbo";
 import { useMbo } from "../store";
 import { Block, LevelsEditor, PayoutCurve, fmt, levelsError } from "./SchedaEditor";
 import { GhostButton, Modal, PrimaryButton, SettingsTabs, Tooltip, inputCls } from "@spark/core";
@@ -25,8 +25,8 @@ export function SettingsMbo() {
           <div>
             <h2 className="text-[14px] font-bold">Preset target / payout</h2>
             <p className="mt-0.5 max-w-xl text-[12.5px] text-muted">
-              Schemi di livelli riutilizzabili. Negli obiettivi li selezioni dal menu &ldquo;Preset target / payout&rdquo; per compilare livelli e
-              modalità di calcolo.
+              Schemi di livelli riutilizzabili. Negli obiettivi li selezioni dal menu &ldquo;Preset target / payout&rdquo; per compilare livelli e modalità di
+              calcolo.
             </p>
           </div>
           <button
@@ -130,8 +130,8 @@ export function SettingsMbo() {
           }
         >
           <p className="text-[13px] leading-relaxed text-muted">
-            <span className="font-semibold text-ink">{deleting.name}</span> non sarà più selezionabile. Gli obiettivi a cui è già stato applicato
-            mantengono i loro livelli.
+            <span className="font-semibold text-ink">{deleting.name}</span> non sarà più selezionabile. Gli obiettivi a cui è già stato applicato mantengono i
+            loro livelli.
           </p>
         </Modal>
       )}
@@ -224,8 +224,8 @@ function ThresholdSettings() {
         <div className="min-w-0 flex-1">
           <h2 className="text-[14px] font-bold">Obiettivo soglia globale</h2>
           <p className="mt-0.5 max-w-2xl text-[12.5px] text-muted">
-            Vale per tutte le schede: se non raggiunge il primo livello target, nessuna scheda matura payout. Ogni scheda può avere in
-            più una propria soglia, impostata nelle sue opzioni avanzate.
+            Vale per tutte le schede: se non raggiunge il primo livello target, nessuna scheda matura payout. Ogni scheda può avere in più una propria soglia,
+            impostata nelle sue opzioni avanzate.
           </p>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,340px)_180px_1fr] sm:items-end">
@@ -268,7 +268,7 @@ function ThresholdSettings() {
                   met == null ? "bg-canvas text-muted" : met ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"
                 }`}
               >
-                Soglia: almeno <strong>{fmt(def.levels[0].target)} {def.unit}</strong> ·{" "}
+                Soglia: almeno <strong>{formatValue(def, def.levels[0].target)}</strong> ·{" "}
                 {met == null ? "da consuntivare" : met ? "raggiunta" : "non raggiunta, payout azzerato per tutte le schede"}
               </p>
             )}

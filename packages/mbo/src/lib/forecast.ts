@@ -1,4 +1,4 @@
-import { catalogById, itemDef, payoutFor, type Catalog, type GlobalGate, type ObjectiveDef, type Scheda } from "./mbo";
+import { catalogById, itemDef, payoutFor, type Catalog, type GlobalGate, type ObjectiveDef, type Scheda, typeOf, typeRange } from "./mbo";
 
 /** Starting point for every objective that has no explicit estimate. */
 export type ForecastBase = "min" | "target" | "max" | "actual";
@@ -39,7 +39,8 @@ export const targetLevel = (d: ObjectiveDef) =>
   sorted(d).reduce((best, l) => (Math.abs(l.payout - 100) < Math.abs(best.payout - 100) ? l : best), sorted(d)[0]);
 
 export function baseValue(d: ObjectiveDef, base: ForecastBase, actual?: number): number {
-  const lv = sorted(d);
+  // by payout, not by target: for dates the best level is the earliest one
+  const lv = [...d.levels].sort((a, b) => a.payout - b.payout);
   if (!lv.length) return 0;
   if (base === "actual" && actual != null) return actual;
   if (base === "min") return lv[0].target;
@@ -49,6 +50,8 @@ export function baseValue(d: ObjectiveDef, base: ForecastBase, actual?: number):
 
 /** Slider range for an objective: a bit below the minimum level to a bit above the maximum. */
 export function sliderRange(d: ObjectiveDef) {
+  const fixed = typeRange(typeOf(d));
+  if (fixed) return fixed;
   const lv = sorted(d);
   const lo = lv[0]?.target ?? 0;
   const hi = lv[lv.length - 1]?.target ?? 100;

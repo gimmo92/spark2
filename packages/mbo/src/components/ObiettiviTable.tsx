@@ -23,8 +23,8 @@ import {
   Users,
   type LucideIcon,
 } from "lucide-react";
-import { fullName } from "@spark/core"
-import { CATEGORIES, cycleLabel, schedeUsing, type ObjectiveDef } from "../lib/mbo";
+import { fullName } from "@spark/core";
+import { CATEGORIES, cycleLabel, schedeUsing, typeLabel, typeOf, type ObjectiveDef } from "../lib/mbo";
 import { useMbo } from "../store";
 import { LevelsReadOnly, PayoutCurve } from "./SchedaEditor";
 import { StatusPill } from "./SchedeTable";
@@ -53,7 +53,9 @@ export const CATEGORY_ICON: Record<string, LucideIcon> = {
 export function CategoryPill({ category }: { category?: string }) {
   if (!category) return <span className="text-[12px] text-faint">—</span>;
   return (
-    <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-bold ${CATEGORY_STYLE[category] ?? "bg-[#eef1f5] text-[#5b6476]"}`}>
+    <span
+      className={`inline-flex whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-bold ${CATEGORY_STYLE[category] ?? "bg-[#eef1f5] text-[#5b6476]"}`}
+    >
       {category}
     </span>
   );
@@ -92,13 +94,7 @@ export function ObiettiviTable() {
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const val = (o: ObjectiveDef, k: SortKey): string | number =>
-      k === "usage"
-        ? (usageMap.get(o.id)?.total ?? 0)
-        : k === "category"
-          ? CATEGORIES.indexOf(o.category ?? "")
-          : k === "name"
-            ? o.name
-            : (o[k] ?? "");
+      k === "usage" ? (usageMap.get(o.id)?.total ?? 0) : k === "category" ? CATEGORIES.indexOf(o.category ?? "") : k === "name" ? o.name : (o[k] ?? "");
     return objectives
       .filter((o) => {
         const u = usageMap.get(o.id);
@@ -222,9 +218,7 @@ export function ObiettiviTable() {
                   </th>
                 );
               })}
-              <th className="sticky right-0 w-[112px] border-l border-line bg-white px-3 py-2.5 text-[11px] font-bold uppercase text-[#9aa2b1]">
-                Azioni
-              </th>
+              <th className="sticky right-0 w-[112px] border-l border-line bg-white px-3 py-2.5 text-[11px] font-bold uppercase text-[#9aa2b1]">Azioni</th>
             </tr>
           </thead>
           <tbody>
@@ -343,13 +337,23 @@ function ObiettivoView({ def, onClose, onEdit }: { def: ObjectiveDef; onClose: (
     >
       <div className="flex flex-wrap items-center gap-2">
         <CategoryPill category={def.category} />
-        <span className="rounded-full bg-[#eef1f5] px-2 py-[3px] text-[11px] font-bold text-[#5b6476]">
-          {def.calc === "lineare" ? "Lineare" : "A scaglioni"}
-        </span>
-        <span className="text-[12px] text-muted">Unità: {def.unit}</span>
+        <span className="rounded-full bg-[#eef1f5] px-2 py-[3px] text-[11px] font-bold text-[#5b6476]">{typeLabel(def)}</span>
+        {typeOf(def) !== "onoff" && (
+          <span className="rounded-full bg-[#eef1f5] px-2 py-[3px] text-[11px] font-bold text-[#5b6476]">
+            {def.calc === "lineare" ? "Lineare" : "A scaglioni"}
+          </span>
+        )}
+        {typeOf(def) === "quantitativo" && def.unit && <span className="text-[12px] text-muted">Unità: {def.unit}</span>}
         {def.archived && <span className="rounded-full bg-[#f1f2f4] px-2 py-[3px] text-[11px] font-bold text-faint">Archiviato</span>}
       </div>
       {def.description && <p className="mt-3 text-[13px] leading-relaxed text-[#3f4757]">{def.description}</p>}
+      {typeOf(def) === "progetto" && !!def.activities?.length && (
+        <ol className="mt-3 list-decimal space-y-0.5 pl-5 text-[12.5px] text-[#3f4757]">
+          {def.activities.map((a) => (
+            <li key={a.id}>{a.title}</li>
+          ))}
+        </ol>
+      )}
 
       <div className="mt-4 grid gap-4 sm:grid-cols-[1fr_220px]">
         <LevelsReadOnly def={def} />
@@ -406,17 +410,17 @@ function IconBtn({
 }) {
   return (
     <Tooltip label={label}>
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      className={`grid h-7 w-7 place-items-center rounded-md text-[#6c7486] transition-colors disabled:pointer-events-none disabled:opacity-30 ${
-        danger ? "hover:bg-red-50 hover:text-red-600" : "hover:bg-brand-soft hover:text-brand"
-      }`}
-    >
-      {children}
-    </button>
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        aria-label={label}
+        className={`grid h-7 w-7 place-items-center rounded-md text-[#6c7486] transition-colors disabled:pointer-events-none disabled:opacity-30 ${
+          danger ? "hover:bg-red-50 hover:text-red-600" : "hover:bg-brand-soft hover:text-brand"
+        }`}
+      >
+        {children}
+      </button>
     </Tooltip>
   );
 }
