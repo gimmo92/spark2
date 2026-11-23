@@ -61,7 +61,7 @@ const fmt = (n: number) => n.toLocaleString("it-IT", { maximumFractionDigits: 2 
 export function SchedeTable() {
   const { teamNames: TEAMS, companies: COMPANIES } = useOrg();
   const router = useRouter();
-  const { schede, users, updateScheda, notify, objectives, globalGate } = useMbo();
+  const { schede, users, updateScheda, notify, objectives, globalGate, canCreateScheda, canEditScheda } = useMbo();
   const byId = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
 
   const [status, setStatus] = useState("");
@@ -121,14 +121,16 @@ export function SchedeTable() {
 
   return (
     <div className="space-y-3.5">
-      <div className="flex items-center gap-3 sm:gap-4">
-        <Link
-          href="/mbo/schede/nuova"
-          className="btn-gradient flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[11.5px] font-extrabold uppercase tracking-[-0.02em] text-white sm:px-5"
-        >
-          <Plus className="h-3.5 w-3.5" strokeWidth={3} /> Nuova scheda
-        </Link>
-      </div>
+      {canCreateScheda && (
+        <div className="flex items-center gap-3 sm:gap-4">
+          <Link
+            href="/mbo/schede/nuova"
+            className="btn-gradient flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[11.5px] font-extrabold uppercase tracking-[-0.02em] text-white sm:px-5"
+          >
+            <Plus className="h-3.5 w-3.5" strokeWidth={3} /> Nuova scheda
+          </Link>
+        </div>
+      )}
 
       <div className="card overflow-hidden px-4 pb-3 pt-2.5">
         <div className="flex items-baseline justify-between gap-4">
@@ -302,10 +304,12 @@ export function SchedeTable() {
                       <IconBtn label="Visualizza" onClick={() => setViewing(s.id)}>
                         <Eye className="h-4 w-4" strokeWidth={2.2} />
                       </IconBtn>
-                      <IconBtn label="Modifica" onClick={() => router.push(`/mbo/schede/${s.id}`)} disabled={s.status === "archiviata"}>
-                        <Pencil className="h-4 w-4" strokeWidth={2.2} />
-                      </IconBtn>
-                      {s.status === "archiviata" ? (
+                      {canEditScheda(s) && (
+                        <IconBtn label="Modifica" onClick={() => router.push(`/mbo/schede/${s.id}`)} disabled={s.status === "archiviata"}>
+                          <Pencil className="h-4 w-4" strokeWidth={2.2} />
+                        </IconBtn>
+                      )}
+                      {!canEditScheda(s) ? null : s.status === "archiviata" ? (
                         <IconBtn
                           label="Ripristina"
                           onClick={() => {

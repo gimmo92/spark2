@@ -1,7 +1,8 @@
 // @spark/core/server: server-only helpers for client apps' own API routes.
 import "server-only";
 
-export { requireAdmin } from "./auth/require";
+export { requireUser } from "./auth/require";
+export { loadViewer, type Viewer, type ViewerInfo } from "./auth/viewer";
 export { getSupabaseAdmin, getSupabaseStateless, adminConfigured } from "./supabase/admin";
 export { getSupabaseServer } from "./supabase/server";
 export { sendInviteEmail, sendLoginCodeEmail, sendPasswordResetEmail, sendgridConfigured } from "./email/sendgrid";

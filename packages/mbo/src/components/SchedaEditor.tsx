@@ -33,10 +33,11 @@ export const levelsSummary = (d: ObjectiveDef) => d.levels.map((l) => `${fmt(l.t
 /** Route entry: /mbo/schede/[id] (edit) or /mbo/schede/nuova (create). */
 export function SchedaEditorPage({ isNew }: { isNew?: boolean }) {
   const params = useParams<{ id?: string }>();
-  const { schede, hydrated } = useMbo();
+  const { schede, hydrated, canCreateScheda, canEditScheda } = useMbo();
   if (!hydrated) return <div className="card h-40 animate-pulse" />;
-  if (isNew) return <SchedaEditor key="new" />;
+  if (isNew) return canCreateScheda ? <SchedaEditor key="new" /> : <NoEdit />;
   const scheda = schede.find((s) => s.id === params.id);
+  if (scheda && !canEditScheda(scheda)) return <NoEdit />;
   if (!scheda)
     return (
       <div className="card p-10 text-center">
@@ -47,6 +48,18 @@ export function SchedaEditorPage({ isNew }: { isNew?: boolean }) {
       </div>
     );
   return <SchedaEditor key={scheda.id} scheda={scheda} />;
+}
+
+function NoEdit() {
+  return (
+    <div className="card p-10 text-center">
+      <p className="text-[14px] font-semibold">Non puoi modificare questa scheda</p>
+      <p className="mt-1 text-[12.5px] text-muted">Il tuo livello di accesso non lo prevede. Puoi consultarla dalla lista.</p>
+      <Link href="/mbo/schede" className="mt-2 inline-block text-[12.5px] font-semibold text-brand hover:underline">
+        Torna alle schede obiettivo
+      </Link>
+    </div>
+  );
 }
 
 function SchedaEditor({ scheda }: { scheda?: Scheda }) {

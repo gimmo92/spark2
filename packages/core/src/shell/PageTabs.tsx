@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { Tab } from "../config";
 import { useSparkConfig } from "./SparkProvider";
+import { useNavAccess } from "../access/navAccess";
 
 /** Page title + tab bar. Used by the dashboard and settings pages (tabs come from the app config). */
 export function PageTabs({ title, tabs, label }: { title: string; tabs: Tab[]; label: string }) {
@@ -33,9 +34,11 @@ export function PageTabs({ title, tabs, label }: { title: string; tabs: Tab[]; l
 }
 
 export function DashboardTabs() {
-  return <PageTabs title="Dashboard" tabs={useSparkConfig().dashboardTabs} label="Sezioni dashboard" />;
+  const { visibleTabs } = useNavAccess();
+  return <PageTabs title="Dashboard" tabs={visibleTabs(useSparkConfig().dashboardTabs)} label="Sezioni dashboard" />;
 }
 
 export function SettingsTabs() {
-  return <PageTabs title="Impostazioni" tabs={useSparkConfig().settingsTabs} label="Sezioni impostazioni" />;
+  const { visibleTabs } = useNavAccess();
+  return <PageTabs title="Impostazioni" tabs={visibleTabs(useSparkConfig().settingsTabs)} label="Sezioni impostazioni" />;
 }

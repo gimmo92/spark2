@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Doc } from "../config";
-import { DATA_ERRORS, diffById, type DataChanges, type DataSource } from "./sync";
+import { DATA_ERRORS, diffById, type DataChanges, type DataSource, type ViewerDTO } from "./sync";
 
 type Data = Record<string, Doc[]>;
 
@@ -14,6 +14,8 @@ interface DataCtx {
   /** "db" = saved on Supabase, "local" = only in this browser (reason in dataMessage). */
   dataSource: DataSource;
   dataMessage: string | null;
+  /** Logged-in user as resolved by the server (null in browser-only mode: everything is allowed there). */
+  viewer: ViewerDTO | null;
   /** Replace everything with the seed data. */
   reset: () => void;
 }
@@ -26,6 +28,8 @@ interface Props {
   migrate?: (collection: string, items: Doc[]) => Doc[];
   storagePrefix: string;
   onSaveError: () => void;
+  /** Some changes were refused by the server (permissions). */
+  onRejected?: (count: number) => void;
   children: React.ReactNode;
 }
 
@@ -36,19 +40,22 @@ const fill = (collections: string[], from?: Partial<Record<string, Doc[]>>): Dat
  * Generic record store for every collection of the app. Loads from /api/data (Supabase) and saves
  * only what changed, 500 ms after each edit. Without a database session it falls back to localStorage.
  */
-export function DataProvider({ collections, seed, migrate, storagePrefix, onSaveError, children }: Props) {
+export function DataProvider({ collections, seed, migrate, storagePrefix, onSaveError, onRejected, children }: Props) {
   const [data, setData] = useState<Data>(() => fill(collections, seed?.()));
   const [hydrated, setHydrated] = useState(false);
   const [dataSource, setDataSource] = useState<DataSource>("loading");
   const [dataMessage, setDataMessage] = useState<string | null>(null);
+  const [viewer, setViewer] = useState<ViewerDTO | null>(null);
 
   /** Last state known to be in the database (diffed so only changes are sent). */
   const synced = useRef<Data | null>(null);
   const current = useRef<Data>(data);
   const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onError = useRef(onSaveError);
+  const onRefused = useRef(onRejected);
   useEffect(() => {
     onError.current = onSaveError;
+    onRefused.current = onRejected;
     current.current = data;
   });
 
@@ -72,23 +79,31 @@ export function DataProvider({ collections, seed, migrate, storagePrefix, onSave
 
     (async () => {
       let res: Response | null = null;
-      let body: { data?: Data; empty?: boolean; error?: string } = {};
+      let body: { data?: Data; empty?: boolean; error?: string; viewer?: ViewerDTO } = {};
       try {
         res = await fetch("/api/data", { cache: "no-store" });
         body = await res.json().catch(() => ({}));
       } catch {}
       if (!alive) return;
 
+      if (res?.ok && body.viewer) setViewer(body.viewer);
       if (res?.ok && body.data && !body.empty) {
         const db = fill(collections, body.data);
-        synced.current = db;
-        setData(Object.fromEntries(collections.map((c) => [c, up(c, db[c])])));
+        const upgraded: Data = Object.fromEntries(collections.map((c) => [c, up(c, db[c])]));
+        // admins save shape upgrades back to the database; others only see a filtered subset, so they don't
+        synced.current = body.viewer?.isAdmin === false ? upgraded : db;
+        setData(upgraded);
         setDataSource("db");
       } else if (res?.ok && body.empty) {
         // first run on this database: upload what this browser has (or the seed data)
         synced.current = fill(collections);
         setData(fromLocal());
         setDataSource("db");
+      } else if (body.error === "unlinked") {
+        // logged in, but not a Spark user: show nothing
+        setData(fill(collections));
+        setDataSource("denied");
+        setDataMessage(DATA_ERRORS.unlinked);
       } else {
         setData(fromLocal());
         setDataSource("local");
@@ -139,6 +154,8 @@ export function DataProvider({ collections, seed, migrate, storagePrefix, onSave
           keepalive,
         });
         if (!r.ok) throw new Error(String(r.status));
+        const result = (await r.json().catch(() => ({}))) as { rejected?: number };
+        if (result.rejected) onRefused.current?.(result.rejected);
       } catch {
         // put the changes back in the queue: they are retried with the next save
         if (synced.current === now) synced.current = before;
@@ -175,8 +192,8 @@ export function DataProvider({ collections, seed, migrate, storagePrefix, onSave
   const reset = useCallback(() => setData(fill(collections, seed?.())), [collections, seed]);
 
   const value = useMemo(
-    () => ({ data, setCollection, hydrated, dataSource, dataMessage, reset }),
-    [data, setCollection, hydrated, dataSource, dataMessage, reset],
+    () => ({ data, setCollection, hydrated, dataSource, dataMessage, viewer, reset }),
+    [data, setCollection, hydrated, dataSource, dataMessage, viewer, reset],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

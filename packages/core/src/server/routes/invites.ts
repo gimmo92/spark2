@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { requireAdmin } from "../../auth/require";
+import { requireUser } from "../../auth/require";
+import { loadViewer } from "../../auth/viewer";
 import { sendInviteEmail, sendgridConfigured } from "../../email/sendgrid";
 import { adminConfigured, getSupabaseAdmin } from "../../supabase/admin";
 import { authConfigured } from "../../supabase/env";
@@ -15,11 +16,19 @@ function newCode() {
   return `${s.slice(0, 4)}-${s.slice(4)}`;
 }
 
+/** Logged-in user with "people.create" (invites carry registration codes: nobody else sees them). */
 async function guard() {
   if (!authConfigured || !adminConfigured()) return NextResponse.json({ error: "config" }, { status: 503 });
-  const auth = await requireAdmin();
+  const auth = await requireUser();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
-  return auth;
+  const viewer = await loadViewer(auth.email, { modules: [] });
+  if ("error" in viewer) return NextResponse.json({ error: "config" }, { status: 503 });
+  if (!viewer.can(viewer.person, "people.create")) return NextResponse.json({ error: "forbidden" }, { status: 403 });
+  // non-admins only deal with the people they can see
+  const visible = new Set(
+    viewer.users.filter((u) => viewer.isAdmin || viewer.can(viewer.person, "people.view", u)).map((u) => u.email.toLowerCase()),
+  );
+  return { ...auth, isAdmin: viewer.isAdmin, visible };
 }
 
 /** List all invites (status + code) for the user list and profiles. */
@@ -31,7 +40,8 @@ export async function GET() {
     .select("email, code, sent_at, registered_at")
     .order("sent_at", { ascending: false });
   if (error) return NextResponse.json({ error: "config" }, { status: 503 });
-  return NextResponse.json({ invites: data as InviteDTO[] });
+  const invites = (data as InviteDTO[]).filter((i) => auth.isAdmin || auth.visible.has(i.email));
+  return NextResponse.json({ invites });
 }
 
 /** Send (or re-send) the registration email. The code is created once and reused on re-send. */
@@ -44,6 +54,7 @@ export async function POST(request: NextRequest) {
   const email = String(body.email ?? "").trim().toLowerCase();
   const fullName = String(body.fullName ?? "").trim() || null;
   if (!/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: "email" }, { status: 400 });
+  if (!auth.isAdmin && !auth.visible.has(email)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const db = getSupabaseAdmin().from("registration_invites");
   const { data: existing, error: readError } = await db.select("email, code, sent_at, registered_at").eq("email", email).maybeSingle();

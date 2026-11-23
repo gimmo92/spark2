@@ -163,3 +163,17 @@ export function grantCovers(
   if (grants.has(`${permission}:reports`) && reportsTo(target, viewer, people)) return true;
   return false;
 }
+
+export type LeveledPerson = ScopedPerson & { level: string };
+export type Can = (user: LeveledPerson | undefined, permission: string, target?: ScopedPerson) => boolean;
+
+/** Permission check shared by the browser (UI) and the server (/api/data). ADMIN can do everything. */
+export function makeChecker(levels: AccessLevelDef[], people: ScopedPerson[]): Can {
+  const byLevel = new Map(levels.map((l) => [l.id, new Set(l.grants)]));
+  return (user, permission, target) => {
+    if (!user) return false;
+    if (user.level === ADMIN_LEVEL) return true;
+    const grants = byLevel.get(user.level);
+    return grants ? grantCovers(grants, permission, user, target, people) : false;
+  };
+}

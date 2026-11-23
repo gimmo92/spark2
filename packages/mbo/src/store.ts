@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { useCollection, useCore, useSettings } from "@spark/core";
+import { useAccess, useCollection, useCore, useSettings } from "@spark/core";
+import { SCHEDA_EDIT } from "./module";
 import type { GlobalGate, ObjectiveDef, Preset, Scheda } from "./lib/mbo";
 import type { Workflow } from "./lib/workflow";
 
@@ -17,6 +18,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 /** MBO state and actions. Also exposes the core helpers MBO screens need (users, notify, hydrated). */
 export function useMbo() {
   const { users, notify, hydrated } = useCore();
+  const { allowed } = useAccess();
   const [schede, setSchede] = useCollection<Scheda>("schede");
   const [objectives, setObjectives] = useCollection<ObjectiveDef>("objectives");
   const [presets, setPresets] = useCollection<Preset>("presets");
@@ -80,7 +82,21 @@ export function useMbo() {
     [mboSettings],
   );
 
+  /** The logged-in user may create schede (for someone) / change this scheda (every assignee in scope). */
+  const canCreateScheda = SCHEDA_EDIT.some((p) => allowed(p));
+  const canEditScheda = useCallback(
+    (s: Pick<Scheda, "assigneeIds">) => {
+      if (!s.assigneeIds.length) return SCHEDA_EDIT.some((p) => allowed(p));
+      const people = s.assigneeIds.map((id) => users.find((u) => u.id === id));
+      // assignees this user can't even see need the "all" scope
+      return SCHEDA_EDIT.some((p) => people.every((u) => (u ? allowed(p, u) : allowed(`${p}:all`))));
+    },
+    [users, allowed],
+  );
+
   return {
+    canCreateScheda,
+    canEditScheda,
     users,
     notify,
     hydrated,

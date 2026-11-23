@@ -12,7 +12,9 @@ type Draft = Omit<User, "id" | "createdAt">;
 export function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) {
   const { teamNames: TEAMS, companyForTeam, emailDomains } = useOrg();
   const { users, addUser, updateUser, notify } = useCore();
-  const { levels } = useAccess();
+  const { levels, allowed, isAdmin, adminLevel } = useAccess();
+  const canSetLevel = allowed("people.level");
+  const levelOptions = levels.filter((l) => isAdmin || l.id !== adminLevel);
   const managers = users.filter((u) => u.id !== user?.id && u.status === "attivo").sort((a, b) => a.lastName.localeCompare(b.lastName));
   const [d, setD] = useState<Draft>(
     user ?? {
@@ -99,8 +101,14 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
           </Field>
         </div>
         <Field label="Livello di accesso">
-          <select className={inputCls} value={d.level} onChange={(e) => set("level", e.target.value as Draft["level"])}>
-            {levels.map((l) => (
+          <select
+            className={`${inputCls} disabled:bg-canvas disabled:text-muted`}
+            value={d.level}
+            disabled={!canSetLevel}
+            title={canSetLevel ? undefined : "Il tuo livello di accesso non permette di cambiarlo"}
+            onChange={(e) => set("level", e.target.value as Draft["level"])}
+          >
+            {(canSetLevel ? levelOptions : levels).map((l) => (
               <option key={l.id} value={l.id}>
                 {l.name}
               </option>

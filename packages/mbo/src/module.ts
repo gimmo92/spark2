@@ -1,4 +1,4 @@
-import type { PermissionDef, SparkModule } from "@spark/core";
+import type { Doc, PermissionDef, SparkModule } from "@spark/core";
 
 const G = "MBO";
 
@@ -60,9 +60,24 @@ export const MBO_PERMISSIONS: PermissionDef[] = [
   { id: "mbo.settings.manage", group: G, label: "Modificare le impostazioni MBO", hint: "Soglia globale, preset target / payout" },
 ];
 
+/** Any of these lets a user change a scheda (the editor then limits what each one allows). */
+export const SCHEDA_EDIT = ["mbo.schede.edit", "mbo.goals.edit", "mbo.results.edit", "mbo.schede.approve"];
+
 /** MBO module: schede obiettivo, catalogo obiettivi, preset, workflow (settings doc "mbo"). */
 export const mboModule: SparkModule = {
   id: "mbo",
   collections: ["schede", "objectives", "presets", "workflows"],
   permissions: MBO_PERMISSIONS,
+  // enforced by /api/data on the server
+  access: {
+    schede: {
+      owners: (d: Doc) => (d as Doc & { assigneeIds?: string[] }).assigneeIds ?? [],
+      view: "mbo.schede.view",
+      edit: SCHEDA_EDIT,
+    },
+    objectives: { edit: ["mbo.catalog.manage"] }, // the catalog is read by every scheda
+    presets: { edit: ["mbo.settings.manage"] },
+    workflows: { edit: ["mbo.workflow.manage"] },
+  },
+  settingsAccess: { mbo: ["mbo.settings.manage"] },
 };

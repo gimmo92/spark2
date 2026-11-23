@@ -6,6 +6,7 @@ import { DatabaseZap, Menu, X } from "lucide-react";
 import { Sidebar, SparkLogo } from "./Sidebar";
 import type { SparkConfig } from "../config";
 import { SparkProvider, useCore } from "./SparkProvider";
+import { RouteGuard } from "../access/navAccess";
 
 function Toasts() {
   const { toasts } = useCore();
@@ -26,14 +27,16 @@ function Toasts() {
 
 function DataBanner() {
   const { dataSource, dataMessage } = useCore();
-  if (dataSource !== "local" || !dataMessage) return null;
+  if ((dataSource !== "local" && dataSource !== "denied") || !dataMessage) return null;
   return (
     <div role="status" className="mb-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] font-semibold text-amber-900">
       <DatabaseZap className="h-4 w-4 shrink-0" />
       <span className="min-w-0 flex-1">{dataMessage}</span>
+      {dataSource === "local" && (
       <Link href="/login?next=/" className="shrink-0 rounded-lg px-2 py-1 text-amber-900 underline hover:bg-amber-100">
         Accedi
       </Link>
+      )}
     </div>
   );
 }
@@ -89,7 +92,9 @@ export function AppShell({ config, children }: { config: SparkConfig; children: 
           </header>
           <main className="px-4 py-5 lg:px-6 lg:py-4">
             <DataBanner />
-            {children}
+            <Suspense fallback={null}>
+              <RouteGuard>{children}</RouteGuard>
+            </Suspense>
           </main>
         </div>
       </div>

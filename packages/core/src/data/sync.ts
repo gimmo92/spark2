@@ -6,8 +6,17 @@ export interface DataChanges {
   deletes?: Record<string, string[]>;
 }
 
-/** Where the data lives right now. */
-export type DataSource = "loading" | "db" | "local";
+/** The logged-in user as resolved by /api/data. */
+export interface ViewerDTO {
+  email: string;
+  /** Matching record of the "users" collection. */
+  userId?: string;
+  level: string;
+  isAdmin: boolean;
+}
+
+/** Where the data lives right now ("denied" = logged in but not allowed to see any data). */
+export type DataSource = "loading" | "db" | "local" | "denied";
 
 /** Messages for /api/data errors (shown in the banner when the app falls back to the browser). */
 export const DATA_ERRORS: Record<string, string> = {
@@ -16,6 +25,8 @@ export const DATA_ERRORS: Record<string, string> = {
   unauthenticated: "Non hai effettuato l'accesso: i dati restano solo in questo browser. Accedi per salvarli nel database.",
   forbidden: "Il tuo account non può modificare i dati: le modifiche restano solo in questo browser.",
   network: "Database non raggiungibile: i dati restano solo in questo browser.",
+  unlinked:
+    "Il tuo account non è collegato a nessun utente di Spark: chiedi a un amministratore di aggiungerti alla Lista Utenti con questa email.",
 };
 
 /**

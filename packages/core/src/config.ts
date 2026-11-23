@@ -1,12 +1,14 @@
 import type { LucideIcon } from "lucide-react";
 import { CORE_PERMISSIONS, type PermissionDef } from "./access/permissions";
+import type { CollectionAccess, SettingsAccess } from "./access/rules";
 
 /** Every stored record has a string id. */
 export type Doc = { id: string };
 
-export type NavLeaf = { label: string; href: string; badge?: string };
+/** `permission`: shown only to users who have it (for at least one scope). */
+export type NavLeaf = { label: string; href: string; badge?: string; permission?: string };
 export type NavItem =
-  | { label: string; href: string; icon: LucideIcon; muted?: boolean }
+  | { label: string; href: string; icon: LucideIcon; muted?: boolean; permission?: string }
   | { id: string; label: string; icon: LucideIcon; children: NavLeaf[] };
 
 export interface Tab {
@@ -14,6 +16,8 @@ export interface Tab {
   href: string;
   /** Active only on this exact path (default: any path starting with href). */
   exact?: boolean;
+  /** Shown only to users who have it. */
+  permission?: string;
 }
 
 /** A feature module (e.g. @spark/mbo). Client-specific modules use the same shape. */
@@ -23,6 +27,10 @@ export interface SparkModule {
   collections: string[];
   /** Permissions the module adds to Impostazioni → Permessi. */
   permissions?: PermissionDef[];
+  /** Read/write rules of the module's collections, enforced by /api/data. A collection without rules is admin-only. */
+  access?: Record<string, CollectionAccess>;
+  /** Settings documents the module owns → permissions that may change them. */
+  settingsAccess?: SettingsAccess;
 }
 
 export interface OrgConfig {

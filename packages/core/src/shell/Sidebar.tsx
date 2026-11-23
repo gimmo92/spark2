@@ -7,6 +7,7 @@ import { getSupabaseBrowser } from "../supabase/client";
 import { Tooltip } from "../ui/ui";
 import { ChevronDown, LogOut } from "lucide-react";
 import { useSparkConfig } from "./SparkProvider";
+import { useNavAccess } from "../access/navAccess";
 
 export function SparkLogo({ className = "" }: { className?: string }) {
   const gid = useId();
@@ -30,7 +31,8 @@ export function SparkLogo({ className = "" }: { className?: string }) {
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { nav, appName } = useSparkConfig();
+  const { appName } = useSparkConfig();
+  const { nav } = useNavAccess();
   // groups start open when the current page is inside them
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(nav.flatMap((i) => ("children" in i ? [[i.id, i.children.some((c) => pathname.startsWith(c.href))]] : []))),

@@ -12,7 +12,7 @@ export const INVITE_ERRORS: Record<string, string> = {
   config: "Inviti non disponibili: collega Supabase e crea la tabella registration_invites.",
   email_config: "Invio email non configurato: imposta SENDGRID_API_KEY e SENDGRID_FROM.",
   unauthenticated: "Accedi con password e codice per gestire gli inviti.",
-  forbidden: "Solo gli amministratori possono inviare inviti.",
+  forbidden: "Il tuo livello di accesso non permette di invitare utenti.",
   registered: "L'utente è già registrato.",
   send: "SendGrid non ha accettato l'email. Controlla mittente e API key.",
   email: "Indirizzo email non valido.",

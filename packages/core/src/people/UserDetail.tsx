@@ -14,7 +14,7 @@ import { RegistrationCard } from "./InviteAction";
 export function UserDetail() {
   const { id } = useParams<{ id: string }>();
   const { users, updateUser, notify } = useCore();
-  const { levelName } = useAccess();
+  const { levelName, allowed, canEditUser } = useAccess();
   const [editing, setEditing] = useState(false);
   const u = users.find((x) => x.id === id);
 
@@ -51,6 +51,7 @@ export function UserDetail() {
             {u.team ? <Badge>{u.team}</Badge> : <Badge tone="grey">Nessun team</Badge>}
           </div>
         </div>
+        {canEditUser(u) && (
         <div className="flex gap-2">
           <button
             type="button"
@@ -65,6 +66,7 @@ export function UserDetail() {
           </button>
           <PrimaryButton onClick={() => setEditing(true)}>Modifica</PrimaryButton>
         </div>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -107,7 +109,7 @@ export function UserDetail() {
         </div>
 
         <div className="space-y-4">
-          <RegistrationCard user={u} />
+          {allowed("people.create") && <RegistrationCard user={u} />}
           <div className="card p-5">
             <h2 className="mb-4 text-[12px] font-bold uppercase tracking-wide text-muted">Colleghi nel team</h2>
             {teammates.length === 0 && <p className="text-[12.5px] text-muted">Nessun collega nel team.</p>}

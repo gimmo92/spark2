@@ -28,8 +28,8 @@ export default defineConfig({
       label: "La mia azienda",
       icon: User,
       children: [
-        { label: "Lista Utenti", href: "/azienda/utenti" },
-        { label: "Lista Team", href: "/azienda/team" },
+        { label: "Lista Utenti", href: "/azienda/utenti", permission: "people.view" },
+        { label: "Lista Team", href: "/azienda/team", permission: "teams.manage" },
       ],
     },
     {
@@ -37,20 +37,20 @@ export default defineConfig({
       label: "MBO",
       icon: Target,
       children: [
-        { label: "Schede obiettivo", href: "/mbo/schede" },
-        { label: "Obiettivi", href: "/mbo/obiettivi" },
-        { label: "Workflow", href: "/mbo/workflow" },
-        { label: "Forecast", href: "/mbo/forecast" },
+        { label: "Schede obiettivo", href: "/mbo/schede", permission: "mbo.schede.view" },
+        { label: "Obiettivi", href: "/mbo/obiettivi", permission: "mbo.catalog.manage" },
+        { label: "Workflow", href: "/mbo/workflow", permission: "mbo.workflow.manage" },
+        { label: "Forecast", href: "/mbo/forecast", permission: "mbo.forecast.view" },
       ],
     },
     { label: "Impostazioni", href: "/impostazioni", icon: Settings },
   ],
   dashboardTabs: [
-    { label: "Generale", href: "/dashboard", exact: true },
-    { label: "MBO", href: "/dashboard/mbo" },
+    { label: "Generale", href: "/dashboard", exact: true, permission: "dashboard.view" },
+    { label: "MBO", href: "/dashboard/mbo", permission: "mbo.dashboard.view" },
   ],
   settingsTabs: [
-    { label: "Permessi", href: "/impostazioni/permessi" },
-    { label: "MBO", href: "/impostazioni/mbo" },
+    { label: "Permessi", href: "/impostazioni/permessi", permission: "access.manage" },
+    { label: "MBO", href: "/impostazioni/mbo", permission: "mbo.settings.manage" },
   ],
 });

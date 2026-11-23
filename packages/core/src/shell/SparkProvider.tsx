@@ -38,6 +38,10 @@ export function SparkProvider({ config, children }: { config: SparkConfig; child
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200);
   }, []);
   const onSaveError = useCallback(() => notify("Salvataggio nel database non riuscito: riprovo alla prossima modifica."), [notify]);
+  const onRejected = useCallback(
+    (n: number) => notify(n === 1 ? "Una modifica non è consentita dal tuo livello di accesso: non è stata salvata." : `${n} modifiche non consentite dal tuo livello di accesso: non sono state salvate.`),
+    [notify],
+  );
 
   // invites live on the server: load once
   useEffect(() => {
@@ -92,6 +96,7 @@ export function SparkProvider({ config, children }: { config: SparkConfig; child
         migrate={config.migrate}
         storagePrefix={config.storagePrefix ?? "spark.v5"}
         onSaveError={onSaveError}
+        onRejected={onRejected}
       >
         {children}
       </DataProvider>
@@ -123,7 +128,7 @@ export function useOrg(): OrgConfig & { teamNames: string[]; companyForTeam: (te
 /** Core state: users, invites, toasts, data status. */
 export function useCore() {
   const core = useCoreCtx();
-  const { hydrated, dataSource, dataMessage, reset } = useData();
+  const { hydrated, dataSource, dataMessage, viewer, reset } = useData();
   const [users, setUsers] = useCollection<User>("users");
 
   const addUser = useCallback(
@@ -139,5 +144,5 @@ export function useCore() {
     [setUsers],
   );
 
-  return { ...core, users, addUser, updateUser, hydrated, dataSource, dataMessage, resetData: reset };
+  return { ...core, users, addUser, updateUser, hydrated, dataSource, dataMessage, viewer, resetData: reset };
 }

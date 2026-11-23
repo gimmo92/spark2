@@ -61,7 +61,8 @@ function downloadCsv(rows: User[], levelName: (id: string) => string) {
 export function UsersTable() {
   const { teamNames: TEAMS, companies: COMPANIES } = useOrg();
   const { users, updateUser, notify, resetData } = useCore();
-  const { levels, levelName } = useAccess();
+  const { levels, levelName, allowed, canEditUser } = useAccess();
+  const canCreate = allowed("people.create");
   const levelOrder = useMemo(() => levels.map((l) => l.id), [levels]);
 
   const [quick, setQuick] = useState("");
@@ -134,9 +135,11 @@ export function UsersTable() {
     <div className="space-y-3.5">
       {/* actions */}
       <div className="flex items-center gap-3 sm:gap-4">
-        <button type="button" onClick={() => setEditing("new")} className="btn-gradient rounded-lg px-4 py-2.5 text-[11.5px] sm:px-5 font-extrabold uppercase tracking-[-0.02em] text-white">
-          Nuovo utente
-        </button>
+        {canCreate && (
+          <button type="button" onClick={() => setEditing("new")} className="btn-gradient rounded-lg px-4 py-2.5 text-[11.5px] sm:px-5 font-extrabold uppercase tracking-[-0.02em] text-white">
+            Nuovo utente
+          </button>
+        )}
         <button
           type="button"
           onClick={() => {
@@ -350,11 +353,13 @@ export function UsersTable() {
                     <IconBtn label="Visualizza" href={`/azienda/utenti/${u.id}`}>
                       <Eye className="h-4 w-4 fill-current stroke-white" strokeWidth={2} />
                     </IconBtn>
-                    <IconBtn label="Modifica" onClick={() => setEditing(u)}>
-                      <UserPen className="h-4 w-4" strokeWidth={2.2} />
-                    </IconBtn>
-                    <InviteIconButton user={u} />
-                    {u.status === "attivo" ? (
+                    {canEditUser(u) && (
+                      <IconBtn label="Modifica" onClick={() => setEditing(u)}>
+                        <UserPen className="h-4 w-4" strokeWidth={2.2} />
+                      </IconBtn>
+                    )}
+                    {canCreate && <InviteIconButton user={u} />}
+                    {!canEditUser(u) ? null : u.status === "attivo" ? (
                       <IconBtn label="Disattiva account" onClick={() => setConfirm(u)} danger>
                         <UserX className="h-4 w-4" strokeWidth={2.2} />
                       </IconBtn>

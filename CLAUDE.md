@@ -66,7 +66,10 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 - A permission is on/off or scoped: `self` / `reports` (direct and indirect, via `User.managerId` = "Responsabile") / `team` / `all`. Grants are stored as `"id"` or `"id:scope"`.
 - Levels in settings doc `"access"`. Built-in ADMIN (always everything, locked), MANAGER (self + team + reports), UTENTE (self only); clients create custom levels ("parti dai permessi di …"). Permissions added later get their defaults automatically (`known` list per level).
 - Check with `can(user, "mbo.schede.view", targetUser)`; without target = "has it for some scope" (menus).
-- **Not enforced yet**: there is no "current user" in the app (only ADMIN_EMAILS admins can use the data API). Next step: map the logged-in email to its `users` record, filter screens with `can()`, and filter `/api/data` server-side per user before opening Spark to non-admins.
+- **Who is logged in**: the server matches the login email to the `users` record (`loadViewer`, `packages/core/src/auth/viewer.ts`). Admins = `ADMIN_EMAILS` or level ADMIN (with no ADMIN_EMAILS and no users yet, the first login is admin). A login with no matching active user gets nothing (`unlinked` banner).
+- **Enforced on the server** (`/api/data`): GET returns only readable records, POST applies only permitted changes and returns `rejected` (toast in the UI). Rules: `access/rules.ts` (core: users; settings docs readable by all, writable per `settingsAccess`) + `SparkModule.access` (MBO: schede owned by `assigneeIds`; catalog/presets/workflows readable by all, writable with the manage permission). A module collection without rules is admin-only. Only admins can create/modify ADMIN users or seed an empty DB; non-admins don't push `migrate()` upgrades. Invites (`/api/invites`) need `people.create`.
+- **In the UI** (only hides; the server decides): `useAccess().allowed(perm, target)`, `canEditUser`, MBO `canCreateScheda` / `canEditScheda`; menu entries and tabs carry `permission` in the app config; `RouteGuard` (in AppShell) blocks pages the user can't open and moves home/section roots to the first allowed page.
+- **Coarse spot**: on the server any of `mbo.schede.edit / goals.edit / results.edit / approve` lets a user save the whole scheda; the editor doesn't yet split goals vs results vs status per permission.
 
 ## New client app (checklist)
 
@@ -89,7 +92,7 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 ## Next steps / open points
 
 - **Multilingual core** (it / fr / en / de / es): UI strings in packages through a dictionary + `locale` in `SparkConfig` (per app, later per user). Requested by the owner 2026-11-23, not started.
-- **Enforce permissions** (see "Access levels and permissions"): current user, UI filtering, server-side data filtering.
+- Scheda editor: split editing by permission (goals / results / status-approval), not only all-or-nothing.
 - Extension points in modules (e.g. client-defined workflow task types), a `new-client` script, link workflows to schede.
 - Link the user list to real accounts; move `app_data` to relational tables per module when a client needs it.
 - Optional: lock out after N wrong login codes.
