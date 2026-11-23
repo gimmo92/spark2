@@ -3,7 +3,7 @@
 import { useOrg } from "@spark/core";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
   ArchiveRestore,
@@ -13,6 +13,7 @@ import {
   ChevronUp,
   ChevronsUpDown,
   CircleDot,
+  Copy,
   Eye,
   Pencil,
   Plus,
@@ -64,7 +65,7 @@ const collator = new Intl.Collator("it", { sensitivity: "base" });
 export function SchedeTable() {
   const { teamNames: TEAMS, companies: COMPANIES } = useOrg();
   const router = useRouter();
-  const { schede, users, updateScheda, notify, objectives, globalGate, canCreateScheda, canEditScheda } = useMbo();
+  const { schede, users, addScheda, updateScheda, notify, objectives, globalGate, canCreateScheda, canEditScheda } = useMbo();
   const byId = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
 
   const [status, setStatus] = useState("");
@@ -76,7 +77,8 @@ export function SchedeTable() {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "name", dir: 1 });
   const [viewing, setViewing] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<Scheda | null>(null);
-  const [sending, setSending] = useState<Scheda | null>(null);
+  const [sending, setSending] = useState<Scheda[] | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -122,6 +124,27 @@ export function SchedeTable() {
     { key: "status", label: "Stato" },
     { key: "updatedAt", label: "Aggiornata" },
   ];
+
+  // multi-select: only rows the user may change, and only the ones currently listed
+  const selectable = rows.filter((s) => canEditScheda(s));
+  const picked = selectable.filter((s) => selected.has(s.id));
+  const allOn = selectable.length > 0 && picked.length === selectable.length;
+
+  /** Copies the selected schede as drafts: same objectives and weights, no results, not in any workflow. */
+  const duplicate = () => {
+    const stamp = Date.now().toString(36);
+    for (const s of picked)
+      addScheda({
+        name: `${s.name} (copia)`,
+        assigneeIds: s.assigneeIds,
+        cycle: s.cycle,
+        status: "bozza",
+        items: s.items.map((it, i) => ({ ...it, id: `${it.id}-c${stamp}${i}`, actual: undefined, done: undefined })),
+        threshold: s.threshold ? { objectiveId: s.threshold.objectiveId } : undefined,
+      });
+    notify(picked.length === 1 ? "Scheda duplicata come bozza" : `${picked.length} schede duplicate come bozza`);
+    setSelected(new Set());
+  };
 
   return (
     <div className="space-y-3.5">
@@ -219,14 +242,44 @@ export function SchedeTable() {
         </div>
       </div>
 
+      {picked.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl bg-brand-soft px-3.5 py-2 text-[12.5px]">
+          <span className="font-semibold text-brand">
+            {picked.length} {picked.length === 1 ? "scheda selezionata" : "schede selezionate"}
+          </span>
+          <span className="ml-auto flex flex-wrap items-center gap-1.5">
+            {canCreateScheda && (
+              <BulkBtn onClick={duplicate}>
+                <Copy className="h-3.5 w-3.5" /> Duplica
+              </BulkBtn>
+            )}
+            <BulkBtn onClick={() => setSending(picked.filter((s) => s.status !== "archiviata"))} disabled={picked.every((s) => s.status === "archiviata")}>
+              <Send className="h-3.5 w-3.5" /> Invia a workflow
+            </BulkBtn>
+            <button type="button" onClick={() => setSelected(new Set())} className="px-2 py-1 font-semibold text-muted hover:text-ink">
+              Deseleziona
+            </button>
+          </span>
+        </div>
+      )}
+
       <div className="card overflow-x-auto">
         <table className="w-full min-w-[900px] border-collapse text-left">
           <thead>
             <tr className="border-b border-line">
+              <th className="w-10 py-2.5 pl-4 pr-1">
+                <SelectBox
+                  label="Seleziona tutte"
+                  checked={allOn}
+                  indeterminate={!allOn && picked.length > 0}
+                  disabled={!selectable.length}
+                  onChange={() => setSelected(allOn ? new Set() : new Set(selectable.map((s) => s.id)))}
+                />
+              </th>
               {cols.map((c) => {
                 const active = sort.key === c.key;
                 return (
-                  <th key={c.key} className="px-3 py-2.5 first:pl-4">
+                  <th key={c.key} className="px-3 py-2.5">
                     {c.key === "objectives" ? (
                       <span className="text-[11px] font-bold uppercase text-[#9aa2b1]">{c.label}</span>
                     ) : (
@@ -261,8 +314,27 @@ export function SchedeTable() {
               const score = schedaScore(objectives, s, globalGate);
               const measured = hasActuals(s);
               return (
-                <tr key={s.id} className={`group border-b border-line last:border-0 hover:bg-[#f8fafd] ${s.status === "archiviata" ? "opacity-60" : ""}`}>
-                  <td className="px-3 py-[9px] pl-4">
+                <tr
+                  key={s.id}
+                  className={`group border-b border-line last:border-0 hover:bg-[#f8fafd] ${selected.has(s.id) ? "bg-brand-soft/40" : ""} ${s.status === "archiviata" ? "opacity-60" : ""}`}
+                >
+                  <td className="w-10 py-[9px] pl-4 pr-1">
+                    {canEditScheda(s) && (
+                      <SelectBox
+                        label={`Seleziona ${s.name}`}
+                        checked={selected.has(s.id)}
+                        onChange={() =>
+                          setSelected((prev) => {
+                            const n = new Set(prev);
+                            if (n.has(s.id)) n.delete(s.id);
+                            else n.add(s.id);
+                            return n;
+                          })
+                        }
+                      />
+                    )}
+                  </td>
+                  <td className="px-3 py-[9px]">
                     <button type="button" onClick={() => setViewing(s.id)} className="block text-left">
                       <span className="block max-w-[300px] truncate text-[13.5px] font-semibold text-brand hover:underline" title={s.name}>
                         {s.name}
@@ -315,7 +387,7 @@ export function SchedeTable() {
                         </IconBtn>
                       )}
                       {canEditScheda(s) && (
-                        <IconBtn label="Invia a workflow" onClick={() => setSending(s)} disabled={s.status === "archiviata"}>
+                        <IconBtn label="Invia a workflow" onClick={() => setSending([s])} disabled={s.status === "archiviata"}>
                           <Send className="h-4 w-4" strokeWidth={2.2} />
                         </IconBtn>
                       )}
@@ -341,7 +413,7 @@ export function SchedeTable() {
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={cols.length + 1} className="px-4 py-12 text-center">
+                <td colSpan={cols.length + 2} className="px-4 py-12 text-center">
                   <p className="text-[14px] font-semibold">Nessuna scheda trovata</p>
                   <p className="mt-1 text-[12.5px] text-muted">Prova a modificare i filtri o la ricerca.</p>
                 </td>
@@ -351,7 +423,15 @@ export function SchedeTable() {
         </table>
       </div>
 
-      {sending && <InviaWorkflowModal scheda={sending} onClose={() => setSending(null)} />}
+      {sending && (
+        <InviaWorkflowModal
+          schede={sending}
+          onClose={(sent) => {
+            setSending(null);
+            if (sent && sending.length > 1) setSelected(new Set());
+          }}
+        />
+      )}
       {viewed && (
         <SchedaView
           scheda={viewed}
@@ -499,5 +579,50 @@ function IconBtn({
         {children}
       </button>
     </Tooltip>
+  );
+}
+
+/** Checkbox of the multi-select (supports the "some selected" state for "seleziona tutte"). */
+function SelectBox({
+  label,
+  checked,
+  indeterminate,
+  disabled,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  indeterminate?: boolean;
+  disabled?: boolean;
+  onChange: () => void;
+}) {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = !!indeterminate;
+  }, [indeterminate]);
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      aria-label={label}
+      title={label}
+      checked={checked}
+      disabled={disabled}
+      onChange={onChange}
+      className="h-4 w-4 cursor-pointer accent-brand align-middle disabled:cursor-default disabled:opacity-30"
+    />
+  );
+}
+
+function BulkBtn({ children, onClick, disabled }: { children: React.ReactNode; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-brand/25 bg-white px-2.5 font-semibold text-brand transition-colors hover:border-brand disabled:opacity-40"
+    >
+      {children}
+    </button>
   );
 }

@@ -16,6 +16,9 @@ export interface MboSettings {
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
+let seq = 0;
+/** Unique even when several records are created in the same millisecond (bulk duplicate). */
+const newId = (p: string) => `${p}${Date.now().toString(36)}${(seq++).toString(36)}`;
 
 /** MBO state and actions. Also exposes the core helpers MBO screens need (users, notify, hydrated). */
 export function useMbo() {
@@ -29,7 +32,7 @@ export function useMbo() {
 
   const addScheda = useCallback(
     (s: Omit<Scheda, "id" | "updatedAt">) => {
-      const scheda: Scheda = { ...s, id: `s${Date.now()}`, updatedAt: today() };
+      const scheda: Scheda = { ...s, id: newId("s"), updatedAt: today() };
       setSchede((prev) => [scheda, ...prev]);
       return scheda;
     },

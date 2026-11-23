@@ -41,8 +41,10 @@ export function WorkflowBadge({ scheda }: { scheda: Scheda }) {
 }
 
 /** "Invia a workflow": puts a scheda at a step of an MBO workflow. */
-export function InviaWorkflowModal({ scheda, onClose }: { scheda: Scheda; onClose: () => void }) {
+export function InviaWorkflowModal({ schede, onClose }: { schede: Scheda[]; onClose: (sent?: boolean) => void }) {
+  // defaults (cycle, current step) come from the first scheda
   const { workflows, updateScheda, notify } = useMbo();
+  const scheda = schede[0];
 
   // active workflows of the scheda's cycle first, then the others; archived ones are never offered
   const options = useMemo(
@@ -74,19 +76,21 @@ export function InviaWorkflowModal({ scheda, onClose }: { scheda: Scheda; onClos
 
   const send = () => {
     if (!wf || !taskId) return;
-    updateScheda(scheda.id, { workflow: { workflowId: wf.id, taskId, sentAt: new Date().toISOString().slice(0, 10) } });
-    notify(`Scheda inviata a "${wf.name}" · ${wf.tasks.find((t) => t.id === taskId)?.title}`);
-    onClose();
+    const sentAt = new Date().toISOString().slice(0, 10);
+    for (const s of schede) updateScheda(s.id, { workflow: { workflowId: wf.id, taskId, sentAt } });
+    const step = wf.tasks.find((t) => t.id === taskId)?.title;
+    notify(`${schede.length === 1 ? "Scheda inviata" : `${schede.length} schede inviate`} a "${wf.name}" · ${step}`);
+    onClose(true);
   };
 
   return (
     <Modal
-      title={`Invia a workflow · ${scheda.name}`}
-      onClose={onClose}
+      title={`Invia a workflow · ${schede.length === 1 ? scheda.name : `${schede.length} schede`}`}
+      onClose={() => onClose()}
       width="max-w-xl"
       footer={
         <>
-          <GhostButton onClick={onClose}>Annulla</GhostButton>
+          <GhostButton onClick={() => onClose()}>Annulla</GhostButton>
           <PrimaryButton onClick={send} disabled={!wf || !taskId}>
             Invia
           </PrimaryButton>
