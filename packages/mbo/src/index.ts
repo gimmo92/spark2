@@ -9,6 +9,7 @@ export * from "./components/Forecast";
 export * from "./components/ObiettiviTable";
 export * from "./components/ObiettivoEditor";
 export * from "./components/Misura";
+export * from "./components/InviaWorkflow";
 export * from "./components/SchedaEditor";
 export * from "./components/SchedeTable";
 export * from "./components/SettingsMbo";

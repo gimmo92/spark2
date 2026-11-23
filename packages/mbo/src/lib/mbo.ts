@@ -164,6 +164,8 @@ export interface ObjectiveDef {
   cycle?: string;
   archived?: boolean;
   updatedAt?: string;
+  /** Step of an MBO workflow the objective was sent to ("Invia a workflow"). */
+  workflow?: { workflowId: string; taskId: string; sentAt: string };
 }
 
 /** Objective category = organisational level it is measured at. */

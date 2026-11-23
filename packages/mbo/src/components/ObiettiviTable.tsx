@@ -19,6 +19,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Send,
   Tag,
   User,
   Users,
@@ -28,6 +29,7 @@ import { fullName } from "@spark/core";
 import { CATEGORIES, cycleLabel, schedeUsing, typeLabel, typeOf, type ObjectiveDef } from "../lib/mbo";
 import { useMbo } from "../store";
 import { LevelsReadOnly, PayoutCurve } from "./SchedaEditor";
+import { InviaWorkflowModal, WorkflowBadge } from "./InviaWorkflow";
 import { MisuraModal } from "./Misura";
 import { StatusPill } from "./SchedeTable";
 import { FilterMenu, GhostButton, Modal, PrimaryButton, Tooltip, useAccess } from "@spark/core";
@@ -81,6 +83,7 @@ export function ObiettiviTable() {
   const [viewing, setViewing] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<ObjectiveDef | null>(null);
   const [measuring, setMeasuring] = useState<ObjectiveDef | null>(null);
+  const [sending, setSending] = useState<ObjectiveDef | null>(null);
 
   // per objective: how many schede use it, and which groups / companies their assignees belong to
   const usageMap = useMemo(() => {
@@ -226,7 +229,7 @@ export function ObiettiviTable() {
                   </th>
                 );
               })}
-              <th className="sticky right-0 w-[112px] border-l border-line bg-white px-3 py-2.5 text-[11px] font-bold uppercase text-[#9aa2b1]">Azioni</th>
+              <th className="sticky right-0 w-[168px] border-l border-line bg-white px-3 py-2.5 text-[11px] font-bold uppercase text-[#9aa2b1]">Azioni</th>
             </tr>
           </thead>
           <tbody>
@@ -241,6 +244,11 @@ export function ObiettiviTable() {
                         {o.description || "Nessuna descrizione"}
                       </span>
                     </button>
+                    {o.workflow && (
+                      <span className="mt-1 block max-w-[520px]">
+                        <WorkflowBadge def={o} />
+                      </span>
+                    )}
                   </td>
                   <td className="px-3">
                     <CategoryPill category={o.category} />
@@ -258,6 +266,9 @@ export function ObiettiviTable() {
                       </IconBtn>
                       <IconBtn label="Misura" onClick={() => setMeasuring(o)} disabled={o.archived || !canMeasure(o)}>
                         <Gauge className="h-4 w-4" strokeWidth={2.2} />
+                      </IconBtn>
+                      <IconBtn label="Invia a workflow" onClick={() => setSending(o)} disabled={o.archived}>
+                        <Send className="h-4 w-4" strokeWidth={2.2} />
                       </IconBtn>
                       <IconBtn label="Modifica" onClick={() => router.push(`/mbo/obiettivi/${o.id}`)} disabled={o.archived}>
                         <Pencil className="h-4 w-4" strokeWidth={2.2} />
@@ -294,6 +305,7 @@ export function ObiettiviTable() {
         </table>
       </div>
 
+      {sending && <InviaWorkflowModal def={sending} onClose={() => setSending(null)} />}
       {measuring && <MisuraModal def={measuring} onClose={() => setMeasuring(null)} />}
       {viewed && <ObiettivoView def={viewed} onClose={() => setViewing(null)} onEdit={() => router.push(`/mbo/obiettivi/${viewed.id}`)} />}
 
