@@ -461,7 +461,6 @@ export function CustomObjectiveEditor({
           </Block>
         </div>
 
-
         <LevelsEditor unit={def.unit} levels={def.levels} onChange={(levels) => onChange({ levels })} />
         {error && (
           <p className="flex items-center gap-1.5 text-[12px] font-semibold text-red-600">
