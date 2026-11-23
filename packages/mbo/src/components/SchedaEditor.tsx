@@ -461,6 +461,17 @@ export function CustomObjectiveEditor({
           </Block>
         </div>
 
+
+        <LevelsEditor unit={def.unit} levels={def.levels} onChange={(levels) => onChange({ levels })} />
+        {error && (
+          <p className="flex items-center gap-1.5 text-[12px] font-semibold text-red-600">
+            <TriangleAlert className="h-3.5 w-3.5" /> {error}
+          </p>
+        )}
+      </div>
+      <div className="space-y-3.5">
+        <PayoutCurve def={def} />
+        <PresetPicker hint="" onApply={(pr) => onChange({ calc: pr.calc, levels: pr.levels.map((l) => ({ ...l })) })} />
         <Block label="Modalità di calcolo">
           <div className="inline-flex rounded-lg bg-canvas p-1">
             {(["lineare", "scaglioni"] as CalcMode[]).map((m) => (
@@ -482,17 +493,6 @@ export function CustomObjectiveEditor({
               : "Il payout resta fisso al livello raggiunto fino al successivo."}
           </p>
         </Block>
-
-        <LevelsEditor unit={def.unit} levels={def.levels} onChange={(levels) => onChange({ levels })} />
-        {error && (
-          <p className="flex items-center gap-1.5 text-[12px] font-semibold text-red-600">
-            <TriangleAlert className="h-3.5 w-3.5" /> {error}
-          </p>
-        )}
-      </div>
-      <div className="space-y-3.5">
-        <PayoutCurve def={def} />
-        <PresetPicker hint="" onApply={(pr) => onChange({ calc: pr.calc, levels: pr.levels.map((l) => ({ ...l })) })} />
       </div>
     </div>
   );
