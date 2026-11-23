@@ -117,6 +117,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
   const patchAssignment = (id: string, p: Partial<Assignment>) => setAssignments((a) => ({ ...a, [id]: { ...a[id], ...p } }));
 
   const draftError = customError(draft);
+  const nameError = submitted && !draft.name.trim() ? "Inserisci la descrizione dell'obiettivo" : null;
   const rowErrors: Record<string, string> = {};
   for (const [id, a] of Object.entries(assignments)) {
     if (!(a.weight > 0 && a.weight <= 100)) rowErrors[id] = "Il peso deve essere tra 1 e 100%";
@@ -195,8 +196,17 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
       </div>
 
       <section className="card p-5">
-        <SectionTitle n={1} title="Classificazione" />
+        <SectionTitle n={1} title="Obiettivo" />
         <div className="grid gap-4 sm:grid-cols-2">
+          <Block label="Descrizione obiettivo" error={nameError ?? undefined} className="sm:col-span-2">
+            <input
+              autoFocus
+              className={inputCls}
+              value={draft.name}
+              onChange={(e) => patch({ name: e.target.value })}
+              placeholder="es. Lancio nuova linea prodotto"
+            />
+          </Block>
           <Block label="Livello" hint="A che livello si misura">
             <select className={inputCls} value={draft.category} onChange={(e) => patch({ category: e.target.value })}>
               {CATEGORIES.map((c) => (
@@ -213,7 +223,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
               ))}
             </select>
           </Block>
-          <Block label="Descrizione" hint="Come si misura, fonte del dato" className="sm:col-span-2">
+          <Block label="Dettagli" hint="Come si misura, fonte del dato" className="sm:col-span-2">
             <textarea
               rows={2}
               className={`${inputCls} resize-y`}
@@ -227,7 +237,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
 
       <section className="card p-5">
         <SectionTitle n={2} title="Misurazione e livelli standard" />
-        <CustomObjectiveEditor def={draft} onChange={patch} error={submitted ? (draftError ?? undefined) : undefined} />
+        <CustomObjectiveEditor def={draft} onChange={patch} showName={false} error={submitted && !nameError ? (draftError ?? undefined) : undefined} />
       </section>
 
       <section className="card p-5">

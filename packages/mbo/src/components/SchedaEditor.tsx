@@ -431,18 +431,31 @@ export function levelsError(levels: Level[]): string | null {
 }
 
 export function customError(d: ObjectiveDef): string | null {
-  if (!d.name.trim()) return "Inserisci il nome dell'obiettivo";
+  if (!d.name.trim()) return "Inserisci la descrizione dell'obiettivo";
   return levelsError(d.levels);
 }
 
-export function CustomObjectiveEditor({ def, onChange, error }: { def: ObjectiveDef; onChange: (p: Partial<ObjectiveDef>) => void; error?: string }) {
+/** `showName = false` when the screen shows the objective's description elsewhere (catalog editor). */
+export function CustomObjectiveEditor({
+  def,
+  onChange,
+  error,
+  showName = true,
+}: {
+  def: ObjectiveDef;
+  onChange: (p: Partial<ObjectiveDef>) => void;
+  error?: string;
+  showName?: boolean;
+}) {
   return (
     <div className="grid gap-4 sm:grid-cols-[1fr_220px]">
       <div className="space-y-3.5">
-        <div className="grid gap-3 sm:grid-cols-[1fr_110px]">
-          <Block label="Nome obiettivo">
-            <input autoFocus className={inputCls} value={def.name} onChange={(e) => onChange({ name: e.target.value })} placeholder="es. Lancio nuova linea prodotto" />
-          </Block>
+        <div className={`grid gap-3 ${showName ? "sm:grid-cols-[1fr_110px]" : "sm:grid-cols-[110px]"}`}>
+          {showName && (
+            <Block label="Descrizione obiettivo">
+              <input autoFocus className={inputCls} value={def.name} onChange={(e) => onChange({ name: e.target.value })} placeholder="es. Lancio nuova linea prodotto" />
+            </Block>
+          )}
           <Block label="Unità di misura">
             <input className={inputCls} value={def.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="%, €, n." />
           </Block>
