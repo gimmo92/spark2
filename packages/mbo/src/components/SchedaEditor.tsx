@@ -543,7 +543,7 @@ export function typePatch(def: ObjectiveDef, type: ObjectiveType): Partial<Objec
 function ActivitiesEditor({ activities, onChange }: { activities: Activity[]; onChange: (a: Activity[]) => void }) {
   const set = (id: string, title: string) => onChange(activities.map((a) => (a.id === id ? { ...a, title } : a)));
   return (
-    <Block label="Attività del progetto" hint="Il consuntivo è la % di attività completate">
+    <Block label="Attività del progetto">
       <div className="space-y-1.5">
         {activities.map((a, i) => (
           <div key={a.id} className="flex items-center gap-2">
@@ -593,7 +593,7 @@ export function CustomObjectiveEditor({
   const presets = type === "quantitativo" || type === "qualitativo_pct" || type === "progetto";
   return (
     <div className="space-y-3.5">
-      <Block label="Tipo di obiettivo" hint={OBJECTIVE_TYPES.find((t) => t.value === type)?.hint}>
+      <Block label="Tipo di obiettivo">
         <ChoiceButtons label="Tipo di obiettivo" options={TYPE_OPTIONS} value={type} onChange={(t) => t !== type && onChange(typePatch(def, t))} />
       </Block>
       <div className="grid gap-4 sm:grid-cols-[1fr_220px]">
@@ -656,11 +656,6 @@ export function CustomObjectiveEditor({
                   </button>
                 ))}
               </div>
-              <p className="mt-1.5 text-[11.5px] text-muted">
-                {def.calc === "lineare"
-                  ? "Il payout cresce in proporzione tra un livello e il successivo."
-                  : "Il payout resta fisso al livello raggiunto fino al successivo."}
-              </p>
             </Block>
           )}
         </div>
@@ -685,7 +680,7 @@ export function LevelsEditor({
   const r = typeRange(type);
   if (type === "onoff")
     return (
-      <Block label="Payout se raggiunto" hint="Non raggiunto = 0%">
+      <Block label="Payout se raggiunto">
         <span className="relative block w-[110px]">
           <input
             type="number"
@@ -909,10 +904,6 @@ function Curve({ def }: { def: ObjectiveDef }) {
           </g>
         ))}
       </svg>
-      <p className="mt-1 text-[11px] text-muted">
-        Esempio: {isDate ? "entro il" : "a"} {formatValue(def, isDate ? -lv[lv.length - 1].target : lv[lv.length - 1].target)} il payout è{" "}
-        {lv[lv.length - 1].payout}%.
-      </p>
     </div>
   );
 }

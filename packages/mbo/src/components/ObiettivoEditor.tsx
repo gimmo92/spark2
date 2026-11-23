@@ -226,7 +226,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
               placeholder="es. Lancio nuova linea prodotto"
             />
           </Block>
-          <Block label="Livello" hint="A che livello si misura">
+          <Block label="Livello">
             <ChoiceButtons
               label="Livello"
               options={CATEGORIES.map((c) => ({
@@ -238,7 +238,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
               onChange={(category) => patch({ category })}
             />
           </Block>
-          <Block label="Dettagli" hint="Come si misura, fonte del dato">
+          <Block label="Dettagli">
             <textarea
               rows={2}
               className={`${inputCls} resize-y`}
@@ -359,7 +359,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                         {["quantitativo", "qualitativo_pct", "progetto"].includes(typeOf(draft)) && (
                           <div className="max-w-[420px]">
                             <PresetPicker
-                              hint="Compila i livelli di questa scheda"
+                              hint=""
                               onApply={(pr) =>
                                 patchAssignment(id, {
                                   levels: pr.levels.map((l) => ({ ...l })),
