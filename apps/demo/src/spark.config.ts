@@ -1,7 +1,7 @@
 import { BookOpen, ChartColumn, Goal, Info, Settings, Star, Target, User } from "lucide-react";
 import { defineConfig, type Doc } from "@spark/core";
 import { mboModule } from "@spark/mbo";
-import { COMPANIES, TEAMS, buildSeedUsers, migrateTeams, EMAIL_DOMAIN } from "./seed/users";
+import { COMPANIES, TEAMS, buildSeedUsers, migrateUsers, EMAIL_DOMAIN } from "./seed/users";
 import { SEED_OBJECTIVES, SEED_PRESETS, SEED_WORKFLOWS, buildSeedSchede } from "./seed/mbo";
 import type { User as SparkUser } from "@spark/core";
 
@@ -53,7 +53,10 @@ export default defineConfig({
     { label: "Generale", href: "/dashboard", exact: true },
     { label: "MBO", href: "/dashboard/mbo" },
   ],
-  settingsTabs: [{ label: "MBO", href: "/impostazioni/mbo" }],
+  settingsTabs: [
+    { label: "Permessi", href: "/impostazioni/permessi" },
+    { label: "MBO", href: "/impostazioni/mbo" },
+  ],
   seed: () => {
     const users = buildSeedUsers();
     return {
@@ -65,5 +68,5 @@ export default defineConfig({
       settings: [{ id: "mbo", globalThresholdId: "ob-ebitda" }],
     };
   },
-  migrate: (collection: string, items: Doc[]) => (collection === "users" ? migrateTeams(items as SparkUser[]) : items),
+  migrate: (collection: string, items: Doc[]) => (collection === "users" ? migrateUsers(items as SparkUser[]) : items),
 });

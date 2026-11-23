@@ -1,4 +1,5 @@
-export type AccessLevel = "UTENTE" | "MANAGER" | "ADMIN";
+/** Id of an access level: "ADMIN", "MANAGER", "UTENTE" or a custom level (Impostazioni → Permessi). */
+export type AccessLevel = string;
 export type AccountStatus = "attivo" | "disattivato";
 
 export interface User {
@@ -7,14 +8,14 @@ export interface User {
   lastName: string;
   email: string;
   level: AccessLevel;
+  /** Direct manager (user id): defines "riporti" for permissions. */
+  managerId?: string;
   team: string;
   company: string;
   role: string;
   status: AccountStatus;
   createdAt: string; // ISO date
 }
-
-export const ACCESS_LEVELS: AccessLevel[] = ["UTENTE", "MANAGER", "ADMIN"];
 
 /** nome.cognome@domain, accents and spaces removed. */
 export function slugEmail(first: string, last: string, domain: string) {

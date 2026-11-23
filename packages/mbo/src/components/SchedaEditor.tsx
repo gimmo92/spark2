@@ -21,7 +21,7 @@ import {
 } from "../lib/mbo";
 import { useMbo } from "../store";
 import { MultiSelect } from "@spark/core";
-import { GhostButton, PrimaryButton, inputCls } from "@spark/core";
+import { GhostButton, PrimaryButton, Switch, inputCls } from "@spark/core";
 
 const collator = new Intl.Collator("it", { sensitivity: "base" });
 let seq = 0;
@@ -684,18 +684,3 @@ export function Block({
   );
 }
 
-export function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      onClick={() => onChange(!checked)}
-      className={`relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors ${checked ? "bg-brand" : "bg-[#d5dae2]"}`}
-    >
-      <span
-        className={`absolute left-0.5 top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform duration-200 ${checked ? "translate-x-4" : ""}`}
-      />
-    </button>
-  );
-}

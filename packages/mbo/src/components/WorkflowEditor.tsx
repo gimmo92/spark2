@@ -24,8 +24,8 @@ import {
   type WorkflowTask,
 } from "../lib/workflow";
 import { MultiSelect } from "@spark/core";
-import { Block, SectionTitle, Switch } from "./SchedaEditor";
-import { GhostButton, PrimaryButton, Tooltip, inputCls } from "@spark/core";
+import { Block, SectionTitle } from "./SchedaEditor";
+import { GhostButton, PrimaryButton, Switch, Tooltip, inputCls } from "@spark/core";
 import { TASK_ICON, TaskIcon } from "./WorkflowList";
 
 /** Route entry: /mbo/workflow/[id] (edit) or /mbo/workflow/nuovo (create). */

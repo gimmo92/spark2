@@ -49,5 +49,8 @@ export default defineConfig({
     { label: "Generale", href: "/dashboard", exact: true },
     { label: "MBO", href: "/dashboard/mbo" },
   ],
-  settingsTabs: [{ label: "MBO", href: "/impostazioni/mbo" }],
+  settingsTabs: [
+    { label: "Permessi", href: "/impostazioni/permessi" },
+    { label: "MBO", href: "/impostazioni/mbo" },
+  ],
 });

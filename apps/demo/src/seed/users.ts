@@ -45,6 +45,22 @@ export function migrateTeams(users: User[]): User[] {
   return users.map((u) => (TEAM_RENAMES[u.team] ? { ...u, team: TEAM_RENAMES[u.team] } : u));
 }
 
+/** Demo reporting lines: everyone who isn't a manager reports to a manager of their team. */
+export function assignManagers(users: User[]): User[] {
+  if (users.some((u) => u.managerId)) return users;
+  const byTeam = new Map<string, User[]>();
+  for (const u of users) if (u.level === "MANAGER" && u.status === "attivo" && u.team) byTeam.set(u.team, [...(byTeam.get(u.team) ?? []), u]);
+  let i = 0;
+  return users.map((u) => {
+    const managers = byTeam.get(u.team);
+    if (u.level !== "UTENTE" || !managers?.length) return u;
+    return { ...u, managerId: managers[i++ % managers.length].id };
+  });
+}
+
+/** Upgrades for demo users saved with an older shape. */
+export const migrateUsers = (users: User[]) => assignManagers(migrateTeams(users));
+
 export const TEAMS = TEAM_NAMES.map((name) => ({ name, company: TEAM_COMPANY[name] }));
 
 export const companyForTeam =(team: string) => TEAM_COMPANY[team] ?? COMPANIES[0];
@@ -171,6 +187,6 @@ export function buildSeedUsers(): User[] {
       createdAt: isoDaysAgo(Math.floor(rand() * 900)),
     });
   }
-  return users;
+  return assignManagers(users);
 }
 

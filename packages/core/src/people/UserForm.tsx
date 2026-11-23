@@ -2,7 +2,8 @@
 
 import { useOrg } from "../shell/SparkProvider";
 import { useState } from "react";
-import { ACCESS_LEVELS, slugEmail, type User } from "./data"
+import { useAccess } from "../access/useAccess";
+import { fullName, slugEmail, type User } from "./data"
 import { useCore } from "../shell/SparkProvider";
 import { Field, GhostButton, Modal, PrimaryButton, inputCls } from "../ui/ui";
 
@@ -11,6 +12,8 @@ type Draft = Omit<User, "id" | "createdAt">;
 export function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) {
   const { teamNames: TEAMS, companyForTeam, emailDomains } = useOrg();
   const { users, addUser, updateUser, notify } = useCore();
+  const { levels } = useAccess();
+  const managers = users.filter((u) => u.id !== user?.id && u.status === "attivo").sort((a, b) => a.lastName.localeCompare(b.lastName));
   const [d, setD] = useState<Draft>(
     user ?? {
       firstName: "",
@@ -97,9 +100,9 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
         </div>
         <Field label="Livello di accesso">
           <select className={inputCls} value={d.level} onChange={(e) => set("level", e.target.value as Draft["level"])}>
-            {ACCESS_LEVELS.map((l) => (
-              <option key={l} value={l}>
-                {l.charAt(0) + l.slice(1).toLowerCase()}
+            {levels.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
               </option>
             ))}
           </select>
@@ -114,6 +117,18 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
             ))}
           </select>
         </Field>
+        <div className="sm:col-span-2">
+          <Field label="Responsabile">
+            <select className={inputCls} value={d.managerId ?? ""} onChange={(e) => set("managerId", e.target.value || undefined)}>
+              <option value="">Nessun responsabile</option>
+              {managers.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {fullName(m)} · {m.role}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
         <div className="sm:col-span-2">
           <Field label="Ruolo" error={show("role")}>
             <input

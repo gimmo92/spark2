@@ -59,6 +59,15 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 - Emails (invite, login code, reset) share one template in `src/email/sendgrid.ts`.
 - Login gate is always on (no page is visible without login); `AUTH_ENABLED=false` switches it off, and local dev without Supabase keys runs ungated. Env vars in `apps/<app>/.env.example`. Setup errors are self-describing (`{error:"config", missing:[...]}`, names only).
 
+## Access levels and permissions (core)
+
+- Code: `packages/core/src/access/` (`permissions.ts` model, `useAccess()` hook, `AccessSettings` panel at Impostazioni → Permessi, route `apps/<app>/src/app/(app)/impostazioni/permessi`).
+- Catalog = core (`CORE_PERMISSIONS`) + modules (`SparkModule.permissions`, e.g. `MBO_PERMISSIONS`) + client (`SparkConfig.permissions`). Permission ids are stored in levels: never rename them.
+- A permission is on/off or scoped: `self` / `reports` (direct and indirect, via `User.managerId` = "Responsabile") / `team` / `all`. Grants are stored as `"id"` or `"id:scope"`.
+- Levels in settings doc `"access"`. Built-in ADMIN (always everything, locked), MANAGER (self + team + reports), UTENTE (self only); clients create custom levels ("parti dai permessi di …"). Permissions added later get their defaults automatically (`known` list per level).
+- Check with `can(user, "mbo.schede.view", targetUser)`; without target = "has it for some scope" (menus).
+- **Not enforced yet**: there is no "current user" in the app (only ADMIN_EMAILS admins can use the data API). Next step: map the logged-in email to its `users` record, filter screens with `can()`, and filter `/api/data` server-side per user before opening Spark to non-admins.
+
 ## New client app (checklist)
 
 1. Copy `apps/demo` to `apps/<client>`; set `"name": "@spark/<client>"`; delete `src/seed/` and the `seed`/`migrate` entries (or write the client's own demo seed); edit `src/spark.config.ts` (org, nav, tabs, modules); keep or drop module routes accordingly.
@@ -80,6 +89,7 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 ## Next steps / open points
 
 - **Multilingual core** (it / fr / en / de / es): UI strings in packages through a dictionary + `locale` in `SparkConfig` (per app, later per user). Requested by the owner 2026-11-23, not started.
+- **Enforce permissions** (see "Access levels and permissions"): current user, UI filtering, server-side data filtering.
 - Extension points in modules (e.g. client-defined workflow task types), a `new-client` script, link workflows to schede.
 - Link the user list to real accounts; move `app_data` to relational tables per module when a client needs it.
 - Optional: lock out after N wrong login codes.

@@ -1,4 +1,5 @@
 import type { LucideIcon } from "lucide-react";
+import { CORE_PERMISSIONS, type PermissionDef } from "./access/permissions";
 
 /** Every stored record has a string id. */
 export type Doc = { id: string };
@@ -20,6 +21,8 @@ export interface SparkModule {
   id: string;
   /** Data collections the module saves (rows of public.app_data). */
   collections: string[];
+  /** Permissions the module adds to Impostazioni → Permessi. */
+  permissions?: PermissionDef[];
 }
 
 export interface OrgConfig {
@@ -48,6 +51,8 @@ export interface SparkConfig {
   seed?: () => Partial<Record<string, Doc[]>>;
   /** Upgrade records saved with an older shape. Return the same array when nothing changes. */
   migrate?: (collection: string, items: Doc[]) => Doc[];
+  /** Client-specific permissions, added to the core and module ones. */
+  permissions?: PermissionDef[];
   /** localStorage key prefix for the browser-only fallback. */
   storagePrefix?: string;
 }
@@ -56,5 +61,12 @@ export interface SparkConfig {
 export const CORE_COLLECTIONS = ["users", "settings"] as const;
 
 export const collectionsOf = (c: Pick<SparkConfig, "modules">) => [...CORE_COLLECTIONS, ...c.modules.flatMap((m) => m.collections)];
+
+/** Full permission catalog of an app: core, then modules, then client-specific. */
+export const permissionsOf = (c: Pick<SparkConfig, "modules" | "permissions">) => [
+  ...CORE_PERMISSIONS,
+  ...c.modules.flatMap((m) => m.permissions ?? []),
+  ...(c.permissions ?? []),
+];
 
 export const defineConfig = (c: SparkConfig) => c;

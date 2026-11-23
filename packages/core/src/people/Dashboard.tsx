@@ -2,13 +2,14 @@
 
 import { useOrg } from "../shell/SparkProvider";
 import Link from "next/link";
-import { ACCESS_LEVELS } from "./data"
+import { useAccess } from "../access/useAccess";
 import { useCore } from "../shell/SparkProvider";
 import { DashboardTabs } from "../shell/PageTabs";
 
 export function Dashboard() {
   const { teamNames: TEAMS } = useOrg();
   const { users } = useCore();
+  const { levels } = useAccess();
   const active = users.filter((u) => u.status === "attivo");
   const byTeam = TEAMS.map((t) => ({ t, n: active.filter((u) => u.team === t).length })).sort((a, b) => b.n - a.n);
   const max = Math.max(...byTeam.map((x) => x.n), 1);
@@ -47,10 +48,10 @@ export function Dashboard() {
             ))}
           </ul>
           <div className="mt-6 flex gap-5 border-t border-line pt-4 text-[12px] text-muted">
-            {ACCESS_LEVELS.map((l) => (
-              <span key={l}>
-                {l.charAt(0) + l.slice(1).toLowerCase()}:{" "}
-                <span className="font-bold text-ink">{active.filter((u) => u.level === l).length}</span>
+            {levels.map((l) => (
+              <span key={l.id}>
+                {l.name}:{" "}
+                <span className="font-bold text-ink">{active.filter((u) => u.level === l.id).length}</span>
               </span>
             ))}
           </div>

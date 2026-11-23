@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useState } from "react";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Building2, Calendar, Mail, Shield, Users } from "lucide-react";
+import { ArrowLeft, Building2, Calendar, Mail, Shield, UserRound, Users } from "lucide-react";
+import { useAccess } from "../access/useAccess";
 import { fullName } from "./data";
 import { useCore } from "../shell/SparkProvider";
 import { Badge, PrimaryButton } from "../ui/ui";
@@ -13,6 +14,7 @@ import { RegistrationCard } from "./InviteAction";
 export function UserDetail() {
   const { id } = useParams<{ id: string }>();
   const { users, updateUser, notify } = useCore();
+  const { levelName } = useAccess();
   const [editing, setEditing] = useState(false);
   const u = users.find((x) => x.id === id);
 
@@ -27,6 +29,8 @@ export function UserDetail() {
     );
 
   const teammates = users.filter((x) => x.team && x.team === u.team && x.id !== u.id && x.status === "attivo").slice(0, 8);
+  const manager = u.managerId ? users.find((x) => x.id === u.managerId) : undefined;
+  const reports = users.filter((x) => x.managerId === u.id && x.status === "attivo");
   const initials = (u.firstName[0] + (u.lastName[0] ?? "")).toUpperCase();
 
   return (
@@ -43,7 +47,7 @@ export function UserDetail() {
           <h1 className="text-[19px] font-bold leading-tight">{fullName(u)}</h1>
           <p className="mt-0.5 text-[13px] text-muted">{u.role}</p>
           <div className="mt-2 flex flex-wrap gap-2">
-            <Badge tone={u.level === "ADMIN" ? "navy" : "blue"}>{u.level}</Badge>
+            <Badge tone={u.level === "ADMIN" ? "navy" : "blue"}>{levelName(u.level)}</Badge>
             {u.team ? <Badge>{u.team}</Badge> : <Badge tone="grey">Nessun team</Badge>}
           </div>
         </div>
@@ -73,13 +77,25 @@ export function UserDetail() {
               </a>
             </Info>
             <Info icon={<Shield className="h-4 w-4" />} label="Livello di accesso">
-              {u.level.charAt(0) + u.level.slice(1).toLowerCase()}
+              {levelName(u.level)}
             </Info>
             <Info icon={<Building2 className="h-4 w-4" />} label="Società">
               {u.company}
             </Info>
             <Info icon={<Users className="h-4 w-4" />} label="Team">
               {u.team || "—"}
+            </Info>
+            <Info icon={<UserRound className="h-4 w-4" />} label="Responsabile">
+              {manager ? (
+                <Link href={`/azienda/utenti/${manager.id}`} className="text-brand hover:underline">
+                  {fullName(manager)}
+                </Link>
+              ) : (
+                "—"
+              )}
+            </Info>
+            <Info icon={<Users className="h-4 w-4" />} label="Riporti diretti">
+              {reports.length ? `${reports.length} ${reports.length === 1 ? "persona" : "persone"}` : "—"}
             </Info>
             <Info icon={<Calendar className="h-4 w-4" />} label="Registrato il">
               {new Date(u.createdAt).toLocaleDateString("it-IT", { day: "numeric", month: "long", year: "numeric" })}

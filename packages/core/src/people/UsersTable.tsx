@@ -19,7 +19,8 @@ import {
   UserX,
   Users,
 } from "lucide-react";
-import { ACCESS_LEVELS, fullName, type User } from "./data"
+import { useAccess } from "../access/useAccess";
+import { fullName, type User } from "./data"
 import { useCore } from "../shell/SparkProvider";
 import { Badge, FilterMenu, GhostButton, Modal, Popover, PrimaryButton, Tooltip } from "../ui/ui";
 import { UserFormModal } from "./UserForm";
@@ -40,14 +41,14 @@ const COLS: { key: ColKey; label: string; sortable: boolean }[] = [
 const PAGE = 25;
 const collator = new Intl.Collator("it", { sensitivity: "base" });
 
-const sortValue = (u: User, k: SortKey) =>
-  k === "name" ? `${u.lastName} ${u.firstName}` : k === "level" ? String(ACCESS_LEVELS.indexOf(u.level)) : u[k];
+const sortValue = (u: User, k: SortKey, levelOrder: string[]) =>
+  k === "name" ? `${u.lastName} ${u.firstName}` : k === "level" ? String(levelOrder.indexOf(u.level)).padStart(3, "0") : u[k];
 
-function downloadCsv(rows: User[]) {
+function downloadCsv(rows: User[], levelName: (id: string) => string) {
   const header = ["Nome", "Cognome", "Email", "Livello di accesso", "Team", "Società", "Ruolo", "Stato", "Data creazione"];
   const esc = (v: string) => (/[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
   const lines = rows.map((u) =>
-    [u.firstName, u.lastName, u.email, u.level, u.team, u.company, u.role, u.status, u.createdAt].map(esc).join(";"),
+    [u.firstName, u.lastName, u.email, levelName(u.level), u.team, u.company, u.role, u.status, u.createdAt].map(esc).join(";"),
   );
   const blob = new Blob(["﻿" + [header.join(";"), ...lines].join("\r\n")], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
@@ -60,6 +61,8 @@ function downloadCsv(rows: User[]) {
 export function UsersTable() {
   const { teamNames: TEAMS, companies: COMPANIES } = useOrg();
   const { users, updateUser, notify, resetData } = useCore();
+  const { levels, levelName } = useAccess();
+  const levelOrder = useMemo(() => levels.map((l) => l.id), [levels]);
 
   const [quick, setQuick] = useState("");
   const [status, setStatus] = useState("attivo");
@@ -89,8 +92,8 @@ export function UsersTable() {
           fullName(u).toLowerCase().includes(needle) ||
           `${u.lastName} ${u.firstName}`.toLowerCase().includes(needle)),
     );
-    return out.sort((a, b) => collator.compare(sortValue(a, sort.key), sortValue(b, sort.key)) * sort.dir);
-  }, [users, status, level, team, company, quick, q, sort]);
+    return out.sort((a, b) => collator.compare(sortValue(a, sort.key, levelOrder), sortValue(b, sort.key, levelOrder)) * sort.dir);
+  }, [users, status, level, team, company, quick, q, sort, levelOrder]);
 
   // reset paging whenever the result set definition changes
   const filterKey = `${status}|${level}|${team}|${company}|${quick}|${q}|${sort.key}|${sort.dir}`;
@@ -137,7 +140,7 @@ export function UsersTable() {
         <button
           type="button"
           onClick={() => {
-            downloadCsv(filtered);
+            downloadCsv(filtered, levelName);
             notify(`Esportati ${filtered.length} utenti`);
           }}
           className="btn-gradient rounded-lg px-4 py-2.5 text-[11.5px] sm:px-5 font-extrabold uppercase tracking-[-0.02em] text-white"
@@ -237,7 +240,7 @@ export function UsersTable() {
           activeLabel="Livello"
           value={level}
           onChange={setLevel}
-          options={ACCESS_LEVELS.map((l) => ({ value: l, label: l.charAt(0) + l.slice(1).toLowerCase() }))}
+          options={levels.map((l) => ({ value: l.id, label: l.name }))}
         />
         <FilterMenu
           icon={<UserRound className="h-4 w-4 fill-[#7d8698] text-[#7d8698]" />}
@@ -335,7 +338,7 @@ export function UsersTable() {
                         {fullName(u)}
                       </Link>
                     )}
-                    {c.key === "level" && <Badge tone={u.level === "ADMIN" ? "navy" : "blue"}>{u.level}</Badge>}
+                    {c.key === "level" && <Badge tone={u.level === "ADMIN" ? "navy" : "blue"}>{levelName(u.level)}</Badge>}
                     {c.key === "email" && <span className="text-[13px] text-[#5b6476]">{u.email}</span>}
                     {c.key === "team" && (u.team ? <Badge>{u.team}</Badge> : <Badge tone="grey">Nessun team</Badge>)}
                     {c.key === "role" && <span title={u.role} className="block min-w-[170px] max-w-[280px] truncate text-[13px] text-[#5b6476]">{u.role}</span>}
