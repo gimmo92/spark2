@@ -1,6 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import { CORE_PERMISSIONS, type PermissionDef } from "./access/permissions";
 import type { CollectionAccess, SettingsAccess } from "./access/rules";
+import type { LetterSource } from "./letters/data";
 
 /** Every stored record has a string id. */
 export type Doc = { id: string };
@@ -31,6 +32,8 @@ export interface SparkModule {
   access?: Record<string, CollectionAccess>;
   /** Settings documents the module owns → permissions that may change them. */
   settingsAccess?: SettingsAccess;
+  /** Variables the module adds to letters (Gestione Lettere). */
+  letters?: LetterSource;
 }
 
 export interface OrgConfig {
@@ -61,12 +64,14 @@ export interface SparkConfig {
   migrate?: (collection: string, items: Doc[]) => Doc[];
   /** Client-specific permissions, added to the core and module ones. */
   permissions?: PermissionDef[];
+  /** Client-specific letter variables, added to the core and module ones. */
+  letters?: LetterSource;
   /** localStorage key prefix for the browser-only fallback. */
   storagePrefix?: string;
 }
 
 /** Collections owned by the core. */
-export const CORE_COLLECTIONS = ["users", "settings"] as const;
+export const CORE_COLLECTIONS = ["users", "settings", "letters"] as const;
 
 export const collectionsOf = (c: Pick<SparkConfig, "modules">) => [...CORE_COLLECTIONS, ...c.modules.flatMap((m) => m.collections)];
 

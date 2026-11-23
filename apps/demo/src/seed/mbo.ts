@@ -1,6 +1,5 @@
 // Demo MBO data for Valmec S.p.A.
 import {
-  LETTER_TEMPLATES,
   catalogById,
   cycleYear,
   newTask,
@@ -163,7 +162,7 @@ export const SEED_WORKFLOWS: Workflow[] = [
       t("consuntivazione", { dueDate: "2027-01-31", requireEvidence: true }, "s4"),
       t(
         "lettera",
-        { title: "Lettera premio", letterTemplate: LETTER_TEMPLATES[2], signers: ["dipendente", "direzione"], dueDate: "2027-02-28" },
+        { title: "Lettera premio", letterTemplate: "lt-premio", signers: ["dipendente", "direzione"], dueDate: "2027-02-28" },
         "s5",
       ),
     ],
@@ -181,7 +180,7 @@ export const SEED_WORKFLOWS: Workflow[] = [
       t("approvazione", { owner: "direzione", approvers: ["direzione"], approvalMode: "almeno_uno", dueDate: "2026-01-31" }, "c2"),
       t("consuntivazione", { title: "Consuntivo primo semestre", dueDate: "2026-07-15" }, "c3"),
       t("consuntivazione", { title: "Consuntivo secondo semestre", dueDate: "2027-01-15" }, "c4"),
-      t("lettera", { title: "Lettera premio", letterTemplate: LETTER_TEMPLATES[2], dueDate: "2027-02-15" }, "c5"),
+      t("lettera", { title: "Lettera premio", letterTemplate: "lt-premio", dueDate: "2027-02-15" }, "c5"),
     ],
   },
   {
@@ -206,7 +205,7 @@ export const SEED_WORKFLOWS: Workflow[] = [
       t("definizione", { dueDate: "2025-01-31" }, "o1"),
       t("approvazione", { dueDate: "2025-02-15" }, "o2"),
       t("consuntivazione", { dueDate: "2026-01-31" }, "o3"),
-      t("lettera", { title: "Lettera premio", letterTemplate: LETTER_TEMPLATES[2], dueDate: "2026-02-28" }, "o4"),
+      t("lettera", { title: "Lettera premio", letterTemplate: "lt-premio", dueDate: "2026-02-28" }, "o4"),
     ],
   },
 ];

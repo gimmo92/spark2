@@ -30,6 +30,7 @@ export default defineConfig({
       children: [
         { label: "Lista Utenti", href: "/azienda/utenti", permission: "people.view" },
         { label: "Lista Team", href: "/azienda/team", permission: "teams.manage" },
+        { label: "Gestione Lettere", href: "/azienda/lettere", permission: "letters.manage" },
       ],
     },
     {

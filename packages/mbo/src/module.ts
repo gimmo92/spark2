@@ -1,4 +1,5 @@
 import type { Doc, PermissionDef, SparkModule } from "@spark/core";
+import { mboLetters } from "./lib/letters";
 
 const G = "MBO";
 
@@ -80,4 +81,5 @@ export const mboModule: SparkModule = {
     workflows: { edit: ["mbo.workflow.manage"] },
   },
   settingsAccess: { mbo: ["mbo.settings.manage"] },
+  letters: mboLetters,
 };

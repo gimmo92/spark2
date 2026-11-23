@@ -71,6 +71,15 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 - **In the UI** (only hides; the server decides): `useAccess().allowed(perm, target)`, `canEditUser`, MBO `canCreateScheda` / `canEditScheda`; menu entries and tabs carry `permission` in the app config; `RouteGuard` (in AppShell) blocks pages the user can't open and moves home/section roots to the first allowed page.
 - **Coarse spot**: on the server any of `mbo.schede.edit / goals.edit / results.edit / approve` lets a user save the whole scheda; the editor doesn't yet split goals vs results vs status per permission.
 
+## Letters (core, Azienda → Gestione Lettere)
+
+- Code: `packages/core/src/letters/` (`data.ts` model + core variables, `pdf.ts` renderer, `LettersPage.tsx`), route `apps/<app>/src/app/(app)/azienda/lettere`, permission `letters.manage` (collection `letters`, readable/writable only with it).
+- A template = letterhead PDF (first page + optional "next pages", stored as data: URL ≤ 1.5 MB or a `/public` path) + text with `{{variables}}`, `**bold**`, blank line = paragraph; table variables sit on their own line. Margins (mm) define the text area inside the letterhead.
+- PDF is generated in the browser with `pdf-lib` (standard Helvetica: WinAnsi only, unsupported chars are substituted). Long tables continue on the next page with the header repeated.
+- Variables: core (person, organisation, date) + `SparkModule.letters` (MBO: `packages/mbo/src/lib/letters.ts`, uses the person's latest non-archived scheda) + `SparkConfig.letters` for client-specific ones.
+- Workflow "lettera" steps store the template id (`WorkflowTask.letterTemplate`). Demo: 3 templates + invented Valmec letterhead (`apps/demo/public/letterhead-valmec*.pdf`, seed `seed/letters.ts`); an existing DB gets them via "Carica i modelli di esempio".
+- Not yet: sending/signing letters, bulk generation from schede, client fonts.
+
 ## New client app (checklist)
 
 1. Copy `apps/demo` to `apps/<client>`; set `"name": "@spark/<client>"`; delete `src/seed/` and the `seed`/`migrate` entries (or write the client's own demo seed); edit `src/spark.config.ts` (org, nav, tabs, modules); keep or drop module routes accordingly.

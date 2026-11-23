@@ -79,6 +79,7 @@ export const CORE_PERMISSIONS: PermissionDef[] = [
     scopes: ["reports", "team", "all"],
     defaults: { MANAGER: ["reports", "team"] },
   },
+  { id: "letters.manage", group: "Lettere", label: "Gestire i modelli di lettera", hint: "Carta intestata, testi e variabili" },
   { id: "access.manage", group: "Impostazioni", label: "Gestire livelli di accesso e permessi" },
 ];
 

@@ -22,6 +22,7 @@ export interface WorkflowTask {
   requireEvidence?: boolean;
   requireReview?: boolean;
   // lettera
+  /** Letter template id (Azienda → Gestione Lettere). */
   letterTemplate?: string;
   signers?: Role[];
   electronicSignature?: boolean;
@@ -63,12 +64,6 @@ export const WORKFLOW_STATUSES: { value: WorkflowStatus; label: string }[] = [
   { value: "archiviato", label: "Archiviato" },
 ];
 
-export const LETTER_TEMPLATES = [
-  "Lettera di assegnazione obiettivi",
-  "Lettera di consuntivazione MBO",
-  "Lettera di comunicazione premio",
-];
-
 let seq = 0;
 export const taskId = () => `wt${Date.now().toString(36)}${(seq++).toString(36)}`;
 
@@ -86,7 +81,6 @@ export function newTask(type: TaskType): WorkflowTask {
       return {
         ...base,
         owner: "hr",
-        letterTemplate: LETTER_TEMPLATES[0],
         signers: ["dipendente"],
         electronicSignature: true,
         autoSend: true,

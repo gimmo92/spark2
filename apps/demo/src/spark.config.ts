@@ -3,7 +3,9 @@ import { defineConfig, type Doc } from "@spark/core";
 import { mboModule } from "@spark/mbo";
 import { COMPANIES, TEAMS, buildSeedUsers, migrateUsers, EMAIL_DOMAIN } from "./seed/users";
 import { SEED_OBJECTIVES, SEED_PRESETS, SEED_WORKFLOWS, buildSeedSchede } from "./seed/mbo";
+import { LEGACY_LETTER_IDS, SEED_LETTERS } from "./seed/letters";
 import type { User as SparkUser } from "@spark/core";
+import type { Workflow } from "@spark/mbo";
 
 /** Demo client: Valmec S.p.A. (app.tryspark.it). Invented people and data. */
 export default defineConfig({
@@ -30,7 +32,7 @@ export default defineConfig({
         { label: "Gestione Società", href: "/azienda/societa" },
         { label: "Gestione Ruoli", href: "/azienda/ruoli" },
         { label: "Organigramma", href: "/azienda/organigramma" },
-        { label: "Gestione Lettere", href: "/azienda/lettere", badge: "Beta" },
+        { label: "Gestione Lettere", href: "/azienda/lettere", badge: "Beta", permission: "letters.manage" },
       ],
     },
     {
@@ -65,8 +67,24 @@ export default defineConfig({
       objectives: SEED_OBJECTIVES,
       presets: SEED_PRESETS,
       workflows: SEED_WORKFLOWS,
+      letters: SEED_LETTERS,
       settings: [{ id: "mbo", globalThresholdId: "ob-ebitda" }],
     };
   },
-  migrate: (collection: string, items: Doc[]) => (collection === "users" ? migrateUsers(items as SparkUser[]) : items),
+  migrate: (collection: string, items: Doc[]) => {
+    if (collection === "users") return migrateUsers(items as SparkUser[]);
+    if (collection === "workflows") return migrateWorkflowLetters(items as Workflow[]);
+    return items;
+  },
 });
+
+/** Demo workflows saved before letter templates existed point to a label: map it to the template id. */
+function migrateWorkflowLetters(items: Workflow[]): Doc[] {
+  const stale = (w: Workflow) => w.tasks.some((t) => t.letterTemplate && LEGACY_LETTER_IDS[t.letterTemplate]);
+  if (!items.some(stale)) return items;
+  return items.map((w) =>
+    stale(w)
+      ? { ...w, tasks: w.tasks.map((t) => (t.letterTemplate && LEGACY_LETTER_IDS[t.letterTemplate] ? { ...t, letterTemplate: LEGACY_LETTER_IDS[t.letterTemplate] } : t)) }
+      : w,
+  );
+}

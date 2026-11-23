@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { Archive, ArchiveRestore, BadgeCheck, CalendarDays, CircleDot, ClipboardCheck, CopyPlus, Eye, FileSignature, Pencil, Plus, Search, Target } from "lucide-react";
 import { YEARS, cycleLabel, cycleYear } from "../lib/mbo";
-import { useMbo } from "../store";
+import { useLetterTemplates, useMbo } from "../store";
 import {
   WORKFLOW_STATUSES,
   nextTask,
@@ -286,6 +286,7 @@ export function WorkflowList() {
 }
 
 function WorkflowView({ w, onClose, onEdit }: { w: Workflow; onClose: () => void; onEdit: () => void }) {
+  const { letterName } = useLetterTemplates();
   return (
     <Modal
       title={w.name}
@@ -321,7 +322,7 @@ function WorkflowView({ w, onClose, onEdit }: { w: Workflow; onClose: () => void
                 {t.type === "approvazione" && t.approvers?.length
                   ? ` · Approvano: ${t.approvers.map(roleLabel).join(", ")} (${t.approvalMode === "almeno_uno" ? "almeno uno" : "tutti"})`
                   : ""}
-                {t.type === "lettera" ? ` · ${t.letterTemplate} · Firmano: ${(t.signers ?? []).map(roleLabel).join(", ") || "—"}` : ""}
+                {t.type === "lettera" ? ` · ${letterName(t.letterTemplate)} · Firmano: ${(t.signers ?? []).map(roleLabel).join(", ") || "—"}` : ""}
               </p>
             </div>
           </li>

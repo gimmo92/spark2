@@ -20,6 +20,7 @@ export type SettingsAccess = Record<string, string[]>;
 
 const CORE_ACCESS: Record<string, CollectionAccess> = {
   users: { owners: (d) => [d.id], view: "people.view", edit: ["people.edit"] },
+  letters: { view: "letters.manage", edit: ["letters.manage"] },
 };
 const CORE_SETTINGS: SettingsAccess = { access: ["access.manage"] };
 

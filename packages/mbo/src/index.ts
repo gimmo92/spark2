@@ -4,6 +4,7 @@ export * from "./store";
 export * from "./lib/mbo";
 export * from "./lib/forecast";
 export * from "./lib/workflow";
+export * from "./lib/letters";
 export * from "./components/DashboardMbo";
 export * from "./components/Forecast";
 export * from "./components/ObiettiviTable";

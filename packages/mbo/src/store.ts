@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { useAccess, useCollection, useCore, useSettings } from "@spark/core";
+import { useAccess, useCollection, useCore, useSettings, type LetterTemplate } from "@spark/core";
 import { SCHEDA_EDIT } from "./module";
 import type { GlobalGate, ObjectiveDef, Preset, Scheda } from "./lib/mbo";
 import type { Workflow } from "./lib/workflow";
@@ -121,4 +121,12 @@ export function useMbo() {
     setMboSettings,
     globalGate,
   };
+}
+
+/** Letter templates for workflow "lettera" steps (readable with "Gestire i modelli di lettera"). */
+export function useLetterTemplates() {
+  const [letters] = useCollection<LetterTemplate>("letters");
+  const sorted = useMemo(() => [...letters].sort((a, b) => a.name.localeCompare(b.name, "it")), [letters]);
+  const letterName = useCallback((id?: string) => (id ? (letters.find((l) => l.id === id)?.name ?? id) : "—"), [letters]);
+  return { letters: sorted, letterName };
 }

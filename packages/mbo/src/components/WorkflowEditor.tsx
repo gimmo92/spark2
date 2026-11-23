@@ -7,9 +7,8 @@ import { useState } from "react";
 import { ArrowDown, ArrowLeft, ArrowUp, ChevronDown, Copy, Trash2, TriangleAlert } from "lucide-react";
 
 import { CYCLES } from "../lib/mbo";
-import { useMbo } from "../store";
+import { useMbo, useLetterTemplates } from "../store";
 import {
-  LETTER_TEMPLATES,
   ROLES,
   TASK_TYPES,
   WORKFLOW_STATUSES,
@@ -336,6 +335,7 @@ function WorkflowEditor({ wf }: { wf?: Workflow }) {
 
 /** Settings that depend on the task type. */
 function TypeSettings({ task: t, onChange }: { task: WorkflowTask; onChange: (p: Partial<WorkflowTask>) => void }) {
+  const { letters, letterName } = useLetterTemplates();
   if (t.type === "definizione")
     return (
       <Toggle
@@ -401,10 +401,14 @@ function TypeSettings({ task: t, onChange }: { task: WorkflowTask; onChange: (p:
     <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <Block label="Modello di lettera">
-          <select className={inputCls} value={t.letterTemplate ?? LETTER_TEMPLATES[0]} onChange={(e) => onChange({ letterTemplate: e.target.value })}>
-            {LETTER_TEMPLATES.map((l) => (
-              <option key={l}>{l}</option>
+          <select className={inputCls} value={t.letterTemplate ?? letters[0]?.id ?? ""} onChange={(e) => onChange({ letterTemplate: e.target.value })}>
+            {!letters.length && <option value="">Nessun modello: creali in Gestione Lettere</option>}
+            {letters.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
             ))}
+            {t.letterTemplate && !letters.some((l) => l.id === t.letterTemplate) && <option value={t.letterTemplate}>{letterName(t.letterTemplate)}</option>}
           </select>
         </Block>
         <Block label="Firmatari">
