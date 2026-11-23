@@ -1,9 +1,10 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { buildSeedUsers, type User } from "./data";
 import { INVITE_ERRORS, type InviteDTO, type InvitesStatus } from "./invites";
 import { SEED_WORKFLOWS, type Workflow } from "./workflow";
+import { COLLECTIONS, DATA_ERRORS, diffById, type Collection, type DataChanges, type DataSource } from "./sync";
 import { SEED_OBJECTIVES, SEED_PRESETS, buildSeedSchede, type GlobalGate, type ObjectiveDef, type Preset, type Scheda } from "./mbo";
 
 const KEY = "spark.users.v4";
@@ -19,6 +20,18 @@ export interface MboSettings {
   /** Actual result of the global threshold objective (undefined = not measured yet). */
   globalThresholdActual?: number;
 }
+
+const SETTINGS_ID = "mbo";
+type SettingsDoc = MboSettings & { id: string };
+type Snapshot = Record<Collection, Array<{ id: string }>> & {
+  users: User[];
+  schede: Scheda[];
+  objectives: ObjectiveDef[];
+  presets: Preset[];
+  workflows: Workflow[];
+  settings: SettingsDoc[];
+};
+const EMPTY_SNAPSHOT: Snapshot = { users: [], schede: [], objectives: [], presets: [], workflows: [], settings: [] };
 
 interface Toast {
   id: number;
@@ -51,6 +64,9 @@ interface Store {
   deletePreset: (id: string) => void;
   resetData: () => void;
   hydrated: boolean;
+  /** "db" = saved on Supabase, "local" = only in this browser (reason in dataMessage). */
+  dataSource: DataSource;
+  dataMessage: string | null;
   toasts: Toast[];
   notify: (message: string) => void;
 }
@@ -71,33 +87,90 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   const [invitesMessage, setInvitesMessage] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
 
+  const [dataSource, setDataSource] = useState<DataSource>("loading");
+  const [dataMessage, setDataMessage] = useState<string | null>(null);
+  const notifyRef = useRef<(m: string) => void>(() => {});
+  /** Last state known to be in the database (diffed so only changes are sent). */
+  const synced = useRef<Snapshot | null>(null);
+  const pending = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // load: database first (needs the full login), otherwise fall back to this browser
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(KEY);
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-time hydration from storage
-      if (raw) setUsers(JSON.parse(raw));
-      const rawS = localStorage.getItem(SCHEDE_KEY);
-      if (rawS) setSchede(JSON.parse(rawS));
-      const rawO = localStorage.getItem(OBJ_KEY);
-      if (rawO) setObjectives(JSON.parse(rawO));
-      const rawP = localStorage.getItem(PRESET_KEY);
-      if (rawP) setPresets(JSON.parse(rawP));
-      const rawW = localStorage.getItem(WORKFLOW_KEY);
-      if (rawW) setWorkflows(JSON.parse(rawW));
-      const rawSt = localStorage.getItem(SETTINGS_KEY);
-      if (rawSt) {
-        const st = JSON.parse(rawSt) as MboSettings & { defaultThresholdId?: string };
-        // migrate the old "default for new schede" setting to the global threshold
-        if (st.defaultThresholdId && !st.globalThresholdId) st.globalThresholdId = st.defaultThresholdId;
-        delete st.defaultThresholdId;
-        setMboSettingsState(st);
+    let alive = true;
+    const loadLocal = () => {
+      try {
+        const raw = localStorage.getItem(KEY);
+        if (raw) setUsers(JSON.parse(raw));
+        const rawS = localStorage.getItem(SCHEDE_KEY);
+        if (rawS) setSchede(JSON.parse(rawS));
+        const rawO = localStorage.getItem(OBJ_KEY);
+        if (rawO) setObjectives(JSON.parse(rawO));
+        const rawP = localStorage.getItem(PRESET_KEY);
+        if (rawP) setPresets(JSON.parse(rawP));
+        const rawW = localStorage.getItem(WORKFLOW_KEY);
+        if (rawW) setWorkflows(JSON.parse(rawW));
+        const rawSt = localStorage.getItem(SETTINGS_KEY);
+        if (rawSt) {
+          const st = JSON.parse(rawSt) as MboSettings & { defaultThresholdId?: string };
+          // migrate the old "default for new schede" setting to the global threshold
+          if (st.defaultThresholdId && !st.globalThresholdId) st.globalThresholdId = st.defaultThresholdId;
+          delete st.defaultThresholdId;
+          setMboSettingsState(st);
+        }
+      } catch {}
+    };
+
+    (async () => {
+      let res: Response | null = null;
+      let body: { data?: Record<Collection, unknown[]>; empty?: boolean; error?: string } = {};
+      try {
+        res = await fetch("/api/data", { cache: "no-store" });
+        body = await res.json().catch(() => ({}));
+      } catch {}
+      if (!alive) return;
+
+      if (res?.ok && body.data && !body.empty) {
+        const d = body.data;
+        const snap: Snapshot = {
+          users: d.users as User[],
+          schede: d.schede as Scheda[],
+          objectives: d.objectives as ObjectiveDef[],
+          presets: d.presets as Preset[],
+          workflows: d.workflows as Workflow[],
+          settings: (d.settings as SettingsDoc[]).filter((x) => x.id === SETTINGS_ID),
+        };
+        synced.current = snap;
+        setUsers(snap.users);
+        setSchede(snap.schede);
+        setObjectives(snap.objectives);
+        setPresets(snap.presets);
+        setWorkflows(snap.workflows);
+        if (snap.settings[0]) {
+          const st: MboSettings = { ...snap.settings[0] };
+          delete (st as Partial<SettingsDoc>).id;
+          setMboSettingsState(st);
+        }
+        setDataSource("db");
+      } else if (res?.ok && body.empty) {
+        // first run on this database: upload what this browser has (or the demo data)
+        loadLocal();
+        synced.current = EMPTY_SNAPSHOT;
+        setDataSource("db");
+      } else {
+        loadLocal();
+        setDataSource("local");
+        setDataMessage(DATA_ERRORS[body.error ?? "network"] ?? DATA_ERRORS.network);
       }
-    } catch {}
-    setHydrated(true);
+      setHydrated(true);
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
+  // browser-only mode: keep using localStorage
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || dataSource !== "local") return;
     try {
       localStorage.setItem(KEY, JSON.stringify(users));
       localStorage.setItem(SCHEDE_KEY, JSON.stringify(schede));
@@ -106,7 +179,64 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(WORKFLOW_KEY, JSON.stringify(workflows));
       localStorage.setItem(SETTINGS_KEY, JSON.stringify(mboSettings));
     } catch {}
-  }, [users, schede, objectives, presets, workflows, mboSettings, hydrated]);
+  }, [users, schede, objectives, presets, workflows, mboSettings, hydrated, dataSource]);
+
+  const settingsDoc = useMemo<SettingsDoc[]>(() => [{ ...mboSettings, id: SETTINGS_ID }], [mboSettings]);
+  const current = useRef<Snapshot>(EMPTY_SNAPSHOT);
+  useEffect(() => {
+    current.current = { users, schede, objectives, presets, workflows, settings: settingsDoc };
+  }, [users, schede, objectives, presets, workflows, settingsDoc]);
+
+  /** Send what changed since the last successful save. */
+  const flush = useCallback(async (keepalive = false) => {
+    if (pending.current) {
+      clearTimeout(pending.current);
+      pending.current = null;
+    }
+    const before = synced.current;
+    if (!before) return;
+    const now = current.current;
+    const changes: DataChanges = { upserts: {}, deletes: {} };
+    let count = 0;
+    for (const c of COLLECTIONS) {
+      const { upserts, deletes } = diffById<{ id: string }>(before[c], now[c]);
+      if (upserts.length) changes.upserts![c] = upserts;
+      if (deletes.length) changes.deletes![c] = deletes;
+      count += upserts.length + deletes.length;
+    }
+    if (!count) return;
+    synced.current = now;
+    try {
+      const r = await fetch("/api/data", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(changes),
+        keepalive,
+      });
+      if (!r.ok) throw new Error(String(r.status));
+    } catch {
+      // put the changes back in the queue: they are retried with the next save
+      if (synced.current === now) synced.current = before;
+      notifyRef.current("Salvataggio nel database non riuscito: riprovo alla prossima modifica.");
+    }
+  }, []);
+
+  // database mode: save changes shortly after they happen
+  useEffect(() => {
+    if (!hydrated || dataSource !== "db") return;
+    if (pending.current) clearTimeout(pending.current);
+    pending.current = setTimeout(() => void flush(), 500);
+  }, [users, schede, objectives, presets, workflows, settingsDoc, hydrated, dataSource, flush]);
+
+  // don't lose the last edit when the tab is closed
+  useEffect(() => {
+    if (dataSource !== "db") return;
+    const onHide = () => {
+      if (pending.current) void flush(true);
+    };
+    window.addEventListener("pagehide", onHide);
+    return () => window.removeEventListener("pagehide", onHide);
+  }, [dataSource, flush]);
 
   // invites live on the server: load once
   useEffect(() => {
@@ -153,6 +283,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     setToasts((t) => [...t, { id, message }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200);
   }, []);
+  useEffect(() => {
+    notifyRef.current = notify;
+  }, [notify]);
 
   const addUser = useCallback((u: Omit<User, "id" | "createdAt">) => {
     const user: User = { ...u, id: `u${Date.now()}`, createdAt: today() };
@@ -219,8 +352,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, workflows, saveWorkflow, updateWorkflow, mboSettings, setMboSettings, globalGate, invites, invitesStatus, invitesMessage, sendInvite, resetData, hydrated, toasts, notify }),
-    [users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, workflows, saveWorkflow, updateWorkflow, mboSettings, setMboSettings, globalGate, invites, invitesStatus, invitesMessage, sendInvite, resetData, hydrated, toasts, notify],
+    () => ({ users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, workflows, saveWorkflow, updateWorkflow, mboSettings, setMboSettings, globalGate, invites, invitesStatus, invitesMessage, sendInvite, resetData, hydrated, dataSource, dataMessage, toasts, notify }),
+    [users, addUser, updateUser, schede, addScheda, updateScheda, objectives, addObjective, updateObjective, presets, savePreset, deletePreset, workflows, saveWorkflow, updateWorkflow, mboSettings, setMboSettings, globalGate, invites, invitesStatus, invitesMessage, sendInvite, resetData, hydrated, dataSource, dataMessage, toasts, notify],
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

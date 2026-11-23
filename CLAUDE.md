@@ -21,9 +21,9 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 - Pages reading URL params on the client must be wrapped in `<Suspense>` (cacheComponents prerender rule). Static catch-all pages need `generateStaticParams`.
 - Shell scripts with long inline Python/heredocs sometimes break on quoting: write the script to a file and run it.
 
-## Data model (client-side for now)
+## Data model
 
-All business data is **demo data in `localStorage`** via `src/lib/store.tsx` (`StoreProvider` / `useStore`). Bump the storage key version when a data shape changes. Not yet connected to Supabase tables.
+Business data lives in `src/lib/store.tsx` (`StoreProvider` / `useStore`) and is **saved on Supabase** in `public.app_data` (`supabase/app_data.sql`: one JSON row per record, key `collection` + `id`; collections users / schede / objectives / presets / workflows / settings). `/api/data` (GET all, POST `{upserts, deletes}`) is behind `requireAdmin()`. The store loads from the DB, then diffs state against the last saved snapshot (`diffById` in `src/lib/sync.ts`, by object reference) and saves changes 500 ms later (and on `pagehide`). If the DB is empty on first load it uploads the browser's data (demo seed). If `/api/data` fails (not logged in, missing table) it falls back to `localStorage` and `AppShell` shows a banner with the reason. Bump the localStorage key version when a data shape changes.
 
 - `src/lib/data.ts` — users, teams ("gruppo"), companies.
 - `src/lib/mbo.ts` — objectives catalog (`ObjectiveDef`: levels target→payout, calc `lineare` | `scaglioni`, category = **livello**: Gruppo / Società / Business Unit / Team / Utente, cycle), schede (`Scheda`: multiple assignees, cycle, items with weight and optional per-scheda `levels` override or one-off `custom` objective, optional own `threshold`), presets, `payoutFor`, `schedaScore(catalog, scheda, globalGate)`.
@@ -53,7 +53,8 @@ Done by the owner:
 - Server-side auth config verified live (`/api/auth/login` answers `credentials` to a fake login).
 
 Pending / to check:
-- `grant select, insert, update, delete on table public.registration_invites to service_role;` — new Supabase projects don't grant API roles on SQL-created tables (error `42501`). Now in the SQL file; confirm it was run in production.
+- Grant on `registration_invites` run (verified 2026-11-23). New Supabase projects don't grant API roles on SQL-created tables (error `42501`): every SQL file includes its `grant ... to service_role`.
+- Run `supabase/app_data.sql` in production (needed for data saving).
 - First real login with password + code, a test invite to a real address, then `AUTH_ENABLED=true` + Redeploy.
 - Email sender is `noreply@tryspark.co` (domain authenticated in SendGrid). Switching to `@tryspark.it` needs SendGrid domain auth for tryspark.it + update Supabase SMTP sender and `SENDGRID_FROM`.
 
@@ -65,5 +66,5 @@ Pending / to check:
 ## Next steps / open points
 
 - Link workflows to schede (which workflow a scheda follows, current task, notifications).
-- Move users, schede, objectives, presets from localStorage to Supabase tables with RLS, and link the user list to real accounts (today invites from demo rows would email invented addresses).
+- Link the user list to real accounts (today invites from demo rows would email invented addresses); optionally move `app_data` to proper relational tables.
 - Optional: lock out after N wrong login codes (needs a small table).

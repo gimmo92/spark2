@@ -1,7 +1,8 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { Menu, X } from "lucide-react";
+import Link from "next/link";
+import { DatabaseZap, Menu, X } from "lucide-react";
 import { Sidebar, SparkLogo } from "./Sidebar";
 import { StoreProvider, useStore } from "@/lib/store";
 
@@ -18,6 +19,20 @@ function Toasts() {
           {t.message}
         </div>
       ))}
+    </div>
+  );
+}
+
+function DataBanner() {
+  const { dataSource, dataMessage } = useStore();
+  if (dataSource !== "local" || !dataMessage) return null;
+  return (
+    <div role="status" className="mb-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] font-semibold text-amber-900">
+      <DatabaseZap className="h-4 w-4 shrink-0" />
+      <span className="min-w-0 flex-1">{dataMessage}</span>
+      <Link href="/login?next=/" className="shrink-0 rounded-lg px-2 py-1 text-amber-900 underline hover:bg-amber-100">
+        Accedi
+      </Link>
     </div>
   );
 }
@@ -70,7 +85,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <SparkLogo className="h-6 w-5" />
             <span className="font-semibold">Spark</span>
           </header>
-          <main className="px-4 py-5 lg:px-6 lg:py-4">{children}</main>
+          <main className="px-4 py-5 lg:px-6 lg:py-4">
+            <DataBanner />
+            {children}
+          </main>
         </div>
       </div>
       <Toasts />
