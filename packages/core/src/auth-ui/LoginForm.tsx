@@ -4,7 +4,6 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ArrowLeft, CheckCircle2, Loader2, Mail, TriangleAlert } from "lucide-react";
-import { getSupabaseBrowser } from "../supabase/client";
 import { authConfigured, safeNext } from "../supabase/env";
 import { SparkLogo } from "../shell/Sidebar";
 
@@ -16,6 +15,7 @@ const ERRORS: Record<string, string> = {
   rate: "Troppi tentativi. Riprova tra qualche minuto.",
   send: "Non è stato possibile inviare il codice. Riprova.",
   config: "Accesso non configurato correttamente. Contatta l'amministratore.",
+  email: "Inserisci un indirizzo email valido.",
   link: "Link scaduto o già usato. Richiedine uno nuovo.",
   exchange: "Link scaduto o già usato. Richiedine uno nuovo.",
   missing_code: "Link non valido. Riprova.",
@@ -128,15 +128,11 @@ export function LoginForm() {
 
   const sendReset = async (e: React.FormEvent) => {
     e.preventDefault();
-    const supabase = getSupabaseBrowser();
-    if (!supabase) return;
     clear();
     setBusy("reset");
-    const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent("/auth/update-password")}`,
-    });
+    const r = await post("/api/auth/reset", { email });
     setBusy(null);
-    if (err && /rate limit|too many/i.test(err.message)) return setError(ERRORS.rate);
+    if (!r.ok) return setError(ERRORS[r.error] ?? ERRORS.config);
     setInfo(`Se ${email.trim()} è registrato, riceverai un link per reimpostare la password.`);
   };
 

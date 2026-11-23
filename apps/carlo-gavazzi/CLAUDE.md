@@ -24,7 +24,7 @@ Record here every client request, the decision taken, and where it lives (config
 
 ## Deployment
 
-1. Supabase: new project for this client (Data API **on**, auto-grant API access **off** — our SQL grants `service_role` explicitly —, auto RLS **on**) → run `packages/core/supabase/migrations/*.sql` in order → Auth: SMTP (SendGrid) and Magic Link template with `{{ .Token }}`; disable public sign-ups.
-2. Vercel: new project on repo `gimmo92/spark2`, **Root Directory `apps/carlo-gavazzi`**, env vars from `.env.example` (secrets Sensitive), own `AUTH_SECRET`, `AUTH_ENABLED=true` once the first admin has logged in.
+1. Supabase: new project for this client (Data API **on**, auto-grant API access **off** — our SQL grants `service_role` explicitly —, auto RLS **on**) → run `packages/core/supabase/migrations/*.sql` in order (done 2026-11-23). Nothing else in Supabase: emails and access rules are handled by the core.
+2. Vercel: new project on repo `gimmo92/spark2`, **Root Directory `apps/carlo-gavazzi`**, env vars from `.env.example` (secrets Sensitive), own `AUTH_SECRET`, `ADMIN_EMAILS=testcg@tryspark.co`, `AUTH_ENABLED=true` once the first admin has logged in.
 3. First admin: Supabase → Authentication → Users → Add user → `testcg@tryspark.co` + password, "Auto Confirm User" on (registration is invite-only, so the first account is created by hand). The mailbox must exist (alias on Google Workspace) to receive login codes.
 4. Domain: `carlogavazzi.tryspark.it` (Vercel project → Domains; DNS of tryspark.it is on Vercel).

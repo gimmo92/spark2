@@ -50,22 +50,26 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 
 ## Authentication (core)
 
-- Login = **email + password, then a 6-digit code by email**, both enforced server-side (`routes/login` checks the password with a cookie-less client and sends the OTP with `shouldCreateUser:false`; `routes/verify` checks the code and sets the signed `spark_2fa` cookie, HMAC with `AUTH_SECRET`). The proxy requires session **and** `spark_2fa` for the same user.
-- **No self sign-up**: `/registrazione` needs the invite code sent from the user list (letter icon → `/api/invites` → SendGrid). Table `registration_invites`; the code stays visible in the user profile.
-- Gate is opt-in per deployment: `AUTH_ENABLED=true`. Env vars in `apps/demo/.env.example`. Privileged routes use `requireAdmin()` (full login + optional `ADMIN_EMAILS`).
-- Setup errors are self-describing (`{error:"config", missing:[...]}`, names only).
+**All of authentication lives in the core; a client Supabase project only provides users and tables** (no SMTP, no email templates, no auth settings to touch).
+
+- Login = **email + password, then a 6-digit code by email**, both enforced server-side: `routes/login` checks the password with a cookie-less client, checks `hasSparkAccess`, generates the code with `auth.admin.generateLink({type:"magiclink"})` (Supabase sends nothing) and emails it with SendGrid; `routes/verify` checks it (`verifyOtp type "email"`) and sets the signed `spark_2fa` cookie (HMAC, `AUTH_SECRET`). The proxy requires session **and** `spark_2fa` for the same user.
+- **Who may log in** (`src/auth/access.ts`): accounts created by Spark's registration (`app_metadata.spark_access`), emails in `ADMIN_EMAILS`, or invites already registered. A sign-up made directly against Supabase's API is refused, so public sign-ups don't need to be disabled per project.
+- **No self sign-up**: `/registrazione` needs the invite code sent from the user list (letter icon → `/api/invites`). The first admin is created by hand (Supabase → Authentication → Add user, auto-confirm) and listed in `ADMIN_EMAILS`.
+- Password reset: `routes/reset` → `generateLink({type:"recovery"})` → SendGrid link to `/auth/confirm?token_hash=…&type=recovery` → `/auth/update-password`. Always answers ok (no account enumeration).
+- Emails (invite, login code, reset) share one template in `src/email/sendgrid.ts`.
+- Gate is opt-in per deployment: `AUTH_ENABLED=true`. Env vars in `apps/<app>/.env.example`. Setup errors are self-describing (`{error:"config", missing:[...]}`, names only).
 
 ## New client app (checklist)
 
 1. Copy `apps/demo` to `apps/<client>`; set `"name": "@spark/<client>"`; delete `src/seed/` and the `seed`/`migrate` entries (or write the client's own demo seed); edit `src/spark.config.ts` (org, nav, tabs, modules); keep or drop module routes accordingly.
-2. New Supabase project (Data API on, "grant API access to new tables automatically" off, "enable RLS automatically" on): run core migrations, set SMTP (SendGrid) and the Magic Link template with `{{ .Token }}`.
+2. New Supabase project (Data API on, "grant API access to new tables automatically" off, "enable RLS automatically" on): run core migrations, add the first admin user (auto-confirm). Nothing else in Supabase: emails and access rules are handled by the core.
 3. New Vercel project on the same repo, Root Directory `apps/<client>`, env vars from `.env.example` (secrets Sensitive), domain.
 4. Write `apps/<client>/CLAUDE.md`: who the client is, their processes, specs, what was customised and why.
 
 ## Demo deployment status (app.tryspark.it, as of 2026-11-23)
 
-- Supabase project `lgfzzdgpviorwdzxmqkt`; `0001_registration_invites.sql` run and grant verified. SMTP = SendGrid. Vercel secrets marked Sensitive (`vercel env pull` won't fetch them: put them in `.env.local` by hand).
-- Pending: run `0002_app_data.sql`; Vercel Root Directory must be **`apps/demo`** (changed with the monorepo); first real login, test invite, then `AUTH_ENABLED=true` + Redeploy.
+- Supabase project `lgfzzdgpviorwdzxmqkt`; migrations 0001 and 0002 run (2026-11-23). Supabase SMTP is no longer used (the core sends the emails). Vercel secrets marked Sensitive (`vercel env pull` won't fetch them: put them in `.env.local` by hand).
+- Root Directory `apps/demo` set. Pending: `ADMIN_EMAILS` must list the owner's login email (manually created accounts can log in only if listed); first real login, test invite, then `AUTH_ENABLED=true` + Redeploy.
 - Email sender `noreply@tryspark.co`. Switching to `@tryspark.it` needs SendGrid domain auth + Supabase SMTP sender + `SENDGRID_FROM`.
 
 ## Domains and email

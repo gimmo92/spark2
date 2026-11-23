@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { SPARK_ACCESS_FLAG } from "../../auth/access";
 import { adminConfigured, getSupabaseAdmin } from "../../supabase/admin";
 
 const norm = (c: string) => c.toUpperCase().replace(/[^A-Z0-9]/g, "");
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
 
   const markRegistered = () => admin.from("registration_invites").update({ registered_at: new Date().toISOString() }).eq("email", email);
 
-  const { data: created, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true });
+  const { data: created, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { [SPARK_ACCESS_FLAG]: true } });
   if (error || !created.user) {
     if (/already|exists|registered/i.test(error?.message ?? "")) {
       await markRegistered();
