@@ -461,8 +461,6 @@ export function CustomObjectiveEditor({
           </Block>
         </div>
 
-        <PresetPicker onApply={(pr) => onChange({ calc: pr.calc, levels: pr.levels.map((l) => ({ ...l })) })} />
-
         <Block label="Modalità di calcolo">
           <div className="inline-flex rounded-lg bg-canvas p-1">
             {(["lineare", "scaglioni"] as CalcMode[]).map((m) => (
@@ -492,7 +490,10 @@ export function CustomObjectiveEditor({
           </p>
         )}
       </div>
-      <PayoutCurve def={def} />
+      <div className="space-y-3.5">
+        <PayoutCurve def={def} />
+        <PresetPicker hint="" onApply={(pr) => onChange({ calc: pr.calc, levels: pr.levels.map((l) => ({ ...l })) })} />
+      </div>
     </div>
   );
 }
