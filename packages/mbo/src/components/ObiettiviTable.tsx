@@ -13,6 +13,7 @@ import {
   ChevronUp,
   ChevronsUpDown,
   Eye,
+  Gauge,
   Globe,
   Layers,
   Pencil,
@@ -27,8 +28,9 @@ import { fullName } from "@spark/core";
 import { CATEGORIES, cycleLabel, schedeUsing, typeLabel, typeOf, type ObjectiveDef } from "../lib/mbo";
 import { useMbo } from "../store";
 import { LevelsReadOnly, PayoutCurve } from "./SchedaEditor";
+import { MisuraModal } from "./Misura";
 import { StatusPill } from "./SchedeTable";
-import { FilterMenu, GhostButton, Modal, PrimaryButton, Tooltip } from "@spark/core";
+import { FilterMenu, GhostButton, Modal, PrimaryButton, Tooltip, useAccess } from "@spark/core";
 
 type SortKey = "name" | "category" | "usage" | "cycle";
 const collator = new Intl.Collator("it", { sensitivity: "base" });
@@ -64,7 +66,12 @@ export function CategoryPill({ category }: { category?: string }) {
 export function ObiettiviTable() {
   const { companies: COMPANIES } = useOrg();
   const router = useRouter();
-  const { objectives, schede, users, updateObjective, notify } = useMbo();
+  const { objectives, schede, users, updateObjective, notify, canEditScheda, mboSettings } = useMbo();
+  const { allowed } = useAccess();
+  /** The user can enter results for this objective in at least one active scheda (or the global threshold). */
+  const canMeasure = (o: ObjectiveDef) =>
+    (mboSettings.globalThresholdId === o.id && allowed("mbo.settings.manage")) ||
+    schedeUsing(schede, o.id).some((s) => s.status !== "archiviata" && canEditScheda(s));
 
   const [category, setCategory] = useState("");
   const [company, setCompany] = useState("");
@@ -73,6 +80,7 @@ export function ObiettiviTable() {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "name", dir: 1 });
   const [viewing, setViewing] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<ObjectiveDef | null>(null);
+  const [measuring, setMeasuring] = useState<ObjectiveDef | null>(null);
 
   // per objective: how many schede use it, and which groups / companies their assignees belong to
   const usageMap = useMemo(() => {
@@ -248,6 +256,9 @@ export function ObiettiviTable() {
                       <IconBtn label="Visualizza" onClick={() => setViewing(o.id)}>
                         <Eye className="h-4 w-4" strokeWidth={2.2} />
                       </IconBtn>
+                      <IconBtn label="Misura" onClick={() => setMeasuring(o)} disabled={o.archived || !canMeasure(o)}>
+                        <Gauge className="h-4 w-4" strokeWidth={2.2} />
+                      </IconBtn>
                       <IconBtn label="Modifica" onClick={() => router.push(`/mbo/obiettivi/${o.id}`)} disabled={o.archived}>
                         <Pencil className="h-4 w-4" strokeWidth={2.2} />
                       </IconBtn>
@@ -283,6 +294,7 @@ export function ObiettiviTable() {
         </table>
       </div>
 
+      {measuring && <MisuraModal def={measuring} onClose={() => setMeasuring(null)} />}
       {viewed && <ObiettivoView def={viewed} onClose={() => setViewing(null)} onEdit={() => router.push(`/mbo/obiettivi/${viewed.id}`)} />}
 
       {archiving && (

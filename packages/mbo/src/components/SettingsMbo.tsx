@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Pencil, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { catalogById, payoutFor, type CalcMode, type Preset, formatValue } from "../lib/mbo";
 import { useMbo } from "../store";
+import { MeasureInput } from "./Misura";
 import { Block, LevelsEditor, PayoutCurve, fmt, levelsError } from "./SchedaEditor";
 import { GhostButton, Modal, PrimaryButton, SettingsTabs, Tooltip, inputCls } from "@spark/core";
 
@@ -250,16 +251,11 @@ function ThresholdSettings() {
             </Block>
             {def && (
               <Block label="Consuntivo">
-                <span className="relative block">
-                  <input
-                    type="number"
-                    className={`${inputCls} pr-12 text-right tabular-nums`}
-                    value={actual ?? ""}
-                    placeholder="—"
-                    onChange={(e) => setMboSettings({ globalThresholdActual: e.target.value === "" ? undefined : Number(e.target.value) })}
-                  />
-                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-muted">{def.unit}</span>
-                </span>
+                <MeasureInput
+                  def={def}
+                  value={{ actual, done: mboSettings.globalThresholdDone }}
+                  onChange={(m) => setMboSettings({ globalThresholdActual: m.actual, globalThresholdDone: m.done })}
+                />
               </Block>
             )}
             {def && (

@@ -174,6 +174,8 @@ export interface SchedaItem {
   id: string;
   weight: number;
   actual?: number;
+  /** "progetto" objectives: ids of the completed activities (`actual` = their %). */
+  done?: string[];
   objectiveId?: string;
   custom?: ObjectiveDef;
   /** Per-scheda target/payout levels overriding the catalog objective's defaults. */
@@ -188,7 +190,7 @@ export interface Scheda {
   status: SchedaStatus;
   items: SchedaItem[];
   /** Gate objective: if it doesn't reach its first level the whole scheda pays 0. */
-  threshold?: { objectiveId: string; actual?: number };
+  threshold?: { objectiveId: string; actual?: number; done?: string[] };
   updatedAt: string;
 }
 
@@ -276,6 +278,19 @@ export function schedaScore(catalog: Catalog, s: Scheda, global?: GlobalGate): n
       return acc + (def ? (it.weight * payoutFor(def, it.actual)) / 100 : 0);
     }, 0),
   );
+}
+
+/** A measured result: the actual value and, for projects, the completed activities. */
+export interface Measure {
+  actual?: number;
+  done?: string[];
+}
+
+/** % of a project's activities that are completed (undefined when nothing is ticked yet and nothing was measured). */
+export function projectActual(d: ObjectiveDef, done: string[]): number | undefined {
+  const acts = d.activities ?? [];
+  if (!acts.length) return undefined;
+  return Math.round((acts.filter((a) => done.includes(a.id)).length / acts.length) * 100);
 }
 
 /** Short description of the levels, e.g. "80 % → 50% · 100 % → 100%" or "Raggiunto → 100%". */

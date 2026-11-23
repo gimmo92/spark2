@@ -11,6 +11,8 @@ export interface MboSettings {
   globalThresholdId?: string;
   /** Actual result of the global threshold objective (undefined = not measured yet). */
   globalThresholdActual?: number;
+  /** Completed activities, when the global threshold is a "progetto" objective. */
+  globalThresholdDone?: string[];
 }
 
 const today = () => new Date().toISOString().slice(0, 10);
