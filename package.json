@@ -8,7 +8,8 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @spark/demo",
-    "build": "npm run build -w @spark/demo",
+    "dev:gavazzi": "npm run dev -w @spark/carlo-gavazzi",
+    "build": "npm run build --workspaces --if-present",
     "lint": "eslint",
     "typecheck": "npm run typecheck --workspaces --if-present"
   },

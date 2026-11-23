@@ -8,6 +8,7 @@ Spark is **not a multi-tenant SaaS**. The owner works Forward-Deployed: a shared
 packages/core   @spark/core  auth (password + email code), proxy gate, /api routes, data store, shell, UI kit, users/teams/invites
 packages/mbo    @spark/mbo   standard MBO module (schede, obiettivi, preset, workflow, forecast, MBO dashboard/settings)
 apps/demo       @spark/demo  demo client Valmec S.p.A. → app.tryspark.it (Vercel Root Directory = apps/demo)
+apps/carlo-gavazzi  @spark/carlo-gavazzi  client Carlo Gavazzi Services AG (see its CLAUDE.md; not deployed yet)
 apps/<client>   one Next.js app per client (own Vercel project, own Supabase project)
 ```
 
@@ -20,7 +21,7 @@ apps/<client>   one Next.js app per client (own Vercel project, own Supabase pro
 
 ## Working rules (from the owner)
 
-- **Always commit and push to `main` after every finished change**, without asking. Verify first from the repo root: `npm run lint`, `npm run typecheck`, `npm run build` (builds the demo; build other apps too when packages change: `npm run build -w @spark/<app>`).
+- **Always commit and push to `main` after every finished change**, without asking. Verify first from the repo root: `npm run lint`, `npm run typecheck`, `npm run build` (builds every app).
 - UI copy is **Italian**. Code, comments and commit messages in English.
 - **Compact UI**: the owner works on a high-DPI screen at ~1260 CSS px. Small type (13–14px body, 11px uppercase labels), tight paddings.
 - Demo data must be **invented**: Italian names, `nome.cognome@tryspark.co` emails, Valmec companies. Never copy real people from reference screenshots (`../references/`).

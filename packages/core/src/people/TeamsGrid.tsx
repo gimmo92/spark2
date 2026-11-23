@@ -17,6 +17,9 @@ export function TeamsGrid() {
         <h1 className="text-[14px] font-semibold">Team Registrati Alla Piattaforma</h1>
         <p className="mt-0.5 text-[12.5px] text-muted">{TEAMS.length} team · {active.length} utenti attivi</p>
       </div>
+      {TEAMS.length === 0 && (
+        <div className="card px-5 py-10 text-center text-[12.5px] text-muted">Nessun team configurato per questa azienda.</div>
+      )}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {TEAMS.map((t) => {
           const members = active.filter((u) => u.team === t);
