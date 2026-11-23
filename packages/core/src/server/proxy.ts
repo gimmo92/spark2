@@ -13,9 +13,10 @@ const isPublic = (path: string) => PUBLIC_PATHS.some((p) => path === p || path.s
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
 
-  // The gate is switched on with AUTH_ENABLED=true (Vercel → Settings → Environment Variables),
-  // so the code can ship before auth is configured. /login stays reachable to test sign-in first.
-  if (process.env.AUTH_ENABLED !== "true") return NextResponse.next();
+  // The gate is always on. Only escape hatches: AUTH_ENABLED=false (explicit), or local dev without
+  // Supabase keys. /login, /registrazione and /auth/* stay reachable, so the first admin can sign in.
+  if (process.env.AUTH_ENABLED === "false") return NextResponse.next();
+  if (!authConfigured && process.env.NODE_ENV !== "production") return NextResponse.next();
 
   if (!authConfigured) {
     // Gate on but Supabase keys missing: never expose the app; /login explains what's missing.

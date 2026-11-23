@@ -57,7 +57,7 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 - **No self sign-up**: `/registrazione` needs the invite code sent from the user list (letter icon → `/api/invites`). The first admin is created by hand (Supabase → Authentication → Add user, auto-confirm) and listed in `ADMIN_EMAILS`.
 - Password reset: `routes/reset` → `generateLink({type:"recovery"})` → SendGrid link to `/auth/confirm?token_hash=…&type=recovery` → `/auth/update-password`. Always answers ok (no account enumeration).
 - Emails (invite, login code, reset) share one template in `src/email/sendgrid.ts`.
-- Gate is opt-in per deployment: `AUTH_ENABLED=true`. Env vars in `apps/<app>/.env.example`. Setup errors are self-describing (`{error:"config", missing:[...]}`, names only).
+- Login gate is always on (no page is visible without login); `AUTH_ENABLED=false` switches it off, and local dev without Supabase keys runs ungated. Env vars in `apps/<app>/.env.example`. Setup errors are self-describing (`{error:"config", missing:[...]}`, names only).
 
 ## New client app (checklist)
 
@@ -69,7 +69,7 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 ## Demo deployment status (app.tryspark.it, as of 2026-11-23)
 
 - Supabase project `lgfzzdgpviorwdzxmqkt`; migrations 0001 and 0002 run (2026-11-23). Supabase SMTP is no longer used (the core sends the emails). Vercel secrets marked Sensitive (`vercel env pull` won't fetch them: put them in `.env.local` by hand).
-- Root Directory `apps/demo` set. Pending: `ADMIN_EMAILS` must list the owner's login email (manually created accounts can log in only if listed); first real login, test invite, then `AUTH_ENABLED=true` + Redeploy.
+- Root Directory `apps/demo` set. Pending: `ADMIN_EMAILS` must list the owner's login email (manually created accounts can log in only if listed); first real login, test invite.
 - Email sender `noreply@tryspark.co`. Switching to `@tryspark.it` needs SendGrid domain auth + Supabase SMTP sender + `SENDGRID_FROM`.
 
 ## Domains and email
