@@ -7,16 +7,21 @@ import { useMemo, useState } from "react";
 import {
   Archive,
   ArchiveRestore,
+  Briefcase,
   Building2,
   ChevronDown,
   ChevronUp,
   ChevronsUpDown,
   Eye,
+  Globe,
   Layers,
   Pencil,
   Plus,
   Search,
   Tag,
+  User,
+  Users,
+  type LucideIcon,
 } from "lucide-react";
 import { fullName } from "@spark/core"
 import { CATEGORIES, cycleLabel, schedeUsing, type ObjectiveDef } from "../lib/mbo";
@@ -34,6 +39,15 @@ const CATEGORY_STYLE: Record<string, string> = {
   "Business Unit": "bg-cyan-50 text-cyan-800",
   Team: "bg-violet-50 text-violet-700",
   Utente: "bg-[#eef1f5] text-[#5b6476]",
+};
+
+/** Icon of each objective level (category). */
+export const CATEGORY_ICON: Record<string, LucideIcon> = {
+  Gruppo: Globe,
+  Società: Building2,
+  "Business Unit": Briefcase,
+  Team: Users,
+  Utente: User,
 };
 
 export function CategoryPill({ category }: { category?: string }) {

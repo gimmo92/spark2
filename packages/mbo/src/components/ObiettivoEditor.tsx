@@ -3,12 +3,13 @@
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { ArrowLeft, ChevronDown, Info, TriangleAlert, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, Info, Layers, TriangleAlert, X } from "lucide-react";
 import { fullName } from "@spark/core";
 import { CATEGORIES, CYCLES, cycleLabel, schedeUsing, type Level, type ObjectiveDef, type Scheda } from "../lib/mbo";
 import { useMbo } from "../store";
 import { MultiSelect } from "@spark/core";
 import { Block, CustomObjectiveEditor, LevelsEditor, PresetPicker, SectionTitle, customError, levelsError } from "./SchedaEditor";
+import { CATEGORY_ICON } from "./ObiettiviTable";
 import { StatusPill } from "./SchedeTable";
 import { GhostButton, PrimaryButton, inputCls } from "@spark/core";
 
@@ -197,7 +198,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
 
       <section className="card p-5">
         <SectionTitle n={1} title="Obiettivo" />
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-[1fr_200px]">
           <Block label="Descrizione obiettivo" error={nameError ?? undefined} className="sm:col-span-2">
             <input
               autoFocus
@@ -208,11 +209,26 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
             />
           </Block>
           <Block label="Livello" hint="A che livello si misura">
-            <select className={inputCls} value={draft.category} onChange={(e) => patch({ category: e.target.value })}>
-              {CATEGORIES.map((c) => (
-                <option key={c}>{c}</option>
-              ))}
-            </select>
+            <div role="radiogroup" aria-label="Livello" className="flex flex-wrap gap-1.5">
+              {CATEGORIES.map((c) => {
+                const Icon = CATEGORY_ICON[c] ?? Layers;
+                const on = draft.category === c;
+                return (
+                  <button
+                    key={c}
+                    type="button"
+                    role="radio"
+                    aria-checked={on}
+                    onClick={() => patch({ category: c })}
+                    className={`inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-semibold transition-colors ${
+                      on ? "border-brand bg-brand-soft text-brand" : "border-[#dfe3ea] bg-white text-muted hover:border-[#c6ccd6] hover:text-ink"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" /> {c}
+                  </button>
+                );
+              })}
+            </div>
           </Block>
           <Block label="Ciclo di riferimento" hint="Anno o periodo">
             <select className={inputCls} value={draft.cycle ?? "2026"} onChange={(e) => patch({ cycle: e.target.value })}>
