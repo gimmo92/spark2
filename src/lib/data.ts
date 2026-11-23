@@ -17,12 +17,12 @@ export interface User {
 export const ACCESS_LEVELS: AccessLevel[] = ["UTENTE", "MANAGER", "ADMIN"];
 
 export const TEAMS = [
-  "GROUPE A",
-  "GROUPE B1 - INDIA",
-  "GROUPE B1 - SOUTH EAST ASIA",
-  "GROUPE B1 - AUSTRALIA",
-  "GROUPE B1 - FRANCE",
-  "GROUPE B2 - ITALY",
+  "Direzione Italia",
+  "Engineering India",
+  "Sales Asia Pacific",
+  "Service Australia",
+  "Commerciale Francia",
+  "Produzione Italia",
 ];
 
 export const COMPANIES = [
@@ -34,15 +34,31 @@ export const COMPANIES = [
 ];
 
 const TEAM_COMPANY: Record<string, string> = {
-  "GROUPE A": "Valmec S.p.A.",
-  "GROUPE B1 - INDIA": "Valmec Engineering India Pvt Ltd",
-  "GROUPE B1 - SOUTH EAST ASIA": "Valmec Asia Pacific Sdn Bhd",
-  "GROUPE B1 - AUSTRALIA": "Valmec Australia Pty Ltd",
-  "GROUPE B1 - FRANCE": "Valmec France SAS",
-  "GROUPE B2 - ITALY": "Valmec S.p.A.",
+  "Direzione Italia": "Valmec S.p.A.",
+  "Engineering India": "Valmec Engineering India Pvt Ltd",
+  "Sales Asia Pacific": "Valmec Asia Pacific Sdn Bhd",
+  "Service Australia": "Valmec Australia Pty Ltd",
+  "Commerciale Francia": "Valmec France SAS",
+  "Produzione Italia": "Valmec S.p.A.",
 };
 
-export const companyForTeam = (team: string) => TEAM_COMPANY[team] ?? COMPANIES[0];
+/** Old team names → current ones (applied to data saved before the rename). */
+const TEAM_RENAMES: Record<string, string> = {
+  "GROUPE A": "Direzione Italia",
+  "GROUPE B1 - INDIA": "Engineering India",
+  "GROUPE B1 - SOUTH EAST ASIA": "Sales Asia Pacific",
+  "GROUPE B1 - AUSTRALIA": "Service Australia",
+  "GROUPE B1 - FRANCE": "Commerciale Francia",
+  "GROUPE B2 - ITALY": "Produzione Italia",
+};
+
+/** Returns the same array when nothing changes, so unchanged users aren't re-saved. */
+export function migrateTeams(users: User[]): User[] {
+  if (!users.some((u) => TEAM_RENAMES[u.team])) return users;
+  return users.map((u) => (TEAM_RENAMES[u.team] ? { ...u, team: TEAM_RENAMES[u.team] } : u));
+}
+
+export const companyForTeam =(team: string) => TEAM_COMPANY[team] ?? COMPANIES[0];
 
 const ROLES = [
   "Manager - Technical & Customer Support",
@@ -73,18 +89,18 @@ const ROLES = [
 
 // Hand-picked demo rows shown first in the list (fictional people).
 const SEED: Array<[string, string, AccessLevel, string, string]> = [
-  ["Aurelio", "Abbondanza", "UTENTE", "GROUPE B1 - INDIA", ROLES[0]],
-  ["Marta", "Acquaviva", "UTENTE", "GROUPE B1 - INDIA", ROLES[1]],
-  ["Tommaso", "Adornetti", "UTENTE", "GROUPE A", ROLES[2]],
-  ["Fabrizio", "Agostinelli", "UTENTE", "GROUPE B1 - SOUTH EAST ASIA", ROLES[3]],
-  ["Saverio", "Alboreto", "MANAGER", "GROUPE B2 - ITALY", ROLES[4]],
-  ["Ludovica", "Albertazzi", "MANAGER", "GROUPE A", ROLES[5]],
-  ["Corrado", "Alderisi", "UTENTE", "GROUPE B1 - AUSTRALIA", ROLES[6]],
-  ["Beatrice", "Amorevole", "UTENTE", "GROUPE A", ROLES[7]],
-  ["Ivano", "Ardenghi", "UTENTE", "GROUPE B1 - FRANCE", ROLES[8]],
-  ["Ginevra", "Arpinelli", "UTENTE", "GROUPE B2 - ITALY", ROLES[9]],
-  ["Ettore", "Ascanelli", "UTENTE", "GROUPE A", ROLES[10]],
-  ["Noemi", "Astorrino", "UTENTE", "GROUPE A", ROLES[11]],
+  ["Aurelio", "Abbondanza", "UTENTE", "Engineering India", ROLES[0]],
+  ["Marta", "Acquaviva", "UTENTE", "Engineering India", ROLES[1]],
+  ["Tommaso", "Adornetti", "UTENTE", "Direzione Italia", ROLES[2]],
+  ["Fabrizio", "Agostinelli", "UTENTE", "Sales Asia Pacific", ROLES[3]],
+  ["Saverio", "Alboreto", "MANAGER", "Produzione Italia", ROLES[4]],
+  ["Ludovica", "Albertazzi", "MANAGER", "Direzione Italia", ROLES[5]],
+  ["Corrado", "Alderisi", "UTENTE", "Service Australia", ROLES[6]],
+  ["Beatrice", "Amorevole", "UTENTE", "Direzione Italia", ROLES[7]],
+  ["Ivano", "Ardenghi", "UTENTE", "Commerciale Francia", ROLES[8]],
+  ["Ginevra", "Arpinelli", "UTENTE", "Produzione Italia", ROLES[9]],
+  ["Ettore", "Ascanelli", "UTENTE", "Direzione Italia", ROLES[10]],
+  ["Noemi", "Astorrino", "UTENTE", "Direzione Italia", ROLES[11]],
 ];
 
 const FIRST = [

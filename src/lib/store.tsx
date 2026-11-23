@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { buildSeedUsers, type User } from "./data";
+import { buildSeedUsers, migrateTeams, type User } from "./data";
 import { INVITE_ERRORS, type InviteDTO, type InvitesStatus } from "./invites";
 import { SEED_WORKFLOWS, type Workflow } from "./workflow";
 import { COLLECTIONS, DATA_ERRORS, diffById, type Collection, type DataChanges, type DataSource } from "./sync";
@@ -100,7 +100,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
     const loadLocal = () => {
       try {
         const raw = localStorage.getItem(KEY);
-        if (raw) setUsers(JSON.parse(raw));
+        if (raw) setUsers(migrateTeams(JSON.parse(raw)));
         const rawS = localStorage.getItem(SCHEDE_KEY);
         if (rawS) setSchede(JSON.parse(rawS));
         const rawO = localStorage.getItem(OBJ_KEY);
@@ -140,7 +140,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           settings: (d.settings as SettingsDoc[]).filter((x) => x.id === SETTINGS_ID),
         };
         synced.current = snap;
-        setUsers(snap.users);
+        setUsers(migrateTeams(snap.users));
         setSchede(snap.schede);
         setObjectives(snap.objectives);
         setPresets(snap.presets);
