@@ -3,24 +3,34 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { GhostButton, Modal, PrimaryButton, inputCls } from "@spark/core";
-import { cycleLabel, schedeUsing, type ObjectiveDef } from "../lib/mbo";
-import { roleLabel, taskType, type Workflow } from "../lib/workflow";
+import { cycleLabel, hasActuals, type Scheda, type SchedaStatus } from "../lib/mbo";
+import { roleLabel, taskType, type TaskType, type Workflow } from "../lib/workflow";
 import { useMbo } from "../store";
 import { Block } from "./SchedaEditor";
 
 const date = (d?: string) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString("it-IT", { timeZone: "UTC" }) : null);
 
-/** Badge "Workflow · fase" for an objective that was sent to a workflow. */
-export function WorkflowBadge({ def }: { def: ObjectiveDef }) {
+/** Step that fits a scheda's status, used as the default when sending it to a workflow. */
+const STEP_FOR: Record<SchedaStatus, TaskType> = {
+  bozza: "definizione",
+  in_approvazione: "approvazione",
+  approvata: "consuntivazione",
+  consuntivata: "lettera",
+  archiviata: "lettera",
+};
+
+/** Badge "Workflow · fase" for a scheda that was sent to a workflow. */
+export function WorkflowBadge({ scheda }: { scheda: Scheda }) {
   const { workflows } = useMbo();
-  const w = def.workflow && workflows.find((x) => x.id === def.workflow!.workflowId);
-  const t = w?.tasks.find((x) => x.id === def.workflow!.taskId);
+  const sent = scheda.workflow;
+  const w = sent && workflows.find((x) => x.id === sent.workflowId);
+  const t = w?.tasks.find((x) => x.id === sent!.taskId);
   if (!w || !t) return null;
   const tt = taskType(t.type);
   return (
     <span
       className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full bg-[#eef1f5] px-2 py-[2px] text-[11px] font-semibold text-[#5b6476]"
-      title={`Inviato il ${date(def.workflow!.sentAt)}`}
+      title={`Inviata il ${date(sent!.sentAt)}`}
     >
       <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: tt.color }} />
       <span className="truncate">
@@ -30,11 +40,11 @@ export function WorkflowBadge({ def }: { def: ObjectiveDef }) {
   );
 }
 
-/** "Invia a workflow": puts a catalog objective (and the schede using it) at a step of an MBO workflow. */
-export function InviaWorkflowModal({ def, onClose }: { def: ObjectiveDef; onClose: () => void }) {
-  const { workflows, schede, updateObjective, notify } = useMbo();
+/** "Invia a workflow": puts a scheda at a step of an MBO workflow. */
+export function InviaWorkflowModal({ scheda, onClose }: { scheda: Scheda; onClose: () => void }) {
+  const { workflows, updateScheda, notify } = useMbo();
 
-  // active workflows of the objective's cycle first, then the others; archived ones are never offered
+  // active workflows of the scheda's cycle first, then the others; archived ones are never offered
   const options = useMemo(
     () =>
       workflows
@@ -42,22 +52,18 @@ export function InviaWorkflowModal({ def, onClose }: { def: ObjectiveDef; onClos
         .sort(
           (a, b) =>
             Number(b.status === "attivo") - Number(a.status === "attivo") ||
-            Number(b.cycle === def.cycle) - Number(a.cycle === def.cycle) ||
+            Number(b.cycle === scheda.cycle) - Number(a.cycle === scheda.cycle) ||
             a.name.localeCompare(b.name, "it"),
         ),
-    [workflows, def.cycle],
+    [workflows, scheda.cycle],
   );
-  const using = schedeUsing(schede, def.id).filter((s) => s.status !== "archiviata");
-  const measured = using.some((s) => s.items.some((i) => i.objectiveId === def.id && i.actual != null));
+  const step: TaskType = hasActuals(scheda) && scheda.status !== "consuntivata" ? "consuntivazione" : STEP_FOR[scheda.status];
 
-  /** Default step: where the objective is now, else consuntivazione once results exist, else the first one. */
+  /** Default step: where the scheda is now, else the step matching its status, else the first one. */
   const startTask = (w?: Workflow) =>
-    w?.tasks.find((t) => t.id === def.workflow?.taskId)?.id ??
-    (measured ? w?.tasks.find((t) => t.type === "consuntivazione")?.id : undefined) ??
-    w?.tasks[0]?.id ??
-    "";
+    w?.tasks.find((t) => t.id === scheda.workflow?.taskId)?.id ?? w?.tasks.find((t) => t.type === step)?.id ?? w?.tasks[0]?.id ?? "";
 
-  const [workflowId, setWorkflowId] = useState(def.workflow?.workflowId ?? options[0]?.id ?? "");
+  const [workflowId, setWorkflowId] = useState(scheda.workflow?.workflowId ?? options[0]?.id ?? "");
   const wf = options.find((w) => w.id === workflowId);
   const [taskId, setTaskId] = useState(() => startTask(wf));
 
@@ -68,14 +74,14 @@ export function InviaWorkflowModal({ def, onClose }: { def: ObjectiveDef; onClos
 
   const send = () => {
     if (!wf || !taskId) return;
-    updateObjective(def.id, { workflow: { workflowId: wf.id, taskId, sentAt: new Date().toISOString().slice(0, 10) } });
-    notify(`Obiettivo inviato a "${wf.name}" · ${wf.tasks.find((t) => t.id === taskId)?.title}`);
+    updateScheda(scheda.id, { workflow: { workflowId: wf.id, taskId, sentAt: new Date().toISOString().slice(0, 10) } });
+    notify(`Scheda inviata a "${wf.name}" · ${wf.tasks.find((t) => t.id === taskId)?.title}`);
     onClose();
   };
 
   return (
     <Modal
-      title={`Invia a workflow · ${def.name}`}
+      title={`Invia a workflow · ${scheda.name}`}
       onClose={onClose}
       width="max-w-xl"
       footer={
@@ -144,9 +150,6 @@ export function InviaWorkflowModal({ def, onClose }: { def: ObjectiveDef; onClos
             </Block>
           )}
 
-          <p className="text-[12px] text-muted">
-            Coinvolge {using.length} {using.length === 1 ? "scheda" : "schede"} che usano questo obiettivo.
-          </p>
         </div>
       )}
     </Modal>

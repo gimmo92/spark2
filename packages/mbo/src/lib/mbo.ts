@@ -164,8 +164,6 @@ export interface ObjectiveDef {
   cycle?: string;
   archived?: boolean;
   updatedAt?: string;
-  /** Step of an MBO workflow the objective was sent to ("Invia a workflow"). */
-  workflow?: { workflowId: string; taskId: string; sentAt: string };
 }
 
 /** Objective category = organisational level it is measured at. */
@@ -193,6 +191,8 @@ export interface Scheda {
   items: SchedaItem[];
   /** Gate objective: if it doesn't reach its first level the whole scheda pays 0. */
   threshold?: { objectiveId: string; actual?: number; done?: string[] };
+  /** Step of an MBO workflow the scheda was sent to ("Invia a workflow"). */
+  workflow?: { workflowId: string; taskId: string; sentAt: string };
   updatedAt: string;
 }
 

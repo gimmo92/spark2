@@ -17,6 +17,7 @@ import {
   Pencil,
   Plus,
   Search,
+  Send,
   UserRound,
 } from "lucide-react";
 import { fullName, type User } from "@spark/core";
@@ -40,6 +41,7 @@ import {
   typeOf,
 } from "../lib/mbo";
 import { useMbo } from "../store";
+import { InviaWorkflowModal, WorkflowBadge } from "./InviaWorkflow";
 import { Badge, FilterMenu, GhostButton, Modal, PrimaryButton, Tooltip } from "@spark/core";
 
 const STATUS_STYLE: Record<SchedaStatus, string> = {
@@ -74,6 +76,7 @@ export function SchedeTable() {
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "name", dir: 1 });
   const [viewing, setViewing] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<Scheda | null>(null);
+  const [sending, setSending] = useState<Scheda | null>(null);
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -249,7 +252,7 @@ export function SchedeTable() {
                   </th>
                 );
               })}
-              <th className="sticky right-0 w-[112px] border-l border-line bg-white px-3 py-2.5 text-[11px] font-bold uppercase text-[#9aa2b1]">Azioni</th>
+              <th className="sticky right-0 w-[140px] border-l border-line bg-white px-3 py-2.5 text-[11px] font-bold uppercase text-[#9aa2b1]">Azioni</th>
             </tr>
           </thead>
           <tbody>
@@ -292,6 +295,11 @@ export function SchedeTable() {
                   </td>
                   <td className="px-3">
                     <StatusPill status={s.status} />
+                    {s.workflow && (
+                      <span className="mt-1 block max-w-[200px]">
+                        <WorkflowBadge scheda={s} />
+                      </span>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-3 text-[12px] tabular-nums text-muted">
                     {new Date(s.updatedAt).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" })}
@@ -304,6 +312,11 @@ export function SchedeTable() {
                       {canEditScheda(s) && (
                         <IconBtn label="Modifica" onClick={() => router.push(`/mbo/schede/${s.id}`)} disabled={s.status === "archiviata"}>
                           <Pencil className="h-4 w-4" strokeWidth={2.2} />
+                        </IconBtn>
+                      )}
+                      {canEditScheda(s) && (
+                        <IconBtn label="Invia a workflow" onClick={() => setSending(s)} disabled={s.status === "archiviata"}>
+                          <Send className="h-4 w-4" strokeWidth={2.2} />
                         </IconBtn>
                       )}
                       {!canEditScheda(s) ? null : s.status === "archiviata" ? (
@@ -338,6 +351,7 @@ export function SchedeTable() {
         </table>
       </div>
 
+      {sending && <InviaWorkflowModal scheda={sending} onClose={() => setSending(null)} />}
       {viewed && (
         <SchedaView
           scheda={viewed}
