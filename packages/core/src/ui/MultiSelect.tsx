@@ -23,6 +23,7 @@ export function MultiSelect({
   multiple = true,
   invalid,
   maxChips = 6,
+  allLabel = "Seleziona tutti",
 }: {
   options: MultiOption[];
   value: string[];
@@ -32,6 +33,8 @@ export function MultiSelect({
   multiple?: boolean;
   invalid?: boolean;
   maxChips?: number;
+  /** Label of the "select all" action (e.g. "Seleziona tutte" for feminine nouns). */
+  allLabel?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -143,11 +146,23 @@ export function MultiSelect({
           {multiple && (
             <div className="flex items-center justify-between border-b border-line px-3 py-1.5 text-[11.5px]">
               <span className="text-muted">{value.length} selezionati</span>
-              {value.length > 0 && (
-                <button type="button" onClick={() => onChange([])} className="font-semibold text-brand hover:underline">
-                  Deseleziona tutti
-                </button>
-              )}
+              <span className="flex items-center gap-3">
+                {filtered.some((o) => !value.includes(o.value)) && (
+                  // with a search, only the matching options are added
+                  <button
+                    type="button"
+                    onClick={() => onChange([...value, ...filtered.map((o) => o.value).filter((v) => !value.includes(v))])}
+                    className="font-semibold text-brand hover:underline"
+                  >
+                    {q.trim() ? `${allLabel} (${filtered.length})` : allLabel}
+                  </button>
+                )}
+                {value.length > 0 && (
+                  <button type="button" onClick={() => onChange([])} className="font-semibold text-brand hover:underline">
+                    Deseleziona tutti
+                  </button>
+                )}
+              </span>
             </div>
           )}
           <ul ref={listRef} id={listId} role="listbox" aria-multiselectable={multiple} className="max-h-64 overflow-y-auto p-1">

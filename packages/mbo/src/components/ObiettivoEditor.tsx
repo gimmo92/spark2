@@ -269,6 +269,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
             onChange={setSelection}
             placeholder="Assegna l'obiettivo a una o più schede"
             searchPlaceholder="Cerca scheda o assegnatario…"
+            allLabel="Seleziona tutte"
             maxChips={4}
           />
         </Block>
