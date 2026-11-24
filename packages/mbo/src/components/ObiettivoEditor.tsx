@@ -5,8 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ArrowLeft, CalendarDays, ChevronDown, Info, Layers, TriangleAlert, X } from "lucide-react";
 import { fullName } from "@spark/core";
-import { CATEGORIES, CYCLES, cycleLabel, formatValue, schedeUsing, typeDefaults, typeOf, type Level, type ObjectiveDef, type Scheda } from "../lib/mbo";
-import { useMbo } from "../store";
+import { CATEGORIES, CYCLES, cycleLabel, formatValue, needsBase, schedeUsing, toRelative, typeDefaults, typeOf, type Level, type ObjectiveDef, type Scheda } from "../lib/mbo";
+import { useMbo, useMboOptions } from "../store";
 import { MultiSelect } from "@spark/core";
 import { BaseInput, Block, ChoiceButtons, CustomObjectiveEditor, LevelsEditor, PresetPicker, SectionTitle, baseError, customError, levelsError } from "./SchedaEditor";
 import { CATEGORY_ICON } from "./ObiettiviTable";
@@ -47,6 +47,7 @@ const itemOf = (s: Scheda, objectiveId: string) => s.items.find((i) => !i.custom
 function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
   const router = useRouter();
   const { schede, users, addObjective, updateObjective, updateScheda, notify } = useMbo();
+  const options = useMboOptions();
   const byUser = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
 
   const [draft, setDraft] = useState<ObjectiveDef>(
@@ -115,14 +116,17 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
   const draftError = customError(draft);
   // levels per activity: per-scheda target/payout overrides don't apply
   const perActivity = typeOf(draft) === "progetto" && !!draft.activityLevels;
-  // levels in % of last year's actual: each scheda sets that actual instead of its own levels
-  const relative = typeOf(draft) === "quantitativo" && !!draft.relative;
+  // levels in % of last year / of the target / fixed (relativeLevels option): no per-scheda levels;
+  // when some level is a % of last year, each scheda sets that actual
+  const relative = typeOf(draft) === "quantitativo" && (!!options.relativeLevels || !!draft.relative);
+  const scaled: ObjectiveDef = relative ? { ...draft, relative: draft.relative ?? toRelative(draft.levels) } : draft;
+  const withBase = !!scaled.relative && needsBase(scaled.relative);
   const nameError = submitted && !draft.name.trim() ? "Inserisci la descrizione dell'obiettivo" : null;
   const rowErrors: Record<string, string> = {};
   for (const [id, a] of Object.entries(assignments)) {
     if (!(a.weight > 0 && a.weight <= 100)) rowErrors[id] = "Il peso deve essere tra 1 e 100%";
     else if (relative) {
-      const e = baseError(draft, a.base);
+      const e = baseError(scaled, a.base);
       if (e) rowErrors[id] = e;
     } else if (a.levels && !perActivity) {
       const e = levelsError(a.levels, typeOf(draft));
@@ -151,7 +155,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
       activities: typeOf(draft) === "progetto" ? (draft.activities ?? []).map((x) => ({ ...x, title: x.title.trim() })).filter((x) => x.title) : undefined,
       weightedActivities: typeOf(draft) === "progetto" && draft.weightedActivities ? true : undefined,
       activityLevels: typeOf(draft) === "progetto" && draft.activityLevels ? true : undefined,
-      relative: typeOf(draft) === "quantitativo" ? draft.relative : undefined,
+      relative: relative ? scaled.relative : undefined,
       category: draft.category,
       cycle: draft.cycle,
       unit: draft.unit.trim(),
@@ -321,7 +325,9 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                           {perActivity ? (
                             tr("livelli per attività")
                           ) : relative ? (
-                            a.base != null && a.base > 0 ? (
+                            !withBase ? (
+                              tr("livelli standard")
+                            ) : a.base != null && a.base > 0 ? (
                               tr("actual anno precedente {0}", [formatValue(draft, a.base)])
                             ) : (
                               <span className="font-semibold text-amber-700">{tr("manca l'actual anno precedente")}</span>
@@ -375,9 +381,9 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                         </p>
                       </div>
 
-                      {relative && (
+                      {withBase && (
                         <div className="rounded-lg bg-canvas p-3">
-                          <BaseInput def={draft} value={a.base} onChange={(base) => patchAssignment(id, { base })} />
+                          <BaseInput def={scaled} value={a.base} onChange={(base) => patchAssignment(id, { base })} />
                         </div>
                       )}
                       {!perActivity && !relative && (

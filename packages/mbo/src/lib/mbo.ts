@@ -229,40 +229,66 @@ export function formatValue(d: ObjectiveDef, v: number): string {
   return `${num(v)}${d.unit ? ` ${d.unit}` : ""}`;
 }
 
-/** A level of a relative scale: `pct` % of last year's actual ("base") or of the target. */
+/** What a level of a relative scale is calculated on: last year's actual, the target, or a fixed value. */
+export type RelativeOf = "base" | "target" | "value";
+
+/** A level of a relative scale: `pct` % of last year's actual ("base") or of the target, or the value itself ("value"). */
 export interface RelativeLevel {
   pct: number;
-  of: "base" | "target";
+  of: RelativeOf;
   payout: number;
 }
 
 /**
- * Levels relative to a value set in each scheda (`SchedaItem.base`, last year's actual): the target is
- * `target` % of it and pays 100%; the other levels are a % of the same base or of the target.
+ * Levels per objective where each one says what it is calculated on: the target (pays 100%) is `target` %
+ * of last year's actual (`SchedaItem.base`, entered per scheda) or a fixed value (`targetOf: "value"`);
+ * the other levels are a % of last year, a % of the target or a fixed value.
  * E.g. minimum 90% of last year → 10%, target 108% of last year → 100%, 110% of the target → 120%.
  */
 export interface RelativeScale {
   target: number;
+  targetOf?: "base" | "value";
   levels: RelativeLevel[];
 }
 
-/** A resolved level of a relative scale, with the % it was defined by. */
+/** A resolved level of a relative scale, with the % / value it was defined by. */
 export interface RelativeRow extends Level {
   pct: number;
-  of: "base" | "target";
+  of: RelativeOf;
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
+/** The scale needs last year's actual (some level is a % of it). */
+export const needsBase = (r: RelativeScale) => (r.targetOf ?? "base") === "base" || r.levels.some((l) => l.of === "base");
+/** Fixed values mixed with % of last year: the order of the levels depends on each scheda's actual. */
+export const mixedScale = (r: RelativeScale) => needsBase(r) && ((r.targetOf ?? "base") === "value" || r.levels.some((l) => l.of === "value"));
+
 /** Levels of a relative scale for a given base, ascending (the target row is the one paying 100%). */
-export function relativeRows(r: RelativeScale, base: number): RelativeRow[] {
-  const t = (base * r.target) / 100;
+export function relativeRows(r: RelativeScale, base = 0): RelativeRow[] {
+  const targetOf = r.targetOf ?? "base";
+  const t = targetOf === "value" ? r.target : (base * r.target) / 100;
+  const at = (l: RelativeLevel) => (l.of === "value" ? l.pct : ((l.of === "base" ? base : t) * l.pct) / 100);
   return [
-    { target: round2(t), payout: 100, pct: r.target, of: "base" as const },
-    ...r.levels.map((l) => ({ target: round2(((l.of === "base" ? base : t) * l.pct) / 100), payout: l.payout, pct: l.pct, of: l.of })),
+    { target: round2(t), payout: 100, pct: r.target, of: targetOf as RelativeOf },
+    ...r.levels.map((l) => ({ target: round2(at(l)), payout: l.payout, pct: l.pct, of: l.of })),
   ].sort((a, b) => a.target - b.target);
 }
-export const resolveRelative = (r: RelativeScale, base: number): Level[] => relativeRows(r, base).map(({ target, payout }) => ({ target, payout }));
+export const resolveRelative = (r: RelativeScale, base = 0): Level[] => relativeRows(r, base).map(({ target, payout }) => ({ target, payout }));
+
+/** Plain target → payout levels as a scale of fixed values (target = the level paying 100%, or the closest). */
+export function toRelative(levels: Level[]): RelativeScale {
+  if (!levels.length) return { target: 100, targetOf: "value", levels: [] };
+  let ti = 0;
+  levels.forEach((l, i) => {
+    if (Math.abs(l.payout - 100) < Math.abs(levels[ti].payout - 100)) ti = i;
+  });
+  return {
+    target: levels[ti].target,
+    targetOf: "value",
+    levels: levels.filter((_, i) => i !== ti).map((l) => ({ pct: l.target, of: "value" as const, payout: l.payout })),
+  };
+}
 
 /** Relative scale a quantitative objective starts from: 90% of last year → 50%, target 105% → 100%, 110% of the target → 150%. */
 export const DEFAULT_RELATIVE: RelativeScale = {
@@ -274,7 +300,7 @@ export const DEFAULT_RELATIVE: RelativeScale = {
 };
 
 /** Fields for an objective with this relative scale; its standard levels are the scale on a base of 100. */
-export const relativePatch = (r: RelativeScale) => ({ relative: r, levels: resolveRelative(r, 100) });
+export const relativePatch = (r: RelativeScale) => ({ relative: r, levels: resolveRelative(r, needsBase(r) ? 100 : 0) });
 
 export interface ObjectiveDef {
   id: string;
@@ -365,14 +391,22 @@ export const itemDef = (catalog: Catalog, it: SchedaItem): ObjectiveDef | undefi
   if (!def) return undefined;
   // relative levels: computed from the scheda's last-year actual (none yet = no levels, payout 0)
   if (def.relative && typeOf(def) === "quantitativo")
-    return { ...def, base: it.base, levels: it.base != null && it.base > 0 ? resolveRelative(def.relative, it.base) : [] };
+    return {
+      ...def,
+      base: it.base,
+      levels: !needsBase(def.relative) ? resolveRelative(def.relative) : it.base != null && it.base > 0 ? resolveRelative(def.relative, it.base) : [],
+    };
   return !it.custom && it.levels ? { ...def, levels: it.levels } : def;
 };
 
 /** Short description of a relative scale, e.g. "90% AP → 10% · 108% AP → 100% · 110% target → 120%". */
 export function relativeText(r: RelativeScale, sep = " · "): string {
-  return relativeRows(r, 100)
-    .map((l) => `${l.of === "base" ? tr("{0}% AP", [num(l.pct)]) : tr("{0}% target", [num(l.pct)])} → ${l.payout}%`)
+  // fixed values mixed with % of last year: keep the order they were entered in (it depends on the actual)
+  const rows = mixedScale(r)
+    ? [{ pct: r.target, of: (r.targetOf ?? "base") as RelativeOf, payout: 100 }, ...r.levels]
+    : relativeRows(r, 100);
+  return rows
+    .map((l) => `${l.of === "base" ? tr("{0}% AP", [num(l.pct)]) : l.of === "target" ? tr("{0}% target", [num(l.pct)]) : num(l.pct)} → ${l.payout}%`)
     .join(sep);
 }
 
@@ -459,7 +493,7 @@ export function projectActual(d: ObjectiveDef, m: Measure): number | undefined {
 export function levelsText(d: ObjectiveDef, sep = " · "): string {
   if (typeOf(d) === "onoff") return tr("Raggiunto → {0}%", [d.levels[0]?.payout ?? 100]);
   if (typeOf(d) === "progetto" && d.activityLevels) return tr("Livelli per attività");
-  if (d.relative && typeOf(d) === "quantitativo" && !(d.base != null && d.base > 0)) return relativeText(d.relative, sep);
+  if (d.relative && typeOf(d) === "quantitativo" && needsBase(d.relative) && !(d.base != null && d.base > 0)) return relativeText(d.relative, sep);
   return d.levels.map((l) => `${formatValue(d, l.target)} → ${l.payout}%`).join(sep);
 }
 
@@ -471,4 +505,6 @@ export interface Preset {
   description?: string;
   calc: CalcMode;
   levels: Level[];
+  /** Levels per % of last year / % of the target / fixed value (`relativeLevels` option); `levels` = the scale on a base of 100. */
+  relative?: RelativeScale;
 }

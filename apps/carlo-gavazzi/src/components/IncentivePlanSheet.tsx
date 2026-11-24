@@ -157,10 +157,11 @@ export function IncentivePlanSheet() {
     const ofTarget = (v: number) => (tv && typeOf(def) !== "data" && typeOf(def) !== "onoff" ? pct((v / tv) * 100, 1) : undefined);
     // levels relative to last year's actual: the % column shows the % each level is set at
     // (target = 108% of last year, upper levels = 110%, 112%… of the target), as in their sheets
-    const rel = def.relative && def.base ? relativeRows(def.relative, def.base) : undefined;
+    // (fixed-value levels: their % of the target)
+    const rel = def.relative && def.levels.length ? relativeRows(def.relative, def.base ?? 0) : undefined;
     const levelPct = (l: Level) => {
       const r = rel?.find((x) => x.target === l.target);
-      return r ? pct(r.pct, Number.isInteger(r.pct) ? 0 : 1) : ofTarget(l.target);
+      return r && r.of !== "value" ? pct(r.pct, Number.isInteger(r.pct) ? 0 : 1) : ofTarget(l.target);
     };
     const cell = (l: Level): Cell => ({ obj: objValue(def, l.target), ofTarget: levelPct(l), bonus: money(w, l.payout), payout: pct(l.payout) });
     return [

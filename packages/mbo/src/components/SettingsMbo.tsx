@@ -2,14 +2,33 @@
 
 import { useState } from "react";
 import { Pencil, Plus, ShieldAlert, Trash2 } from "lucide-react";
-import { catalogById, payoutFor, type CalcMode, type Preset, formatValue } from "../lib/mbo";
-import { useMbo } from "../store";
+import {
+  catalogById,
+  needsBase,
+  payoutFor,
+  relativePatch,
+  relativeText,
+  toRelative,
+  type CalcMode,
+  type Preset,
+  type RelativeScale,
+  formatValue,
+} from "../lib/mbo";
+import { useMbo, useMboOptions } from "../store";
 import { MeasureInput } from "./Misura";
-import { Block, LevelsEditor, PayoutCurve, fmt, levelsError } from "./SchedaEditor";
+import { Block, LevelsEditor, PayoutCurve, RelativeLevelsEditor, customError, fmt, levelsError } from "./SchedaEditor";
 import { GhostButton, Modal, PrimaryButton, SettingsTabs, Tooltip, inputCls } from "@spark/core";
 import { tr } from "@spark/core";
 
-const asDef = (p: Pick<Preset, "name" | "calc" | "levels">) => ({ id: "preset", name: p.name, unit: "", calc: p.calc, levels: p.levels });
+const asDef = (p: Pick<Preset, "name" | "calc" | "levels" | "relative">) => ({
+  id: "preset",
+  name: p.name,
+  type: "quantitativo" as const,
+  unit: "",
+  calc: p.calc,
+  levels: p.levels,
+  relative: p.relative,
+});
 
 export function SettingsMbo() {
   const { presets, deletePreset, notify, hydrated } = useMbo();
@@ -66,7 +85,13 @@ export function SettingsMbo() {
                     <td className="whitespace-nowrap px-3 text-[12.5px] text-[#5b6476]">{p.calc === "lineare" ? tr("Lineare") : tr("A scaglioni")}</td>
                     <td className="px-3">
                       <div className="flex flex-wrap items-center gap-1">
-                        {p.levels.map((l, i) => (
+                        {p.relative && needsBase(p.relative) ? (
+                          relativeText(p.relative, "\n").split("\n").map((t, i) => (
+                            <span key={i} className="whitespace-nowrap rounded-md bg-canvas px-1.5 py-0.5 text-[11.5px] tabular-nums text-[#5b6476]">
+                              {t}
+                            </span>
+                          ))
+                        ) : p.levels.map((l, i) => (
                           <span key={i} className="whitespace-nowrap rounded-md bg-canvas px-1.5 py-0.5 text-[11.5px] tabular-nums text-[#5b6476]">
                             {fmt(l.target)} → <span className="font-semibold text-ink">{l.payout}%</span>
                           </span>
@@ -145,13 +170,22 @@ function PresetModal({ preset, onClose }: { preset?: Preset; onClose: () => void
       { target: 120, payout: 150 },
     ],
   );
+  // relativeLevels option: levels in % of last year / % of the target / fixed values, as in the objectives
+  const percent = !!useMboOptions().relativeLevels;
+  const [scale, setScale] = useState<RelativeScale>(() => preset?.relative ?? toRelative(preset?.levels ?? levels));
   const [submitted, setSubmitted] = useState(false);
-  const error = !name.trim() ? "Inserisci il nome del preset" : levelsError(levels);
+  const scaled = relativePatch(scale);
+  const error = !name.trim()
+    ? "Inserisci il nome del preset"
+    : percent
+      ? customError({ ...asDef({ name, calc, ...scaled }), name: name.trim() })
+      : levelsError(levels);
 
   const save = () => {
     setSubmitted(true);
     if (error) return;
-    savePreset({ id: preset?.id, name: name.trim(), description: description.trim(), calc, levels: [...levels].sort((a, b) => a.target - b.target) });
+    const data = percent ? scaled : { levels: [...levels].sort((a, b) => a.target - b.target) };
+    savePreset({ id: preset?.id, name: name.trim(), description: description.trim(), calc, ...data });
     notify(tr(preset ? "Preset salvato" : "Preset creato"));
     onClose();
   };
@@ -192,10 +226,10 @@ function PresetModal({ preset, onClose }: { preset?: Preset; onClose: () => void
               ))}
             </div>
           </Block>
-          <LevelsEditor unit="" levels={levels} onChange={setLevels} />
+          {percent ? <RelativeLevelsEditor value={scale} onChange={setScale} /> : <LevelsEditor unit="" levels={levels} onChange={setLevels} />}
           {submitted && error && <p className="text-[12px] font-semibold text-red-600">{tr(error)}</p>}
         </div>
-        <PayoutCurve def={asDef({ name, calc, levels })} />
+        <PayoutCurve def={asDef(percent ? { name, calc, ...scaled } : { name, calc, levels })} />
       </div>
     </Modal>
   );
