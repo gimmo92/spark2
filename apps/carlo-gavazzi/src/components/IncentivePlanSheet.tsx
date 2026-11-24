@@ -4,14 +4,14 @@
  * Carlo Gavazzi: "Incentive Plan – Calculation" view of a scheda, laid out like the client's Excel bonus sheets
  * (one column block per objective: Objective / % of target / Bonus / payout %, levels around the Targets row,
  * Actual row, "Paid out" total). Labels stay in English as in their sheets.
- * The target bonus (amount + currency) is not part of the MBO model yet: it is kept per scheda in the
- * settings doc "cgBonus" (writable by admins).
+ * The target bonus (amount + currency) comes from the person's user record: extra user fields
+ * `bonusTarget` / `bonusCurrency` declared in src/spark.config.ts (Modifica utente).
  */
-import { Fragment } from "react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, Pencil, Printer } from "lucide-react";
-import { GhostButton, Tooltip, fullName, useAccess, useOrg, useSettings } from "@spark/core";
+import { GhostButton, Tooltip, fullName, useOrg } from "@spark/core";
 import {
   activityDef,
   activityValue,
@@ -28,10 +28,6 @@ import {
   type ObjectiveDef,
   type SchedaItem,
 } from "@spark/mbo";
-
-interface BonusDoc {
-  targets: Record<string, { amount?: number; currency?: string }>;
-}
 
 const NAVY = "bg-[#1f3864] text-white";
 const BAND = "bg-[#dbe5f1] font-bold";
@@ -84,9 +80,28 @@ export function IncentivePlanSheet() {
   const router = useRouter();
   const { schede, objectives, users, hydrated, globalGate, canEditScheda } = useMbo();
   const { buForTeam } = useOrg();
-  const { allowed } = useAccess();
-  const [bonusDoc, patchBonus] = useSettings<BonusDoc>("cgBonus", { targets: {} });
+  const [personId, setPersonId] = useState<string>();
   const s = schede.find((x) => x.id === id);
+  const sheetRef = useRef<HTMLDivElement>(null);
+
+  // print: shrink the sheet so all objective columns fit one landscape page
+  useEffect(() => {
+    const fit = () => {
+      const el = sheetRef.current;
+      if (!el) return;
+      el.style.zoom = "";
+      const width = el.scrollWidth;
+      const page = 1050; // A4 landscape at 96 dpi minus the 8 mm margins
+      if (width > page) el.style.zoom = String(page / width);
+    };
+    const reset = () => sheetRef.current && (sheetRef.current.style.zoom = "");
+    window.addEventListener("beforeprint", fit);
+    window.addEventListener("afterprint", reset);
+    return () => {
+      window.removeEventListener("beforeprint", fit);
+      window.removeEventListener("afterprint", reset);
+    };
+  }, []);
 
   if (!hydrated) return <div className="card h-40 animate-pulse" />;
   if (!s)
@@ -100,15 +115,14 @@ export function IncentivePlanSheet() {
     );
 
   const people = s.assigneeIds.map((uid) => users.find((u) => u.id === uid)).filter((u) => !!u);
-  const first = people[0];
+  // one plan per person: with several assignees, the sheet shows the one picked here
+  const first = people.find((p) => p.id === personId) ?? people[0];
   const bu = first?.team ? buForTeam(first.team) : undefined;
-  const bonus = bonusDoc.targets[s.id] ?? {};
-  const amount = bonus.amount;
-  const currency = bonus.currency || "CHF";
-  const canSetBonus = allowed("mbo.settings.manage");
+  const rawAmount = first?.extra?.bonusTarget;
+  const amount = rawAmount === undefined || rawAmount === "" || Number.isNaN(Number(rawAmount)) ? undefined : Number(rawAmount);
+  const currency = String(first?.extra?.bonusCurrency || "CHF");
   const gateOk = globalGateMet(objectives, globalGate) && thresholdMet(objectives, s);
   const money = (weight: number, payout: number) => (amount != null ? nf((amount * weight * payout) / 10000, 1) : "—");
-  const setBonus = (p: { amount?: number; currency?: string }) => patchBonus({ targets: { ...bonusDoc.targets, [s.id]: { ...bonus, ...p } } });
 
   const columns: Column[] = s.items.flatMap((item): Column[] => {
     const def = itemDef(objectives, item);
@@ -206,7 +220,11 @@ export function IncentivePlanSheet() {
         </div>
       </div>
 
-      <div className="card overflow-hidden p-5 text-[12.5px] text-black">
+      <style>{`@media print { @page { size: A4 landscape; margin: 8mm; } html, body { background: #fff !important; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }`}</style>
+      <div
+        ref={sheetRef}
+        className="card overflow-hidden p-5 text-[12.5px] text-black print:overflow-visible print:rounded-none print:border-0 print:p-0 print:!shadow-none"
+      >
         {/* heading + individual performance */}
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="min-w-0">
@@ -217,40 +235,34 @@ export function IncentivePlanSheet() {
               <dt>Company:</dt>
               <dd className={BLUE}>{first?.company ?? "—"}</dd>
               <dt>Name:</dt>
-              <dd className={BLUE}>{people.length ? people.map(fullName).join(", ") : "—"}</dd>
-              <dt>Currency:</dt>
-              <dd className={`${BLUE} flex items-center gap-1.5`}>
-                {canSetBonus ? (
-                  <input
-                    className="h-6 w-14 rounded border border-[#c9d3e3] px-1.5 text-[12.5px] font-bold uppercase outline-none focus:border-brand print:border-0"
-                    value={currency}
-                    maxLength={3}
-                    onChange={(e) => setBonus({ currency: e.target.value.toUpperCase() })}
-                    aria-label="Valuta del bonus"
-                  />
-                ) : (
-                  currency
-                )}
-                <span>(for bonus)</span>
-              </dd>
-              <dt>Target bonus:</dt>
-              <dd className={`${BLUE} flex items-center gap-1.5`}>
-                {canSetBonus ? (
-                  <input
-                    type="number"
-                    min={0}
-                    className="h-6 w-28 rounded border border-[#c9d3e3] px-1.5 text-right text-[12.5px] font-bold tabular-nums outline-none focus:border-brand print:border-0"
-                    value={amount ?? ""}
-                    placeholder="importo"
-                    onChange={(e) => setBonus({ amount: e.target.value === "" ? undefined : Number(e.target.value) })}
-                    aria-label="Bonus target"
-                  />
-                ) : amount != null ? (
-                  nf(amount, 1)
+              <dd className={BLUE}>
+                {people.length > 1 ? (
+                  <>
+                    <select
+                      className="h-6 rounded border border-[#c9d3e3] bg-white px-1 text-[13px] font-bold outline-none focus:border-brand print:hidden"
+                      value={first?.id}
+                      onChange={(e) => setPersonId(e.target.value)}
+                      aria-label="Persona della scheda"
+                    >
+                      {people.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {fullName(p)}
+                        </option>
+                      ))}
+                    </select>
+                    <span className="hidden print:inline">{first ? fullName(first) : "—"}</span>
+                  </>
+                ) : first ? (
+                  fullName(first)
                 ) : (
                   "—"
                 )}
-                <span>{currency} at 100%</span>
+              </dd>
+              <dt>Currency:</dt>
+              <dd className={BLUE}>{currency} (for bonus)</dd>
+              <dt>Target bonus:</dt>
+              <dd className={BLUE}>
+                {amount != null ? `${nf(amount, 1)} ${currency} at 100%` : <span className="font-semibold text-muted">non impostato (Modifica utente)</span>}
               </dd>
             </dl>
           </div>
@@ -285,7 +297,7 @@ export function IncentivePlanSheet() {
         {columns.length === 0 ? (
           <p className="mt-6 text-center text-[12.5px] text-muted">La scheda non ha ancora obiettivi.</p>
         ) : (
-          <div className="thin-scroll mt-6 overflow-x-auto">
+          <div className="thin-scroll mt-6 overflow-x-auto print:overflow-visible">
             <table className="w-full min-w-max border-collapse text-[12px]">
               <thead>
                 <tr className={NAVY}>

@@ -1,9 +1,9 @@
 "use client";
 
-import { useOrg } from "../shell/SparkProvider";
+import { useOrg, useSparkConfig } from "../shell/SparkProvider";
 import { useState } from "react";
 import { useAccess } from "../access/useAccess";
-import { fullName, slugEmail, type User } from "./data"
+import { fullName, slugEmail, type User } from "./data";
 import { useCore } from "../shell/SparkProvider";
 import { Field, GhostButton, Modal, PrimaryButton, inputCls } from "../ui/ui";
 
@@ -12,6 +12,7 @@ type Draft = Omit<User, "id" | "createdAt">;
 export function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) {
   const { teamNames: TEAMS, companyForTeam, buForTeam, emailDomains } = useOrg();
   const { users, addUser, updateUser, notify } = useCore();
+  const { userFields = [] } = useSparkConfig();
   const { levels, allowed, isAdmin, adminLevel } = useAccess();
   const canSetLevel = allowed("people.level");
   const levelOptions = levels.filter((l) => isAdmin || l.id !== adminLevel);
@@ -44,8 +45,7 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
   if (!d.firstName.trim()) errors.firstName = "Inserisci il nome";
   if (!d.lastName.trim()) errors.lastName = "Inserisci il cognome";
   if (!/^\S+@\S+\.\S+$/.test(d.email)) errors.email = "Email non valida";
-  else if (users.some((u) => u.email.toLowerCase() === d.email.toLowerCase() && u.id !== user?.id))
-    errors.email = "Email già registrata";
+  else if (users.some((u) => u.email.toLowerCase() === d.email.toLowerCase() && u.id !== user?.id)) errors.email = "Email già registrata";
   if (!d.role.trim()) errors.role = "Inserisci il ruolo";
   const show = (k: keyof Draft) => (submitted ? errors[k] : undefined);
 
@@ -137,14 +137,30 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
             </select>
           </Field>
         </div>
+        {userFields.map((f) => (
+          <Field key={f.key} label={f.label}>
+            <span className="relative block">
+              <input
+                type={f.type === "number" ? "number" : "text"}
+                className={`${inputCls} ${f.type === "number" ? "text-right tabular-nums" : ""} ${f.suffix ? "pr-12" : ""}`}
+                value={d.extra?.[f.key] ?? ""}
+                placeholder={f.placeholder}
+                maxLength={f.maxLength}
+                onChange={(e) => {
+                  const raw = f.upper ? e.target.value.toUpperCase() : e.target.value;
+                  const extra = { ...(d.extra ?? {}) };
+                  if (raw === "") delete extra[f.key];
+                  else extra[f.key] = f.type === "number" ? Number(raw) : raw;
+                  set("extra", Object.keys(extra).length ? extra : undefined);
+                }}
+              />
+              {f.suffix && <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-muted">{f.suffix}</span>}
+            </span>
+          </Field>
+        ))}
         <div className="sm:col-span-2">
           <Field label="Ruolo" error={show("role")}>
-            <input
-              className={inputCls}
-              value={d.role}
-              onChange={(e) => set("role", e.target.value)}
-              placeholder="es. Production Dept. Supervisor"
-            />
+            <input className={inputCls} value={d.role} onChange={(e) => set("role", e.target.value)} placeholder="es. Production Dept. Supervisor" />
           </Field>
         </div>
         <p className="text-[12px] text-muted sm:col-span-2">

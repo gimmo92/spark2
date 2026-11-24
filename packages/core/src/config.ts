@@ -50,6 +50,20 @@ export interface OrgConfig {
   teams: { name: string; company: string; bu?: string }[];
 }
 
+/** An extra field of the user form, declared by the client app. */
+export interface UserField {
+  /** Key in `User.extra`: never rename (stored data). */
+  key: string;
+  label: string;
+  type?: "text" | "number";
+  placeholder?: string;
+  /** Short text shown inside the input on the right (unit, currency…). */
+  suffix?: string;
+  /** Uppercase the text as it's typed (codes like currencies). */
+  upper?: boolean;
+  maxLength?: number;
+}
+
 /** Business unit of a team, from the organisation config. */
 export const buOfTeam = (org: Pick<OrgConfig, "teams"> | undefined) => (team: string) => org?.teams.find((t) => t.name === team)?.bu;
 
@@ -74,6 +88,8 @@ export interface SparkConfig {
   permissions?: PermissionDef[];
   /** Client-specific letter variables, added to the core and module ones. */
   letters?: LetterSource;
+  /** Client-specific fields of the user form (stored in `User.extra`), e.g. a target bonus. */
+  userFields?: UserField[];
   /** localStorage key prefix for the browser-only fallback. */
   storagePrefix?: string;
 }

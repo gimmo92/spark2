@@ -22,7 +22,8 @@ Record here every client request, the decision taken, and where it lives (config
 
 - **Levels target / payout per project activity** (their project roadmaps: milestones → payout): generic MBO option, turned on here with `createMboModule({ activityLevels: true, ... })` in `src/spark.config.ts`.
 - **"Visualizza" scheda = Incentive Plan calculation** laid out like their Excel bonus sheets ("ACBU Incentive Plan FY 2026/27 - Calculation"): client screen `src/components/IncentivePlanSheet.tsx`, route `/mbo/schede/[id]/calcolo`, wired with the MBO option `schedaViewHref`. One column block per objective (Objective / % of target / Bonus / payout %), levels around the Targets row (= level paying 100%), Actual row, "Paid out" total; title uses the person's BU; cycle "2026" shows as "FY 2026/27" (fiscal year April–March). Labels in English as in their sheets.
-  - Target bonus amount + currency are not in the MBO model yet: stored per scheda in settings doc `cgBonus` (`targets[schedaId] = {amount, currency}`), editable on the page with `mbo.settings.manage` (server: admin only, no settingsAccess rule). Move to the model when we implement "bonus in currency" (gap 1).
+  - Target bonus amount + currency come from the person: extra user fields `bonusTarget` / `bonusCurrency` (core `SparkConfig.userFields`, stored in `User.extra`, edited in Modifica utente). With several assignees the sheet has a person picker (hidden in print).
+  - Print: menu hidden (core shell is `print:hidden`), A4 landscape, the sheet is zoomed to fit one page width.
   - Not shown yet (no data in Spark): Last Year / Budget columns, the "LY @90%" floor row, notes and signature block.
 
 ## Deployment

@@ -15,6 +15,8 @@ export interface User {
   role: string;
   status: AccountStatus;
   createdAt: string; // ISO date
+  /** Values of the client's extra user fields (`SparkConfig.userFields`), by field key. */
+  extra?: Record<string, string | number>;
 }
 
 /** nome.cognome@domain, accents and spaces removed. */

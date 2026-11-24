@@ -21,6 +21,11 @@ export default defineConfig({
   },
   // levels target / payout per project activity (their bonus roadmaps: milestones → payout);
   // "Visualizza" opens the Excel-like Incentive Plan calculation (src/components/IncentivePlanSheet.tsx)
+  // target bonus per person, read by the Incentive Plan sheet
+  userFields: [
+    { key: "bonusTarget", label: "Bonus target (100%)", type: "number", placeholder: "es. 60000" },
+    { key: "bonusCurrency", label: "Valuta bonus", placeholder: "CHF", upper: true, maxLength: 3 },
+  ],
   modules: [createMboModule({ activityLevels: true, schedaViewHref: (id) => `/mbo/schede/${id}/calcolo` })],
   nav: [
     { label: "Profilo", href: "/profilo", icon: Info },

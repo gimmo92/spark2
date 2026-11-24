@@ -11,7 +11,7 @@ import { RouteGuard } from "../access/navAccess";
 function Toasts() {
   const { toasts } = useCore();
   return (
-    <div className="pointer-events-none fixed bottom-6 left-1/2 z-[60] flex -translate-x-1/2 flex-col items-center gap-2">
+    <div className="pointer-events-none fixed bottom-6 left-1/2 z-[60] flex print:hidden -translate-x-1/2 flex-col items-center gap-2">
       {toasts.map((t) => (
         <div
           key={t.id}
@@ -29,7 +29,7 @@ function DataBanner() {
   const { dataSource, dataMessage } = useCore();
   if ((dataSource !== "local" && dataSource !== "denied") || !dataMessage) return null;
   return (
-    <div role="status" className="mb-3 flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] font-semibold text-amber-900">
+    <div role="status" className="mb-3 flex items-center gap-2 rounded-xl border border-amber-200 print:hidden bg-amber-50 px-3 py-2 text-[12.5px] font-semibold text-amber-900">
       <DatabaseZap className="h-4 w-4 shrink-0" />
       <span className="min-w-0 flex-1">{dataMessage}</span>
       {dataSource === "local" && (
@@ -49,7 +49,7 @@ export function AppShell({ config, children }: { config: SparkConfig; children: 
     <SparkProvider config={config}>
       <div className="flex min-h-screen">
         {/* desktop sidebar */}
-        <aside className="sticky top-0 hidden h-screen w-[232px] shrink-0 p-3 pr-0 lg:block">
+        <aside className="sticky top-0 hidden h-screen w-[232px] shrink-0 p-3 pr-0 lg:block print:hidden">
           <div className="card h-full overflow-hidden !rounded-2xl">
             <Suspense fallback={null}>
               <Sidebar />
@@ -78,7 +78,7 @@ export function AppShell({ config, children }: { config: SparkConfig; children: 
         )}
 
         <div className="min-w-0 flex-1">
-          <header className="flex items-center gap-3 px-4 pt-4 lg:hidden">
+          <header className="flex items-center gap-3 px-4 pt-4 lg:hidden print:hidden">
             <button
               type="button"
               aria-label="Apri menu"
@@ -90,7 +90,7 @@ export function AppShell({ config, children }: { config: SparkConfig; children: 
             <SparkLogo className="h-6 w-5" />
             <span className="font-semibold">{config.appName}</span>
           </header>
-          <main className="px-4 py-5 lg:px-6 lg:py-4">
+          <main className="px-4 py-5 lg:px-6 lg:py-4 print:p-0">
             <DataBanner />
             <Suspense fallback={null}>
               <RouteGuard>{children}</RouteGuard>
