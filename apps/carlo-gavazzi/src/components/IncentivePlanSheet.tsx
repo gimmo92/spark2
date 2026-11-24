@@ -273,7 +273,7 @@ export function IncentivePlanSheet() {
             <thead>
               <tr className={NAVY}>
                 <th className="px-2.5 py-1 text-left font-bold">Individual performance</th>
-                <th className="border-l border-white/40 px-2.5 py-1 font-bold">Weight</th>
+                <th className="border-l border-white/40 px-2.5 py-1 font-bold">Last year</th>
                 <th className="border-l border-white/40 px-2.5 py-1 font-bold">Targets</th>
                 <th className="border-l border-white/40 px-2.5 py-1 font-bold">Actual</th>
               </tr>
@@ -282,7 +282,10 @@ export function IncentivePlanSheet() {
               {columns.map((c) => (
                 <tr key={c.item.id} className="border-t border-[#bfbfbf]">
                   <td className="max-w-[240px] truncate px-2.5 py-0.5 font-bold">{c.def.name}</td>
-                  <td className="border-l border-[#bfbfbf] px-2.5 py-0.5 text-right tabular-nums">{pct(c.item.weight, 1)}</td>
+                  {/* last year's actual of the objective (entered in the sheet when its levels use it) */}
+                  <td className="border-l border-[#bfbfbf] px-2.5 py-0.5 text-right tabular-nums">
+                    {c.item.base != null && c.item.base > 0 ? objValue(c.def, c.item.base) : "—"}
+                  </td>
                   <td
                     className={`border-l border-[#bfbfbf] px-2.5 py-0.5 text-right tabular-nums ${c.targetValue === "Enclosed list" ? `${BLUE} text-center font-bold` : ""}`}
                   >
