@@ -396,10 +396,10 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
                           <span className="truncate text-[13px] font-semibold">{def.name || tr("Obiettivo senza nome")}</span>
                           <span className="shrink-0 text-[11px] text-muted">{def.calc === "lineare" ? tr("Lineare") : tr("A scaglioni")}</span>
                         </span>
-                        <span className="block truncate text-[11.5px] text-muted">
-                          {baseError(def, it.base) === BASE_MISSING && <span className="font-semibold text-amber-700">{tr("Manca l'actual anno precedente")} · </span>}
-                          {levelsSummary(def)}
-                        </span>
+                        {/* levels are shown when the row is open; collapsed, only what still needs doing */}
+                        {baseError(def, it.base) === BASE_MISSING && (
+                          <span className="block truncate text-[11.5px] font-semibold text-amber-700">{tr("Manca l'actual anno precedente")}</span>
+                        )}
                       </span>
                     </button>
                     <label className="flex items-center gap-1.5">
