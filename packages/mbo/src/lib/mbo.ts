@@ -14,7 +14,8 @@ export interface Level {
  * - qualitativo_pct: a 0–100% assessment;
  * - qualitativo_5: a 1–5 rating;
  * - onoff: reached (1) or not (0), a single level at 1;
- * - progetto: a list of activities, the actual is the % of activities completed;
+ * - progetto: a list of activities, the actual is the % of activities completed (each one weighted when
+ *   the objective's weight is distributed over them);
  * - data: a deadline, values are days since 1970-01-01 (`toDay`); the earlier, the higher the payout.
  */
 export type ObjectiveType = "quantitativo" | "qualitativo_pct" | "qualitativo_5" | "onoff" | "progetto" | "data";
@@ -64,6 +65,45 @@ export const typeLabel = (d: Pick<ObjectiveDef, "type">) => OBJECTIVE_TYPES.find
 export interface Activity {
   id: string;
   title: string;
+  /** Share of the objective (%) when the project's weight is distributed over its activities. */
+  weight?: number;
+  /** How the activity is measured; missing = "onoff". */
+  kind?: ActivityKind;
+  /** "kpi": unit of measure and the target that means 100% done. */
+  unit?: string;
+  target?: number;
+}
+
+/** How a project activity is measured: done / not done, a 0-100 % completion, or a KPI against its target. */
+export type ActivityKind = "onoff" | "pct" | "kpi";
+export const ACTIVITY_KINDS: { value: ActivityKind; label: string }[] = [
+  { value: "onoff", label: "On/Off" },
+  { value: "pct", label: "0-100%" },
+  { value: "kpi", label: "KPI" },
+];
+export const activityKind = (a: Activity): ActivityKind => a.kind ?? "onoff";
+
+/** Completion (0..1) of one activity from its measured value. */
+export function activityProgress(a: Activity, m: Measure): number {
+  const kind = activityKind(a);
+  const v = m.values?.[a.id];
+  if (kind === "onoff") return m.done?.includes(a.id) ? 1 : 0;
+  if (v == null || Number.isNaN(v)) return 0;
+  const p = kind === "pct" ? v / 100 : a.target && a.target > 0 ? v / a.target : 0;
+  return Math.max(0, Math.min(1, p));
+}
+
+/** Share (%) of the objective each activity is worth: its own weight when distributed, otherwise an equal share. */
+export function activityWeight(d: Pick<ObjectiveDef, "activities" | "weightedActivities">, a: Activity): number {
+  const n = d.activities?.length ?? 0;
+  if (!n) return 0;
+  return d.weightedActivities ? (a.weight ?? 0) : 100 / n;
+}
+
+/** Integer weights summing to 100, split as evenly as possible. */
+export function evenWeights(n: number): number[] {
+  const base = Math.floor(100 / n);
+  return Array.from({ length: n }, (_, i) => base + (i < 100 - base * n ? 1 : 0));
 }
 
 /** Unit, calc mode and levels a new objective of this type starts from. */
@@ -154,6 +194,8 @@ export interface ObjectiveDef {
   type?: ObjectiveType;
   /** Activities of a "progetto" objective. */
   activities?: Activity[];
+  /** "progetto": the objective's weight is distributed over the activities (`Activity.weight`, summing to 100). */
+  weightedActivities?: boolean;
   unit: string;
   calc: CalcMode;
   levels: Level[]; // ordered by ascending target
@@ -174,8 +216,10 @@ export interface SchedaItem {
   id: string;
   weight: number;
   actual?: number;
-  /** "progetto" objectives: ids of the completed activities (`actual` = their %). */
+  /** "progetto" objectives: ids of the completed on/off activities (`actual` = the project's %). */
   done?: string[];
+  /** "progetto" objectives: measured value of each 0-100 % / KPI activity, by activity id. */
+  values?: Record<string, number>;
   objectiveId?: string;
   custom?: ObjectiveDef;
   /** Per-scheda target/payout levels overriding the catalog objective's defaults. */
@@ -190,7 +234,7 @@ export interface Scheda {
   status: SchedaStatus;
   items: SchedaItem[];
   /** Gate objective: if it doesn't reach its first level the whole scheda pays 0. */
-  threshold?: { objectiveId: string; actual?: number; done?: string[] };
+  threshold?: { objectiveId: string; actual?: number; done?: string[]; values?: Record<string, number> };
   /** Step of an MBO workflow the scheda was sent to ("Invia a workflow"). */
   workflow?: { workflowId: string; taskId: string; sentAt: string };
   updatedAt: string;
@@ -285,14 +329,18 @@ export function schedaScore(catalog: Catalog, s: Scheda, global?: GlobalGate): n
 /** A measured result: the actual value and, for projects, the completed activities. */
 export interface Measure {
   actual?: number;
+  /** "progetto": completed on/off activities. */
   done?: string[];
+  /** "progetto": value of each 0-100 % / KPI activity. */
+  values?: Record<string, number>;
 }
 
 /** % of a project's activities that are completed (undefined when nothing is ticked yet and nothing was measured). */
-export function projectActual(d: ObjectiveDef, done: string[]): number | undefined {
+export function projectActual(d: ObjectiveDef, m: Measure): number | undefined {
   const acts = d.activities ?? [];
   if (!acts.length) return undefined;
-  return Math.round((acts.filter((a) => done.includes(a.id)).length / acts.length) * 100);
+  if (!m.done?.length && !Object.keys(m.values ?? {}).length) return undefined;
+  return Math.round(acts.reduce((sum, a) => sum + activityWeight(d, a) * activityProgress(a, m), 0) * 10) / 10;
 }
 
 /** Short description of the levels, e.g. "80 % → 50% · 100 % → 100%" or "Raggiunto → 100%". */

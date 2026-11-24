@@ -362,7 +362,13 @@ function ObiettivoView({ def, onClose, onEdit }: { def: ObjectiveDef; onClose: (
       {typeOf(def) === "progetto" && !!def.activities?.length && (
         <ol className="mt-3 list-decimal space-y-0.5 pl-5 text-[12.5px] text-[#3f4757]">
           {def.activities.map((a) => (
-            <li key={a.id}>{a.title}</li>
+            <li key={a.id}>
+              {a.title}
+              <span className="ml-1.5 text-muted">
+                · {a.kind === "kpi" ? `KPI ${a.target ?? "—"} ${a.unit ?? ""}`.trim() : a.kind === "pct" ? "0-100%" : "On/Off"}
+                {def.weightedActivities && <span className="tabular-nums"> · peso {a.weight ?? 0}%</span>}
+              </span>
+            </li>
           ))}
         </ol>
       )}

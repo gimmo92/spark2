@@ -24,7 +24,10 @@ import {
   CYCLES,
   OBJECTIVE_TYPES,
   SCHEDA_STATUSES,
+  ACTIVITY_KINDS,
+  activityKind,
   catalogById,
+  evenWeights,
   itemDef,
   formatValue,
   fromDay,
@@ -34,6 +37,7 @@ import {
   typeOf,
   typeRange,
   type Activity,
+  type ActivityKind,
   type CalcMode,
   type ObjectiveType,
   type Level,
@@ -476,6 +480,14 @@ export function levelsError(levels: Level[], type: ObjectiveType = "quantitativo
 export function customError(d: ObjectiveDef): string | null {
   if (!d.name.trim()) return "Inserisci la descrizione dell'obiettivo";
   if (typeOf(d) === "progetto" && !d.activities?.some((a) => a.title.trim())) return "Aggiungi almeno un'attività al progetto";
+  if (typeOf(d) === "progetto" && d.activities?.some((a) => a.title.trim() && activityKind(a) === "kpi" && !((a.target ?? 0) > 0)))
+    return "Le attività KPI devono avere un target maggiore di 0";
+  if (typeOf(d) === "progetto" && d.weightedActivities) {
+    const acts = (d.activities ?? []).filter((a) => a.title.trim());
+    if (acts.some((a) => !((a.weight ?? 0) > 0))) return "Ogni attività deve avere un peso maggiore di 0";
+    const total = acts.reduce((sum, a) => sum + (a.weight ?? 0), 0);
+    if (Math.abs(total - 100) > 0.001) return `I pesi delle attività devono sommare 100% (ora ${total}%)`;
+  }
   return levelsError(d.levels, typeOf(d));
 }
 
@@ -536,14 +548,40 @@ export function typePatch(def: ObjectiveDef, type: ObjectiveType): Partial<Objec
     type,
     ...typeDefaults(type),
     activities: type === "progetto" ? (def.activities?.length ? def.activities : [{ id: uid("at"), title: "" }]) : undefined,
+    weightedActivities: type === "progetto" ? def.weightedActivities : undefined,
   };
 }
 
-/** Editable list of a project's activities. */
-function ActivitiesEditor({ activities, onChange }: { activities: Activity[]; onChange: (a: Activity[]) => void }) {
-  const set = (id: string, title: string) => onChange(activities.map((a) => (a.id === id ? { ...a, title } : a)));
+/** Editable list of a project's activities, optionally with the objective's weight distributed over them. */
+function ActivitiesEditor({
+  activities,
+  weighted,
+  onChange,
+}: {
+  activities: Activity[];
+  weighted: boolean;
+  onChange: (p: { activities?: Activity[]; weightedActivities?: boolean }) => void;
+}) {
+  const setActs = (a: Activity[]) => onChange({ activities: a });
+  const set = (id: string, patch: Partial<Activity>) => setActs(activities.map((a) => (a.id === id ? { ...a, ...patch } : a)));
+  const spread = (acts: Activity[]) => {
+    const w = evenWeights(acts.length);
+    return acts.map((a, i) => ({ ...a, weight: w[i] }));
+  };
+  const unweighted = (acts: Activity[]) => acts.map((a) => ({ ...a, weight: undefined }));
+  const total = activities.reduce((s, a) => s + (a.weight ?? 0), 0);
   return (
     <Block label="Attività del progetto">
+      <div className="mb-2 flex items-center justify-between gap-3 rounded-lg bg-canvas px-3 py-2">
+        <span className="text-[12.5px] font-semibold">Distribuisci il peso sulle attività</span>
+        <Switch
+          checked={weighted}
+          label="Distribuisci il peso sulle attività"
+          onChange={(v) =>
+            onChange(v ? { weightedActivities: true, activities: spread(activities) } : { weightedActivities: false, activities: unweighted(activities) })
+          }
+        />
+      </div>
       <div className="space-y-1.5">
         {activities.map((a, i) => (
           <div key={a.id} className="flex items-center gap-2">
@@ -551,14 +589,62 @@ function ActivitiesEditor({ activities, onChange }: { activities: Activity[]; on
             <input
               className={inputCls}
               value={a.title}
-              onChange={(e) => set(a.id, e.target.value)}
+              onChange={(e) => set(a.id, { title: e.target.value })}
               placeholder={i === 0 ? "es. Analisi dei requisiti" : "Attività"}
             />
+            <select
+              className={`${inputCls} w-[92px] shrink-0`}
+              value={activityKind(a)}
+              onChange={(e) => {
+                const kind = e.target.value as ActivityKind;
+                set(a.id, kind === "kpi" ? { kind } : { kind, unit: undefined, target: undefined });
+              }}
+              aria-label={`Misura di ${a.title || `attività ${i + 1}`}`}
+            >
+              {ACTIVITY_KINDS.map((k) => (
+                <option key={k.value} value={k.value}>
+                  {k.label}
+                </option>
+              ))}
+            </select>
+            {activityKind(a) === "kpi" && (
+              <>
+                <input
+                  type="number"
+                  className={`${inputCls} w-[80px] shrink-0 text-right tabular-nums`}
+                  value={a.target ?? ""}
+                  placeholder="Target"
+                  onChange={(e) => set(a.id, { target: e.target.value === "" ? undefined : Number(e.target.value) })}
+                  aria-label={`Target di ${a.title || `attività ${i + 1}`}`}
+                />
+                <input
+                  className={`${inputCls} w-[64px] shrink-0`}
+                  value={a.unit ?? ""}
+                  placeholder="Unità"
+                  onChange={(e) => set(a.id, { unit: e.target.value })}
+                  aria-label={`Unità di ${a.title || `attività ${i + 1}`}`}
+                />
+              </>
+            )}
+            {weighted && (
+              <span className="relative w-[76px] shrink-0">
+                <input
+                  type="number"
+                  min={0}
+                  max={100}
+                  className={`${inputCls} pr-6 text-right tabular-nums`}
+                  value={a.weight ?? ""}
+                  onChange={(e) => set(a.id, { weight: e.target.value === "" ? undefined : Number(e.target.value) })}
+                  aria-label={`Peso di ${a.title || `attività ${i + 1}`}`}
+                />
+                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[12px] text-muted">%</span>
+              </span>
+            )}
             <button
               type="button"
               aria-label="Rimuovi attività"
               disabled={activities.length === 1}
-              onClick={() => onChange(activities.filter((x) => x.id !== a.id))}
+              onClick={() => setActs(activities.filter((x) => x.id !== a.id))}
               className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent"
             >
               <Trash2 className="h-3.5 w-3.5" />
@@ -566,13 +652,23 @@ function ActivitiesEditor({ activities, onChange }: { activities: Activity[]; on
           </div>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={() => onChange([...activities, { id: uid("at"), title: "" }])}
-        className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline"
-      >
-        <Plus className="h-3.5 w-3.5" /> Aggiungi attività
-      </button>
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <button
+          type="button"
+          onClick={() => setActs([...activities, { id: uid("at"), title: "", ...(weighted ? { weight: 0 } : {}) }])}
+          className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline"
+        >
+          <Plus className="h-3.5 w-3.5" /> Aggiungi attività
+        </button>
+        {weighted && (
+          <div className="flex items-center gap-3 text-[12px]">
+            <button type="button" onClick={() => setActs(spread(activities))} className="font-semibold text-brand hover:underline">
+              Dividi in parti uguali
+            </button>
+            <span className={`font-semibold tabular-nums ${Math.abs(total - 100) > 0.001 ? "text-red-600" : "text-muted"}`}>Totale {total}%</span>
+          </div>
+        )}
+      </div>
     </Block>
   );
 }
@@ -619,7 +715,7 @@ export function CustomObjectiveEditor({
             </div>
           )}
 
-          {type === "progetto" && <ActivitiesEditor activities={def.activities ?? []} onChange={(activities) => onChange({ activities })} />}
+          {type === "progetto" && <ActivitiesEditor activities={def.activities ?? []} weighted={!!def.weightedActivities} onChange={onChange} />}
           <LevelsEditor unit={def.unit} type={type} levels={def.levels} onChange={(levels) => onChange({ levels })} />
           {error && (
             <p className="flex items-center gap-1.5 text-[12px] font-semibold text-red-600">

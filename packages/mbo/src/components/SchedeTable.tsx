@@ -139,7 +139,7 @@ export function SchedeTable() {
         assigneeIds: s.assigneeIds,
         cycle: s.cycle,
         status: "bozza",
-        items: s.items.map((it, i) => ({ ...it, id: `${it.id}-c${stamp}${i}`, actual: undefined, done: undefined })),
+        items: s.items.map((it, i) => ({ ...it, id: `${it.id}-c${stamp}${i}`, actual: undefined, done: undefined, values: undefined })),
         threshold: s.threshold ? { objectiveId: s.threshold.objectiveId } : undefined,
       });
     notify(picked.length === 1 ? "Scheda duplicata come bozza" : `${picked.length} schede duplicate come bozza`);

@@ -140,6 +140,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
       description: draft.description?.trim() ?? "",
       type: typeOf(draft),
       activities: typeOf(draft) === "progetto" ? (draft.activities ?? []).map((x) => ({ ...x, title: x.title.trim() })).filter((x) => x.title) : undefined,
+      weightedActivities: typeOf(draft) === "progetto" && draft.weightedActivities ? true : undefined,
       category: draft.category,
       cycle: draft.cycle,
       unit: draft.unit.trim(),

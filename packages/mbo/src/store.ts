@@ -13,6 +13,8 @@ export interface MboSettings {
   globalThresholdActual?: number;
   /** Completed activities, when the global threshold is a "progetto" objective. */
   globalThresholdDone?: string[];
+  /** Values of the 0-100 % / KPI activities, when the global threshold is a "progetto" objective. */
+  globalThresholdValues?: Record<string, number>;
 }
 
 const today = () => new Date().toISOString().slice(0, 10);

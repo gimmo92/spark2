@@ -3,7 +3,20 @@
 import { useMemo, useState } from "react";
 import { Check, Globe, Lock } from "lucide-react";
 import { GhostButton, Modal, PrimaryButton, Tooltip, fullName, useAccess } from "@spark/core";
-import { formatValue, fromDay, payoutFor, projectActual, schedeUsing, toDay, typeOf, type Measure, type ObjectiveDef, type Scheda } from "../lib/mbo";
+import {
+  activityKind,
+  activityWeight,
+  formatValue,
+  fromDay,
+  payoutFor,
+  projectActual,
+  schedeUsing,
+  toDay,
+  typeOf,
+  type Measure,
+  type ObjectiveDef,
+  type Scheda,
+} from "../lib/mbo";
 import { useMbo } from "../store";
 import { StatusPill } from "./SchedeTable";
 
@@ -73,32 +86,72 @@ export function MeasureInput({ def, value, onChange, disabled }: { def: Objectiv
   if (type === "progetto") {
     const acts = def.activities ?? [];
     const done = new Set(value.done ?? []);
-    const toggle = (id: string) => {
-      const next = done.has(id) ? [...done].filter((x) => x !== id) : [...done, id];
-      onChange({ done: next, actual: projectActual(def, next) });
+    const emit = (m: Measure) => onChange({ ...m, actual: projectActual(def, m) });
+    const toggle = (id: string) => emit({ done: done.has(id) ? [...done].filter((x) => x !== id) : [...done, id], values: value.values });
+    const setValue = (id: string, raw: string) => {
+      const values = { ...(value.values ?? {}) };
+      if (raw === "") delete values[id];
+      else values[id] = Number(raw);
+      emit({ done: value.done, values });
     };
     return (
-      <div className="space-y-1">
+      <div className="min-w-[280px] space-y-1">
         {acts.map((a) => {
+          const kind = activityKind(a);
           const on = done.has(a.id);
+          const weight = Math.round(activityWeight(def, a) * 10) / 10;
           return (
-            <button
-              key={a.id}
-              type="button"
-              disabled={disabled}
-              onClick={() => toggle(a.id)}
-              className="flex w-full items-center gap-2 rounded-md px-1 py-0.5 text-left text-[12.5px] hover:bg-canvas disabled:pointer-events-none"
-            >
-              <span
-                className={`grid h-4 w-4 shrink-0 place-items-center rounded border ${on ? "border-brand bg-brand text-white" : "border-[#cfd5de] bg-white"}`}
-              >
-                {on && <Check className="h-3 w-3" strokeWidth={3} />}
-              </span>
-              <span className={on ? "text-muted line-through" : ""}>{a.title}</span>
-            </button>
+            <div key={a.id} className="flex items-center gap-2 text-[12.5px]">
+              {kind === "onoff" ? (
+                <button
+                  type="button"
+                  disabled={disabled}
+                  onClick={() => toggle(a.id)}
+                  className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-0.5 text-left hover:bg-canvas disabled:pointer-events-none"
+                >
+                  <span
+                    className={`grid h-4 w-4 shrink-0 place-items-center rounded border ${on ? "border-brand bg-brand text-white" : "border-[#cfd5de] bg-white"}`}
+                  >
+                    {on && <Check className="h-3 w-3" strokeWidth={3} />}
+                  </span>
+                  <span className={`truncate ${on ? "text-muted line-through" : ""}`}>{a.title}</span>
+                </button>
+              ) : (
+                <>
+                  <span className="min-w-0 flex-1 truncate px-1">{a.title}</span>
+                  <span className="relative inline-block shrink-0">
+                    <input
+                      type="number"
+                      disabled={disabled}
+                      min={0}
+                      max={kind === "pct" ? 100 : undefined}
+                      className={`${box} h-7 w-[92px] pr-9 text-right`}
+                      value={value.values?.[a.id] ?? ""}
+                      placeholder="—"
+                      onChange={(e) => setValue(a.id, e.target.value)}
+                      aria-label={`Consuntivo di ${a.title}`}
+                    />
+                    <span className="pointer-events-none absolute right-2 top-1/2 max-w-[30px] -translate-y-1/2 truncate text-[11px] text-muted">
+                      {kind === "pct" ? "%" : a.unit}
+                    </span>
+                  </span>
+                  {kind === "kpi" && (
+                    <span className="w-[64px] shrink-0 truncate text-[11px] tabular-nums text-muted">
+                      / {a.target ?? "—"} {a.unit}
+                    </span>
+                  )}
+                </>
+              )}
+              <span className="w-[42px] shrink-0 text-right text-[11px] tabular-nums text-faint">{weight}%</span>
+            </div>
           );
         })}
         {!acts.length && <p className="text-[12px] text-faint">Nessuna attività definita</p>}
+        {!!acts.length && (
+          <p className="px-1 pt-0.5 text-[11.5px] text-muted">
+            Avanzamento progetto: <span className="font-semibold tabular-nums text-ink">{value.actual ?? 0}%</span>
+          </p>
+        )}
       </div>
     );
   }
@@ -151,7 +204,7 @@ export function MisuraModal({ def, onClose }: { def: ObjectiveDef; onClose: () =
         key: "global",
         def,
         threshold: true,
-        measure: { actual: mboSettings.globalThresholdActual, done: mboSettings.globalThresholdDone },
+        measure: { actual: mboSettings.globalThresholdActual, done: mboSettings.globalThresholdDone, values: mboSettings.globalThresholdValues },
         editable: allowed("mbo.settings.manage"),
       });
     for (const s of schedeUsing(schede, def.id)) {
@@ -165,11 +218,18 @@ export function MisuraModal({ def, onClose }: { def: ObjectiveDef; onClose: () =
             itemId: it.id,
             def: it.levels ? { ...def, levels: it.levels } : def,
             weight: it.weight,
-            measure: { actual: it.actual, done: it.done },
+            measure: { actual: it.actual, done: it.done, values: it.values },
             editable,
           });
       if (s.threshold?.objectiveId === def.id)
-        out.push({ key: `${s.id}:soglia`, scheda: s, threshold: true, def, measure: { actual: s.threshold.actual, done: s.threshold.done }, editable });
+        out.push({
+          key: `${s.id}:soglia`,
+          scheda: s,
+          threshold: true,
+          def,
+          measure: { actual: s.threshold.actual, done: s.threshold.done, values: s.threshold.values },
+          editable,
+        });
     }
     return out;
     // the list is taken once when the modal opens: edits below are drafts until "Salva"
@@ -190,15 +250,15 @@ export function MisuraModal({ def, onClose }: { def: ObjectiveDef; onClose: () =
     for (const r of changed) {
       const m = draft[r.key];
       if (r.key === "global") {
-        setMboSettings({ globalThresholdActual: m.actual, globalThresholdDone: m.done });
+        setMboSettings({ globalThresholdActual: m.actual, globalThresholdDone: m.done, globalThresholdValues: m.values });
         continue;
       }
       const s = bySheet.get(r.scheda!.id) ?? r.scheda!;
       bySheet.set(
         s.id,
         r.threshold
-          ? { ...s, threshold: { ...s.threshold!, actual: m.actual, done: m.done } }
-          : { ...s, items: s.items.map((i) => (i.id === r.itemId ? { ...i, actual: m.actual, done: m.done } : i)) },
+          ? { ...s, threshold: { ...s.threshold!, actual: m.actual, done: m.done, values: m.values } }
+          : { ...s, items: s.items.map((i) => (i.id === r.itemId ? { ...i, actual: m.actual, done: m.done, values: m.values } : i)) },
       );
     }
     for (const s of bySheet.values()) updateScheda(s.id, { items: s.items, threshold: s.threshold });

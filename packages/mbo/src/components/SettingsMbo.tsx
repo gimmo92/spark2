@@ -253,8 +253,8 @@ function ThresholdSettings() {
               <Block label="Consuntivo">
                 <MeasureInput
                   def={def}
-                  value={{ actual, done: mboSettings.globalThresholdDone }}
-                  onChange={(m) => setMboSettings({ globalThresholdActual: m.actual, globalThresholdDone: m.done })}
+                  value={{ actual, done: mboSettings.globalThresholdDone, values: mboSettings.globalThresholdValues }}
+                  onChange={(m) => setMboSettings({ globalThresholdActual: m.actual, globalThresholdDone: m.done, globalThresholdValues: m.values })}
                 />
               </Block>
             )}
