@@ -660,7 +660,14 @@ export function RelativeLevelsEditor({ value, unit = "", onChange }: { value: Re
             <option value="base">{tr("% actual anno precedente")}</option>
             <option value="value">{tr("Valore fisso")}</option>
           </select>
-          <span className="px-3 text-right text-[12.5px] font-semibold tabular-nums">100</span>
+          <input
+            type="number"
+            min={0}
+            aria-label={tr("Payout del target")}
+            className={`${inputCls} text-right font-semibold tabular-nums`}
+            value={value.targetPayout ?? 100}
+            onChange={(e) => onChange({ ...value, targetPayout: Number(e.target.value) })}
+          />
           <span />
         </div>
         {value.levels.map((l, i) => (

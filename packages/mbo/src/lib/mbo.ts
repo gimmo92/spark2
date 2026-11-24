@@ -240,7 +240,7 @@ export interface RelativeLevel {
 }
 
 /**
- * Levels per objective where each one says what it is calculated on: the target (pays 100%) is `target` %
+ * Levels per objective where each one says what it is calculated on: the target (pays `targetPayout`, default 100%) is `target` %
  * of last year's actual (`SchedaItem.base`, entered per scheda) or a fixed value (`targetOf: "value"`);
  * the other levels are a % of last year, a % of the target or a fixed value.
  * E.g. minimum 90% of last year → 10%, target 108% of last year → 100%, 110% of the target → 120%.
@@ -248,6 +248,8 @@ export interface RelativeLevel {
 export interface RelativeScale {
   target: number;
   targetOf?: "base" | "value";
+  /** Payout % of the target level (default 100). */
+  targetPayout?: number;
   levels: RelativeLevel[];
 }
 
@@ -255,6 +257,8 @@ export interface RelativeScale {
 export interface RelativeRow extends Level {
   pct: number;
   of: RelativeOf;
+  /** The target row (the base of the "% of target" levels). */
+  isTarget?: boolean;
 }
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
@@ -264,13 +268,13 @@ export const needsBase = (r: RelativeScale) => (r.targetOf ?? "base") === "base"
 /** Fixed values mixed with % of last year: the order of the levels depends on each scheda's actual. */
 export const mixedScale = (r: RelativeScale) => needsBase(r) && ((r.targetOf ?? "base") === "value" || r.levels.some((l) => l.of === "value"));
 
-/** Levels of a relative scale for a given base, ascending (the target row is the one paying 100%). */
+/** Levels of a relative scale for a given base, ascending (the target row has `isTarget`). */
 export function relativeRows(r: RelativeScale, base = 0): RelativeRow[] {
   const targetOf = r.targetOf ?? "base";
   const t = targetOf === "value" ? r.target : (base * r.target) / 100;
   const at = (l: RelativeLevel) => (l.of === "value" ? l.pct : ((l.of === "base" ? base : t) * l.pct) / 100);
   return [
-    { target: round2(t), payout: 100, pct: r.target, of: targetOf as RelativeOf },
+    { target: round2(t), payout: r.targetPayout ?? 100, pct: r.target, of: targetOf as RelativeOf, isTarget: true },
     ...r.levels.map((l) => ({ target: round2(at(l)), payout: l.payout, pct: l.pct, of: l.of })),
   ].sort((a, b) => a.target - b.target);
 }
@@ -286,6 +290,7 @@ export function toRelative(levels: Level[]): RelativeScale {
   return {
     target: levels[ti].target,
     targetOf: "value",
+    targetPayout: levels[ti].payout,
     levels: levels.filter((_, i) => i !== ti).map((l) => ({ pct: l.target, of: "value" as const, payout: l.payout })),
   };
 }
@@ -403,7 +408,7 @@ export const itemDef = (catalog: Catalog, it: SchedaItem): ObjectiveDef | undefi
 export function relativeText(r: RelativeScale, sep = " · "): string {
   // fixed values mixed with % of last year: keep the order they were entered in (it depends on the actual)
   const rows = mixedScale(r)
-    ? [{ pct: r.target, of: (r.targetOf ?? "base") as RelativeOf, payout: 100 }, ...r.levels]
+    ? [{ pct: r.target, of: (r.targetOf ?? "base") as RelativeOf, payout: r.targetPayout ?? 100 }, ...r.levels]
     : relativeRows(r, 100);
   return rows
     .map((l) => `${l.of === "base" ? tr("{0}% AP", [num(l.pct)]) : l.of === "target" ? tr("{0}% target", [num(l.pct)]) : num(l.pct)} → ${l.payout}%`)

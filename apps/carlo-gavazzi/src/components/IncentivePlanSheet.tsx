@@ -197,7 +197,15 @@ export function IncentivePlanSheet() {
     const levels = [...def.levels].sort((a, b) =>
       typeOf(def) === "data" ? b.target - a.target : a.target - b.target,
     );
-    const ti = targetIndex(levels);
+    // levels relative to last year's actual: the target row is the scale's target (whatever it pays)
+    const rel =
+      def.relative && def.levels.length
+        ? relativeRows(def.relative, def.base ?? 0)
+        : undefined;
+    const relTarget = rel?.find((x) => x.isTarget);
+    const ti = relTarget
+      ? levels.findIndex((l) => l.target === relTarget.target)
+      : targetIndex(levels);
     const tv = ti >= 0 ? levels[ti].target : undefined;
     const ofTarget = (v: number) =>
       tv && typeOf(def) !== "data" && typeOf(def) !== "onoff"
@@ -206,10 +214,6 @@ export function IncentivePlanSheet() {
     // levels relative to last year's actual: the % column shows the % each level is set at
     // (target = 108% of last year, upper levels = 110%, 112%… of the target), as in their sheets
     // (fixed-value levels: their % of the target)
-    const rel =
-      def.relative && def.levels.length
-        ? relativeRows(def.relative, def.base ?? 0)
-        : undefined;
     const levelPct = (l: Level) => {
       const r = rel?.find((x) => x.target === l.target);
       return r && r.of !== "value"

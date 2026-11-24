@@ -568,6 +568,7 @@ export const EN: Record<string, string> = {
   "I livelli sono in % dell'actual dell'anno precedente: inseriscilo per calcolarli.": "The levels are in % of last year's actual: enter it to calculate them.",
   Valore: "Value",
   "Calcolato su": "Calculated on",
+  "Payout del target": "Target payout",
   "Valore del target": "Target value",
   "Target calcolato su": "Target calculated on",
   "% actual anno precedente": "% of last year's actual",
