@@ -235,7 +235,7 @@ export function IncentivePlanSheet() {
             <h1 className="text-[20px] font-extrabold leading-tight">{bu ? `${bu} ` : ""}Incentive Plan {fyLabel(s.cycle)} - Calculation</h1>
             <dl className="mt-3 grid grid-cols-[110px_1fr] gap-x-4 gap-y-1.5 text-[13.5px] font-bold">
               <dt>Company:</dt>
-              <dd className={BLUE}>{first?.company ?? "—"}</dd>
+              <dd className={BLUE}>{first?.company || "—"}</dd>
               <dt>Name:</dt>
               <dd className={BLUE}>
                 {people.length > 1 ? (
