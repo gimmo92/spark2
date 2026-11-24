@@ -21,6 +21,7 @@ export * from "./people/InviteAction";
 export * from "./people/TeamsGrid";
 export * from "./people/BusinessUnitsGrid";
 export * from "./people/RolesList";
+export * from "./people/CompaniesList";
 export * from "./people/UserDetail";
 export * from "./people/UserForm";
 export * from "./people/UsersTable";
