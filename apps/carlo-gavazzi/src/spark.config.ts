@@ -38,6 +38,7 @@ export default defineConfig({
         { label: "Lista Utenti", href: "/azienda/utenti", permission: "people.view" },
         { label: "Lista Team", href: "/azienda/team", permission: "teams.manage" },
         { label: "Business Unit", href: "/azienda/bu", permission: "teams.manage" },
+        { label: "Lista Ruoli", href: "/azienda/ruoli", permission: "people.view" },
         { label: "Gestione Lettere", href: "/azienda/lettere", permission: "letters.manage" },
       ],
     },
