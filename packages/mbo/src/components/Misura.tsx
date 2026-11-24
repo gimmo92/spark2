@@ -38,34 +38,50 @@ export function LevelChips({ def, actual }: { def: ObjectiveDef; actual?: number
     return def.relative ? (
       <p className="text-[11.5px] font-semibold text-amber-700">{tr("Manca l'actual anno precedente: inseriscilo nella scheda o nell'obiettivo.")}</p>
     ) : null;
-  // % levels: each value also shows the % it comes from ("108% AP", "110% target")
+  // % levels: each value also shows the % it comes from ("108% AP", "110% target") and the target row is marked
   const rows = def.relative ? relativeRows(def.relative, def.base ?? 0) : [];
+  const rowOf = (v: number) => rows.find((x) => x.target === v);
   const origin = (v: number) => {
-    const r = rows.find((x) => x.target === v);
-    if (!r || r.of === "value") return "";
+    const r = rowOf(v);
+    if (!r) return "";
+    if (r.of === "value") return tr("Valore fisso");
     const n = r.pct.toLocaleString(localeTag(), { maximumFractionDigits: 2 });
-    return ` (${r.of === "base" ? tr("{0}% AP", [n]) : tr("{0}% target", [n])})`;
+    return r.of === "base" ? tr("{0}% AP", [n]) : tr("{0}% target", [n]);
   };
   // highest level reached by the actual (dates: earlier is better)
   const reached = actual == null ? -1 : levels.findLastIndex((l) => (type === "data" ? actual <= l.target : actual >= l.target));
+  const th = "px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wide text-muted";
   return (
-    <div className="flex flex-wrap items-center gap-1">
-      <span className="mr-0.5 text-[10.5px] font-bold uppercase tracking-wide text-faint">{tr("Livelli")}</span>
-      {levels.map((l, i) => {
-        const on = i === reached;
-        return (
-          <span
-            key={i}
-            className={`rounded-md border px-1.5 py-[1px] text-[11px] tabular-nums ${
-              on ? "border-brand bg-brand-soft font-bold text-brand" : "border-line bg-white text-[#5b6476]"
-            }`}
-          >
-            {type === "onoff" ? tr("Raggiunto") : formatValue(def, l.target)}
-            {origin(l.target) && <span className="font-normal text-faint">{origin(l.target)}</span>} → {l.payout}%
-          </span>
-        );
-      })}
-      {def.calc === "lineare" && type !== "onoff" && levels.length > 1 && <span className="text-[10.5px] text-faint">{tr("· lineare tra i livelli")}</span>}
+    <div className="w-full max-w-[460px]">
+      <table className="w-full border-collapse overflow-hidden rounded-lg border border-line text-[12px] text-ink">
+        <thead className="bg-canvas">
+          <tr>
+            <th className={`${th} text-left`}>{tr("Livello")}</th>
+            <th className={`${th} text-right`}>{type === "onoff" ? "" : tr("Target")}</th>
+            {def.relative && <th className={`${th} text-left`}>{tr("Calcolato su")}</th>}
+            <th className={`${th} text-right`}>{tr("Payout")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {levels.map((l, i) => {
+            const on = i === reached;
+            const isTarget = rowOf(l.target)?.isTarget;
+            return (
+              <tr key={i} className={`border-t border-line ${on ? "bg-brand-soft font-bold text-brand" : ""}`}>
+                <td className="px-2.5 py-1">
+                  {isTarget ? <span className="font-semibold">{tr("Target")}</span> : i === 0 ? tr("Minimo") : tr("Livello {0}", [i + 1])}
+                </td>
+                <td className="px-2.5 py-1 text-right font-semibold tabular-nums">{type === "onoff" ? tr("Raggiunto") : formatValue(def, l.target)}</td>
+                {def.relative && <td className={`px-2.5 py-1 tabular-nums ${on ? "" : "text-[#3f4757]"}`}>{origin(l.target)}</td>}
+                <td className="px-2.5 py-1 text-right font-semibold tabular-nums">{l.payout}%</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      {def.calc === "lineare" && type !== "onoff" && levels.length > 1 && (
+        <p className="mt-1 text-[11px] text-muted">{tr("Lineare tra i livelli")}</p>
+      )}
     </div>
   );
 }
