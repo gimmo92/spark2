@@ -356,6 +356,8 @@ export interface SchedaItem {
   levels?: Level[];
   /** Objectives with relative levels: last year's actual, the levels are computed from it. */
   base?: number;
+  /** Per-scheda % levels overriding the catalog objective's scale (objectives with `relative`). */
+  relative?: RelativeScale;
 }
 
 export interface Scheda {
@@ -400,12 +402,14 @@ export const itemDef = (catalog: Catalog, it: SchedaItem): ObjectiveDef | undefi
   if (!def) return undefined;
   // last year's actual: the scheda's own, otherwise the objective's
   const base = it.base != null && it.base > 0 ? it.base : def.lastYear != null && def.lastYear > 0 ? def.lastYear : undefined;
-  // relative levels: computed from it (none yet = no levels, payout 0)
-  if (def.relative && typeOf(def) === "quantitativo")
+  // relative levels (the scheda's own scale, or the objective's): computed from it (none yet = no levels, payout 0)
+  const rel = (!it.custom && it.relative) || def.relative;
+  if (rel && typeOf(def) === "quantitativo")
     return {
       ...def,
+      relative: rel,
       base,
-      levels: !needsBase(def.relative) ? resolveRelative(def.relative) : base != null ? resolveRelative(def.relative, base) : [],
+      levels: !needsBase(rel) ? resolveRelative(rel) : base != null ? resolveRelative(rel, base) : [],
     };
   return { ...def, base, levels: !it.custom && it.levels ? it.levels : def.levels };
 };
