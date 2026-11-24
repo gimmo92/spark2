@@ -21,6 +21,7 @@ import {
   globalGateMet,
   itemDef,
   payoutFor,
+  relativeRows,
   thresholdMet,
   typeOf,
   useMbo,
@@ -50,9 +51,9 @@ function targetIndex(levels: Level[]) {
   return best;
 }
 
-/** Objective value as in their sheets: plain numbers with decimals, other types in words. */
+/** Objective value as in their sheets: whole numbers from 100 up, two decimals below; other types in words. */
 function objValue(def: ObjectiveDef, v: number) {
-  if (typeOf(def) === "quantitativo") return nf(v, Math.abs(v) < 100 && !Number.isInteger(v) ? 2 : Number.isInteger(v) ? 0 : 2);
+  if (typeOf(def) === "quantitativo") return nf(v, Math.abs(v) >= 100 || Number.isInteger(v) ? 0 : 2);
   return formatValue(def, v);
 }
 
@@ -154,7 +155,14 @@ export function IncentivePlanSheet() {
     const ti = targetIndex(levels);
     const tv = ti >= 0 ? levels[ti].target : undefined;
     const ofTarget = (v: number) => (tv && typeOf(def) !== "data" && typeOf(def) !== "onoff" ? pct((v / tv) * 100, 1) : undefined);
-    const cell = (l: Level): Cell => ({ obj: objValue(def, l.target), ofTarget: ofTarget(l.target), bonus: money(w, l.payout), payout: pct(l.payout) });
+    // levels relative to last year's actual: the % column shows the % each level is set at
+    // (target = 108% of last year, upper levels = 110%, 112%… of the target), as in their sheets
+    const rel = def.relative && def.base ? relativeRows(def.relative, def.base) : undefined;
+    const levelPct = (l: Level) => {
+      const r = rel?.find((x) => x.target === l.target);
+      return r ? pct(r.pct, Number.isInteger(r.pct) ? 0 : 1) : ofTarget(l.target);
+    };
+    const cell = (l: Level): Cell => ({ obj: objValue(def, l.target), ofTarget: levelPct(l), bonus: money(w, l.payout), payout: pct(l.payout) });
     return [
       {
         item,

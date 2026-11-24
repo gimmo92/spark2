@@ -29,7 +29,8 @@ export default defineConfig({
     { key: "bonusTarget", label: "Bonus target (100%)", type: "number", placeholder: "es. 60000" },
     { key: "bonusCurrency", label: "Valuta bonus", placeholder: "CHF", upper: true, maxLength: 3 },
   ],
-  modules: [createMboModule({ activityLevels: true, schedaViewHref: (id) => `/mbo/schede/${id}/calcolo` })],
+  // quantitative targets in % of last year's actual (e.g. minimum 90% of last year, target 108%, then 110%… of the target)
+  modules: [createMboModule({ activityLevels: true, relativeLevels: true, schedaViewHref: (id) => `/mbo/schede/${id}/calcolo` })],
   nav: [
     { label: "Profilo", href: "/profilo", icon: Info },
     { label: "Dashboard", href: "/dashboard", icon: ChartColumn },

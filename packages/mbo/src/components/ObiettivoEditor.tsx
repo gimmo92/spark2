@@ -5,10 +5,10 @@ import { useParams, useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ArrowLeft, CalendarDays, ChevronDown, Info, Layers, TriangleAlert, X } from "lucide-react";
 import { fullName } from "@spark/core";
-import { CATEGORIES, CYCLES, cycleLabel, schedeUsing, typeDefaults, typeOf, type Level, type ObjectiveDef, type Scheda } from "../lib/mbo";
+import { CATEGORIES, CYCLES, cycleLabel, formatValue, schedeUsing, typeDefaults, typeOf, type Level, type ObjectiveDef, type Scheda } from "../lib/mbo";
 import { useMbo } from "../store";
 import { MultiSelect } from "@spark/core";
-import { Block, ChoiceButtons, CustomObjectiveEditor, LevelsEditor, PresetPicker, SectionTitle, customError, levelsError } from "./SchedaEditor";
+import { BaseInput, Block, ChoiceButtons, CustomObjectiveEditor, LevelsEditor, PresetPicker, SectionTitle, baseError, customError, levelsError } from "./SchedaEditor";
 import { CATEGORY_ICON } from "./ObiettiviTable";
 import { StatusPill } from "./SchedeTable";
 import { GhostButton, PrimaryButton, inputCls } from "@spark/core";
@@ -35,6 +35,8 @@ export function ObiettivoEditorPage({ isNew }: { isNew?: boolean }) {
 interface Assignment {
   weight: number;
   levels?: Level[];
+  /** Relative levels: last year's actual in that scheda. */
+  base?: number;
 }
 
 let seq = 0;
@@ -64,7 +66,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
     if (def)
       for (const s of schede) {
         const it = itemOf(s, def.id);
-        if (it) out[s.id] = { weight: it.weight, levels: it.levels };
+        if (it) out[s.id] = { weight: it.weight, levels: it.levels, base: it.base };
       }
     return out;
   });
@@ -113,11 +115,16 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
   const draftError = customError(draft);
   // levels per activity: per-scheda target/payout overrides don't apply
   const perActivity = typeOf(draft) === "progetto" && !!draft.activityLevels;
+  // levels in % of last year's actual: each scheda sets that actual instead of its own levels
+  const relative = typeOf(draft) === "quantitativo" && !!draft.relative;
   const nameError = submitted && !draft.name.trim() ? "Inserisci la descrizione dell'obiettivo" : null;
   const rowErrors: Record<string, string> = {};
   for (const [id, a] of Object.entries(assignments)) {
     if (!(a.weight > 0 && a.weight <= 100)) rowErrors[id] = "Il peso deve essere tra 1 e 100%";
-    else if (a.levels && !perActivity) {
+    else if (relative) {
+      const e = baseError(draft, a.base);
+      if (e) rowErrors[id] = e;
+    } else if (a.levels && !perActivity) {
       const e = levelsError(a.levels, typeOf(draft));
       if (e) rowErrors[id] = e;
     }
@@ -125,7 +132,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
   const patch = (p: Partial<ObjectiveDef>) => {
     setDraft((d) => ({ ...d, ...p }));
     // a new type has a different scale: per-scheda levels of the old type no longer apply
-    if ((p.type && p.type !== typeOf(draft)) || p.activityLevels)
+    if ((p.type && p.type !== typeOf(draft)) || p.activityLevels || "relative" in p)
       setAssignments((a) => Object.fromEntries(Object.entries(a).map(([id, x]) => [id, { ...x, levels: undefined }])));
   };
 
@@ -144,6 +151,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
       activities: typeOf(draft) === "progetto" ? (draft.activities ?? []).map((x) => ({ ...x, title: x.title.trim() })).filter((x) => x.title) : undefined,
       weightedActivities: typeOf(draft) === "progetto" && draft.weightedActivities ? true : undefined,
       activityLevels: typeOf(draft) === "progetto" && draft.activityLevels ? true : undefined,
+      relative: typeOf(draft) === "quantitativo" ? draft.relative : undefined,
       category: draft.category,
       cycle: draft.cycle,
       unit: draft.unit.trim(),
@@ -166,10 +174,10 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
       if (!a && !existing) continue;
       let items = s.items;
       if (a && existing) {
-        if (existing.weight === a.weight && JSON.stringify(existing.levels) === JSON.stringify(a.levels)) continue;
-        items = s.items.map((i) => (i === existing ? { ...i, weight: a.weight, levels: a.levels } : i));
+        if (existing.weight === a.weight && existing.base === a.base && JSON.stringify(existing.levels) === JSON.stringify(a.levels)) continue;
+        items = s.items.map((i) => (i === existing ? { ...i, weight: a.weight, levels: a.levels, base: a.base } : i));
       } else if (a) {
-        items = [...s.items, { id: uid(), objectiveId, weight: a.weight, levels: a.levels }];
+        items = [...s.items, { id: uid(), objectiveId, weight: a.weight, levels: a.levels, base: a.base }];
       } else {
         items = s.items.filter((i) => i !== existing);
       }
@@ -312,6 +320,12 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                           {s.assigneeIds.length > 1 && ` +${s.assigneeIds.length - 1}`} · {tr(cycleLabel(s.cycle))} ·{" "}
                           {perActivity ? (
                             tr("livelli per attività")
+                          ) : relative ? (
+                            a.base != null && a.base > 0 ? (
+                              tr("actual anno precedente {0}", [formatValue(draft, a.base)])
+                            ) : (
+                              <span className="font-semibold text-amber-700">{tr("manca l'actual anno precedente")}</span>
+                            )
                           ) : a.levels ? (
                             <span className="font-semibold text-violet-700">{tr("livelli personalizzati")}</span>
                           ) : (
@@ -361,7 +375,12 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                         </p>
                       </div>
 
-                      {!perActivity && (
+                      {relative && (
+                        <div className="rounded-lg bg-canvas p-3">
+                          <BaseInput def={draft} value={a.base} onChange={(base) => patchAssignment(id, { base })} />
+                        </div>
+                      )}
+                      {!perActivity && !relative && (
                         <div className="space-y-3 rounded-lg bg-canvas p-3">
                           {["quantitativo", "qualitativo_pct", "progetto"].includes(typeOf(draft)) && (
                             <div className="max-w-[420px]">

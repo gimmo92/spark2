@@ -30,11 +30,14 @@ import {
   activityDefaultLevels,
   activityKind,
   catalogById,
+  DEFAULT_RELATIVE,
   evenWeights,
   itemDef,
   formatValue,
   fromDay,
   levelsText,
+  relativePatch,
+  resolveRelative,
   toDay,
   typeDefaults,
   typeOf,
@@ -45,6 +48,8 @@ import {
   type ObjectiveType,
   type Level,
   type Preset,
+  type RelativeLevel,
+  type RelativeScale,
   type ObjectiveDef,
   type Scheda,
   type SchedaItem,
@@ -52,7 +57,7 @@ import {
 } from "../lib/mbo";
 import { useMbo, useMboOptions } from "../store";
 import { MultiSelect } from "@spark/core";
-import { GhostButton, PrimaryButton, Switch, inputCls } from "@spark/core";
+import { GhostButton, PrimaryButton, Switch, Tooltip, inputCls } from "@spark/core";
 import { localeTag, tr } from "@spark/core";
 
 const collator = new Intl.Collator("it", { sensitivity: "base" });
@@ -168,7 +173,8 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
       custom: {
         ...def,
         id: uid("cu"),
-        levels: def.levels.map((l) => ({ ...l })),
+        base: undefined,
+        levels: def.relative ? resolveRelative(def.relative, 100) : def.levels.map((l) => ({ ...l })),
       },
     });
     setExpanded(it.id);
@@ -182,7 +188,7 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
   else if (totalWeight !== 100) errors.items = tr("La somma dei pesi deve essere 100% (ora {0}%)", [totalWeight]);
   if (thresholdOn && !thresholdId) errors.threshold = "Seleziona l'obiettivo soglia";
   items.forEach((it) => {
-    const e = it.custom ? customError(it.custom) : null;
+    const e = (it.custom ? customError(it.custom) : null) ?? baseError(itemDef(objectives, it), it.base);
     if (e) errors[it.id] = e;
   });
   const err = (k: string) => (submitted ? errors[k] : undefined);
@@ -388,7 +394,10 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
                           <span className="truncate text-[13px] font-semibold">{def.name || tr("Obiettivo senza nome")}</span>
                           <span className="shrink-0 text-[11px] text-muted">{def.calc === "lineare" ? tr("Lineare") : tr("A scaglioni")}</span>
                         </span>
-                        <span className="block truncate text-[11.5px] text-muted">{levelsSummary(def)}</span>
+                        <span className="block truncate text-[11.5px] text-muted">
+                          {baseError(def, it.base) && <span className="font-semibold text-amber-700">{tr("Manca l'actual anno precedente")} · </span>}
+                          {levelsSummary(def)}
+                        </span>
                       </span>
                     </button>
                     <label className="flex items-center gap-1.5">
@@ -421,7 +430,10 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
                   </div>
 
                   {isOpen && (
-                    <div className="border-t border-line px-3.5 py-3.5">
+                    <div className="space-y-3.5 border-t border-line px-3.5 py-3.5">
+                      {def.relative && typeOf(def) === "quantitativo" && (
+                        <BaseInput def={def} value={it.base} onChange={(base) => updateItem(it.id, { base })} />
+                      )}
                       {it.custom ? (
                         <CustomObjectiveEditor def={it.custom} onChange={(p) => updateCustom(it.id, p)} error={e} />
                       ) : (
@@ -486,6 +498,11 @@ export function customError(d: ObjectiveDef): string | null {
     const total = acts.reduce((sum, a) => sum + (a.weight ?? 0), 0);
     if (Math.abs(total - 100) > 0.001) return tr("I pesi delle attività devono sommare 100% (ora {0}%)", [total]);
   }
+  if (d.relative && typeOf(d) === "quantitativo") {
+    if (!(d.relative.target > 0) || d.relative.levels.some((l) => !(l.pct > 0))) return "Le percentuali dei livelli devono essere maggiori di 0";
+    const e = levelsError(resolveRelative(d.relative, 100));
+    return e === "I livelli target devono essere crescenti" ? "Due livelli danno lo stesso valore" : e;
+  }
   return typeOf(d) === "progetto" && d.activityLevels ? null : levelsError(d.levels, typeOf(d));
 }
 
@@ -548,7 +565,110 @@ export function typePatch(def: ObjectiveDef, type: ObjectiveType): Partial<Objec
     activities: type === "progetto" ? (def.activities?.length ? def.activities : [{ id: uid("at"), title: "" }]) : undefined,
     weightedActivities: type === "progetto" ? def.weightedActivities : undefined,
     activityLevels: type === "progetto" ? def.activityLevels : undefined,
+    relative: undefined,
   };
+}
+
+/** Error for a relative objective in a scheda without last year's actual. */
+export function baseError(def: ObjectiveDef | undefined, base?: number): string | null {
+  if (!def?.relative || typeOf(def) !== "quantitativo") return null;
+  return base != null && base > 0 ? null : "Inserisci l'actual dell'anno precedente";
+}
+
+/** Last year's actual of a relative objective in one scheda, with the target it gives. */
+export function BaseInput({ def, value, onChange }: { def: ObjectiveDef; value?: number; onChange: (v: number | undefined) => void }) {
+  const ok = value != null && value > 0 && !!def.relative;
+  const target = ok && def.relative ? (value * def.relative.target) / 100 : undefined;
+  return (
+    <div className="flex flex-wrap items-end gap-4">
+      <Block label={tr("Actual anno precedente")}>
+        <span className="relative block w-[160px]">
+          <input
+            type="number"
+            min={0}
+            className={`${inputCls} ${def.unit ? "pr-10" : ""} text-right font-semibold tabular-nums`}
+            value={value ?? ""}
+            onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
+          />
+          {def.unit && <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-muted">{def.unit}</span>}
+        </span>
+      </Block>
+      <p className="pb-2 text-[11.5px] text-muted">
+        {target != null
+          ? tr("Target {0} ({1}% dell'anno precedente): i livelli si calcolano da qui.", [formatValue(def, Math.round(target * 100) / 100), def.relative?.target])
+          : tr("I livelli sono in % dell'actual dell'anno precedente: inseriscilo per calcolarli.")}
+      </p>
+    </div>
+  );
+}
+
+/** Editable relative scale: the target in % of last year's actual, other levels in % of last year or of the target. */
+export function RelativeLevelsEditor({ value, onChange }: { value: RelativeScale; onChange: (r: RelativeScale) => void }) {
+  const set = (i: number, p: Partial<RelativeLevel>) => onChange({ ...value, levels: value.levels.map((l, k) => (k === i ? { ...l, ...p } : l)) });
+  const cols = "grid grid-cols-[64px_84px_1fr_84px_28px] items-center gap-2";
+  const pctInput = (v: number, on: (n: number) => void, label: string) => (
+    <span className="relative">
+      <input type="number" min={0} aria-label={label} className={`${inputCls} pr-6 text-right tabular-nums`} value={v} onChange={(e) => on(Number(e.target.value))} />
+      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[12px] text-muted">%</span>
+    </span>
+  );
+  return (
+    <div>
+      <div className={`mb-1.5 ${cols} text-[11px] font-bold uppercase tracking-wide text-muted`}>
+        <span>{tr("Livello")}</span>
+        <span>{tr("Valore")}</span>
+        <span>{tr("Calcolato su")}</span>
+        <span>{tr("Payout %")}</span>
+        <span />
+      </div>
+      <div className="space-y-1.5">
+        <div className={cols}>
+          <span className="text-[12.5px] font-bold">{tr("Target")}</span>
+          {pctInput(value.target, (target) => onChange({ ...value, target }), tr("Target in % dell'anno precedente"))}
+          <span className="text-[12.5px] text-muted">{tr("Actual anno precedente")}</span>
+          <span className="px-3 text-right text-[12.5px] font-semibold tabular-nums">100</span>
+          <span />
+        </div>
+        {value.levels.map((l, i) => (
+          <div key={i} className={cols}>
+            <span className="text-[12.5px] font-semibold text-muted">{tr("Livello {0}", [i + 1])}</span>
+            {pctInput(l.pct, (pct) => set(i, { pct }), tr("Valore del livello {0}", [i + 1]))}
+            <select className={inputCls} value={l.of} onChange={(e) => set(i, { of: e.target.value as RelativeLevel["of"] })} aria-label={tr("Calcolato su")}>
+              <option value="base">{tr("Actual anno precedente")}</option>
+              <option value="target">{tr("Target")}</option>
+            </select>
+            <input
+              type="number"
+              min={0}
+              aria-label={tr("Payout %")}
+              className={`${inputCls} text-right tabular-nums`}
+              value={l.payout}
+              onChange={(e) => set(i, { payout: Number(e.target.value) })}
+            />
+            <Tooltip label={tr("Rimuovi livello")}>
+              <button
+                type="button"
+                aria-label={tr("Rimuovi livello")}
+                onClick={() => onChange({ ...value, levels: value.levels.filter((_, k) => k !== i) })}
+                className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-red-50 hover:text-red-600"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </Tooltip>
+          </div>
+        ))}
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          const last = value.levels.filter((l) => l.of === "target").at(-1);
+          onChange({ ...value, levels: [...value.levels, { pct: last ? last.pct + 2 : 110, of: "target", payout: last ? last.payout + 20 : 120 }] });
+        }}
+        className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline"
+      >
+        <Plus className="h-3.5 w-3.5" />{" "}{tr("Aggiungi livello")}</button>
+    </div>
+  );
 }
 
 /** Editable list of a project's activities, optionally with the objective's weight distributed over them. */
@@ -726,7 +846,10 @@ export function CustomObjectiveEditor({
 }) {
   const type = typeOf(def);
   const perActivity = type === "progetto" && !!def.activityLevels;
-  const presets = !perActivity && (type === "quantitativo" || type === "qualitativo_pct" || type === "progetto");
+  const options = useMboOptions();
+  const relative = type === "quantitativo" && !!def.relative;
+  const relativeOption = type === "quantitativo" && (!!options.relativeLevels || relative);
+  const presets = !perActivity && !relative && (type === "quantitativo" || type === "qualitativo_pct" || type === "progetto");
   return (
     <div className="space-y-3.5">
       <Block label={tr("Tipo di obiettivo")}>
@@ -756,7 +879,18 @@ export function CustomObjectiveEditor({
           )}
 
           {type === "progetto" && <ActivitiesEditor def={def} onChange={onChange} />}
-          {!perActivity && <LevelsEditor unit={def.unit} type={type} levels={def.levels} onChange={(levels) => onChange({ levels })} />}
+          {relativeOption && (
+            <div className="flex items-center justify-between gap-3 rounded-lg bg-canvas px-3 py-2">
+              <span className="text-[12.5px] font-semibold">{tr("Livelli in % dell'actual anno precedente")}</span>
+              <Switch
+                checked={relative}
+                label={tr("Livelli in % dell'actual anno precedente")}
+                onChange={(v) => onChange(v ? relativePatch(DEFAULT_RELATIVE) : { relative: undefined, levels: typeDefaults("quantitativo").levels })}
+              />
+            </div>
+          )}
+          {relative && def.relative && <RelativeLevelsEditor value={def.relative} onChange={(r) => onChange(relativePatch(r))} />}
+          {!perActivity && !relative && <LevelsEditor unit={def.unit} type={type} levels={def.levels} onChange={(levels) => onChange({ levels })} />}
           {error && (
             <p className="flex items-center gap-1.5 text-[12px] font-semibold text-red-600">
               <TriangleAlert className="h-3.5 w-3.5" /> {tr(error)}

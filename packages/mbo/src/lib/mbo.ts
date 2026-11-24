@@ -82,6 +82,8 @@ export interface Activity {
 export interface MboOptions {
   /** "progetto" objectives may have target → payout levels per activity. */
   activityLevels?: boolean;
+  /** "quantitativo" objectives may set levels in % of last year's actual (entered per scheda) or of the target. */
+  relativeLevels?: boolean;
   /** "Visualizza" on a scheda opens this page (a client screen) instead of the standard preview. */
   schedaViewHref?: (schedaId: string) => string;
 }
@@ -227,6 +229,53 @@ export function formatValue(d: ObjectiveDef, v: number): string {
   return `${num(v)}${d.unit ? ` ${d.unit}` : ""}`;
 }
 
+/** A level of a relative scale: `pct` % of last year's actual ("base") or of the target. */
+export interface RelativeLevel {
+  pct: number;
+  of: "base" | "target";
+  payout: number;
+}
+
+/**
+ * Levels relative to a value set in each scheda (`SchedaItem.base`, last year's actual): the target is
+ * `target` % of it and pays 100%; the other levels are a % of the same base or of the target.
+ * E.g. minimum 90% of last year → 10%, target 108% of last year → 100%, 110% of the target → 120%.
+ */
+export interface RelativeScale {
+  target: number;
+  levels: RelativeLevel[];
+}
+
+/** A resolved level of a relative scale, with the % it was defined by. */
+export interface RelativeRow extends Level {
+  pct: number;
+  of: "base" | "target";
+}
+
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
+/** Levels of a relative scale for a given base, ascending (the target row is the one paying 100%). */
+export function relativeRows(r: RelativeScale, base: number): RelativeRow[] {
+  const t = (base * r.target) / 100;
+  return [
+    { target: round2(t), payout: 100, pct: r.target, of: "base" as const },
+    ...r.levels.map((l) => ({ target: round2(((l.of === "base" ? base : t) * l.pct) / 100), payout: l.payout, pct: l.pct, of: l.of })),
+  ].sort((a, b) => a.target - b.target);
+}
+export const resolveRelative = (r: RelativeScale, base: number): Level[] => relativeRows(r, base).map(({ target, payout }) => ({ target, payout }));
+
+/** Relative scale a quantitative objective starts from: 90% of last year → 50%, target 105% → 100%, 110% of the target → 150%. */
+export const DEFAULT_RELATIVE: RelativeScale = {
+  target: 105,
+  levels: [
+    { pct: 90, of: "base", payout: 50 },
+    { pct: 110, of: "target", payout: 150 },
+  ],
+};
+
+/** Fields for an objective with this relative scale; its standard levels are the scale on a base of 100. */
+export const relativePatch = (r: RelativeScale) => ({ relative: r, levels: resolveRelative(r, 100) });
+
 export interface ObjectiveDef {
   id: string;
   name: string;
@@ -241,6 +290,10 @@ export interface ObjectiveDef {
   unit: string;
   calc: CalcMode;
   levels: Level[]; // ordered by ascending target
+  /** "quantitativo": levels relative to last year's actual, entered per scheda (`SchedaItem.base`). */
+  relative?: RelativeScale;
+  /** Set by `itemDef` on relative objectives: the scheda's last-year actual the levels were computed from. */
+  base?: number;
   /** Catalog-only metadata (absent on one-off objectives inside a scheda). */
   description?: string;
   category?: string;
@@ -266,6 +319,8 @@ export interface SchedaItem {
   custom?: ObjectiveDef;
   /** Per-scheda target/payout levels overriding the catalog objective's defaults. */
   levels?: Level[];
+  /** Objectives with relative levels: last year's actual, the levels are computed from it. */
+  base?: number;
 }
 
 export interface Scheda {
@@ -306,10 +361,20 @@ export const YEARS = [2026, 2025, 2024];
 export type Catalog = ObjectiveDef[];
 export const catalogById = (catalog: Catalog, id?: string) => catalog.find((o) => o.id === id);
 export const itemDef = (catalog: Catalog, it: SchedaItem): ObjectiveDef | undefined => {
-  if (it.custom) return it.custom;
-  const def = catalogById(catalog, it.objectiveId);
-  return def && it.levels ? { ...def, levels: it.levels } : def;
+  const def = it.custom ?? catalogById(catalog, it.objectiveId);
+  if (!def) return undefined;
+  // relative levels: computed from the scheda's last-year actual (none yet = no levels, payout 0)
+  if (def.relative && typeOf(def) === "quantitativo")
+    return { ...def, base: it.base, levels: it.base != null && it.base > 0 ? resolveRelative(def.relative, it.base) : [] };
+  return !it.custom && it.levels ? { ...def, levels: it.levels } : def;
 };
+
+/** Short description of a relative scale, e.g. "90% AP → 10% · 108% AP → 100% · 110% target → 120%". */
+export function relativeText(r: RelativeScale, sep = " · "): string {
+  return relativeRows(r, 100)
+    .map((l) => `${l.of === "base" ? tr("{0}% AP", [num(l.pct)]) : tr("{0}% target", [num(l.pct)])} → ${l.payout}%`)
+    .join(sep);
+}
 
 /** Schede that use a catalog objective, as a weighted item or as threshold. */
 export const schedeUsing = (schede: Scheda[], objectiveId: string) =>
@@ -394,6 +459,7 @@ export function projectActual(d: ObjectiveDef, m: Measure): number | undefined {
 export function levelsText(d: ObjectiveDef, sep = " · "): string {
   if (typeOf(d) === "onoff") return tr("Raggiunto → {0}%", [d.levels[0]?.payout ?? 100]);
   if (typeOf(d) === "progetto" && d.activityLevels) return tr("Livelli per attività");
+  if (d.relative && typeOf(d) === "quantitativo" && !(d.base != null && d.base > 0)) return relativeText(d.relative, sep);
   return d.levels.map((l) => `${formatValue(d, l.target)} → ${l.payout}%`).join(sep);
 }
 
