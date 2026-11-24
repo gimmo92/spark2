@@ -6,6 +6,7 @@ import { GhostButton, Modal, PrimaryButton, Tooltip, fullName, useAccess } from 
 import {
   activityDef,
   activityKind,
+  activityValue,
   activityWeight,
   formatValue,
   fromDay,
@@ -23,6 +24,35 @@ import { StatusPill } from "./SchedeTable";
 
 const box =
   "h-8 rounded-lg border border-[#dfe3ea] bg-white px-2.5 text-[12.5px] font-semibold tabular-nums outline-none focus:border-brand focus:ring-3 focus:ring-brand/15";
+
+/** The objective's target → payout levels, with the one the actual reaches highlighted. */
+export function LevelChips({ def, actual }: { def: ObjectiveDef; actual?: number }) {
+  const type = typeOf(def);
+  if (type === "progetto" && def.activityLevels) return <p className="text-[11.5px] text-muted">Livelli per attività: payout = somma pesata delle attività</p>;
+  const levels = [...def.levels].sort((a, b) => (type === "data" ? b.target - a.target : a.target - b.target));
+  if (!levels.length) return null;
+  // highest level reached by the actual (dates: earlier is better)
+  const reached = actual == null ? -1 : levels.findLastIndex((l) => (type === "data" ? actual <= l.target : actual >= l.target));
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      <span className="mr-0.5 text-[10.5px] font-bold uppercase tracking-wide text-faint">Livelli</span>
+      {levels.map((l, i) => {
+        const on = i === reached;
+        return (
+          <span
+            key={i}
+            className={`rounded-md border px-1.5 py-[1px] text-[11px] tabular-nums ${
+              on ? "border-brand bg-brand-soft font-bold text-brand" : "border-line bg-white text-[#5b6476]"
+            }`}
+          >
+            {type === "onoff" ? "Raggiunto" : formatValue(def, l.target)} → {l.payout}%
+          </span>
+        );
+      })}
+      {def.calc === "lineare" && type !== "onoff" && levels.length > 1 && <span className="text-[10.5px] text-faint">· lineare tra i livelli</span>}
+    </div>
+  );
+}
 
 /** Actual-value field for one objective; its shape depends on the objective type. */
 export function MeasureInput({ def, value, onChange, disabled }: { def: ObjectiveDef; value: Measure; onChange: (m: Measure) => void; disabled?: boolean }) {
@@ -102,48 +132,55 @@ export function MeasureInput({ def, value, onChange, disabled }: { def: Objectiv
           const on = done.has(a.id);
           const weight = Math.round(activityWeight(def, a) * 10) / 10;
           return (
-            <div key={a.id} className="flex items-center gap-2 text-[12.5px]">
-              {kind === "onoff" ? (
-                <button
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => toggle(a.id)}
-                  className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-0.5 text-left hover:bg-canvas disabled:pointer-events-none"
-                >
-                  <span
-                    className={`grid h-4 w-4 shrink-0 place-items-center rounded border ${on ? "border-brand bg-brand text-white" : "border-[#cfd5de] bg-white"}`}
+            <div key={a.id}>
+              <div className="flex items-center gap-2 text-[12.5px]">
+                {kind === "onoff" ? (
+                  <button
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => toggle(a.id)}
+                    className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-1 py-0.5 text-left hover:bg-canvas disabled:pointer-events-none"
                   >
-                    {on && <Check className="h-3 w-3" strokeWidth={3} />}
-                  </span>
-                  <span className={`truncate ${on ? "text-muted line-through" : ""}`}>{a.title}</span>
-                </button>
-              ) : (
-                <>
-                  <span className="min-w-0 flex-1 truncate px-1">{a.title}</span>
-                  <span className="relative inline-block shrink-0">
-                    <input
-                      type="number"
-                      disabled={disabled}
-                      min={0}
-                      max={kind === "pct" ? 100 : undefined}
-                      className={`${box} h-7 w-[92px] pr-9 text-right`}
-                      value={value.values?.[a.id] ?? ""}
-                      placeholder="—"
-                      onChange={(e) => setValue(a.id, e.target.value)}
-                      aria-label={`Consuntivo di ${a.title}`}
-                    />
-                    <span className="pointer-events-none absolute right-2 top-1/2 max-w-[30px] -translate-y-1/2 truncate text-[11px] text-muted">
-                      {kind === "pct" ? "%" : a.unit}
+                    <span
+                      className={`grid h-4 w-4 shrink-0 place-items-center rounded border ${on ? "border-brand bg-brand text-white" : "border-[#cfd5de] bg-white"}`}
+                    >
+                      {on && <Check className="h-3 w-3" strokeWidth={3} />}
                     </span>
-                  </span>
-                  {kind === "kpi" && (
-                    <span className="w-[64px] shrink-0 truncate text-[11px] tabular-nums text-muted">
-                      / {def.activityLevels ? activityDef(def, a).levels.at(-1)?.target : (a.target ?? "—")} {a.unit}
+                    <span className={`truncate ${on ? "text-muted line-through" : ""}`}>{a.title}</span>
+                  </button>
+                ) : (
+                  <>
+                    <span className="min-w-0 flex-1 truncate px-1">{a.title}</span>
+                    <span className="relative inline-block shrink-0">
+                      <input
+                        type="number"
+                        disabled={disabled}
+                        min={0}
+                        max={kind === "pct" ? 100 : undefined}
+                        className={`${box} h-7 w-[92px] pr-9 text-right`}
+                        value={value.values?.[a.id] ?? ""}
+                        placeholder="—"
+                        onChange={(e) => setValue(a.id, e.target.value)}
+                        aria-label={`Consuntivo di ${a.title}`}
+                      />
+                      <span className="pointer-events-none absolute right-2 top-1/2 max-w-[30px] -translate-y-1/2 truncate text-[11px] text-muted">
+                        {kind === "pct" ? "%" : a.unit}
+                      </span>
                     </span>
-                  )}
-                </>
+                    {kind === "kpi" && (
+                      <span className="w-[64px] shrink-0 truncate text-[11px] tabular-nums text-muted">
+                        / {def.activityLevels ? activityDef(def, a).levels.at(-1)?.target : (a.target ?? "—")} {a.unit}
+                      </span>
+                    )}
+                  </>
+                )}
+                <span className="w-[42px] shrink-0 text-right text-[11px] tabular-nums text-faint">{weight}%</span>
+              </div>
+              {def.activityLevels && (
+                <div className="pb-1 pl-7">
+                  <LevelChips def={activityDef(def, a)} actual={activityValue(a, value)} />
+                </div>
               )}
-              <span className="w-[42px] shrink-0 text-right text-[11px] tabular-nums text-faint">{weight}%</span>
             </div>
           );
         })}
@@ -300,50 +337,56 @@ export function MisuraModal({ def, onClose }: { def: ObjectiveDef; onClose: () =
               const first = r.scheda ? byUser.get(r.scheda.assigneeIds[0]) : undefined;
               const payout = m.actual != null ? payoutFor(r.def, m.actual) : null;
               return (
-                <li key={r.key} className={`flex flex-wrap items-start gap-3 py-3 ${type === "progetto" ? "" : "sm:items-center"}`}>
-                  <div className="min-w-[220px] flex-1">
-                    {r.scheda ? (
-                      <>
-                        <span className="flex items-center gap-2">
-                          <span className="truncate text-[13px] font-semibold">{r.scheda.name}</span>
-                          <StatusPill status={r.scheda.status} />
+                <li key={r.key} className="py-3">
+                  <div className={`flex flex-wrap items-start gap-3 ${type === "progetto" ? "" : "sm:items-center"}`}>
+                    <div className="min-w-[220px] flex-1">
+                      {r.scheda ? (
+                        <>
+                          <span className="flex items-center gap-2">
+                            <span className="truncate text-[13px] font-semibold">{r.scheda.name}</span>
+                            <StatusPill status={r.scheda.status} />
+                          </span>
+                          <span className="block truncate text-[11.5px] text-muted">
+                            {first ? fullName(first) : "—"}
+                            {r.scheda.assigneeIds.length > 1 && ` +${r.scheda.assigneeIds.length - 1}`} ·{" "}
+                            {r.threshold ? "obiettivo soglia" : `peso ${r.weight}%`}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="flex items-center gap-2 text-[13px] font-semibold">
+                          <Globe className="h-3.5 w-3.5 text-muted" /> Soglia globale · tutte le schede
                         </span>
-                        <span className="block truncate text-[11.5px] text-muted">
-                          {first ? fullName(first) : "—"}
-                          {r.scheda.assigneeIds.length > 1 && ` +${r.scheda.assigneeIds.length - 1}`} · {r.threshold ? "obiettivo soglia" : `peso ${r.weight}%`}
+                      )}
+                    </div>
+                    <div className={type === "progetto" ? "w-full sm:w-[300px]" : ""}>
+                      <MeasureInput def={r.def} value={m} onChange={(next) => setDraft((d) => ({ ...d, [r.key]: next }))} disabled={!r.editable} />
+                    </div>
+                    <div className="flex w-[110px] items-center justify-end gap-1.5">
+                      {!r.editable && (
+                        <Tooltip label="Non modificabile con il tuo livello di accesso">
+                          <Lock className="h-3.5 w-3.5 text-faint" />
+                        </Tooltip>
+                      )}
+                      {payout == null ? (
+                        <span className="text-[12px] text-faint">Da misurare</span>
+                      ) : r.threshold ? (
+                        <span
+                          className={`rounded-full px-2 py-[2px] text-[11px] font-bold ${payout > 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}
+                        >
+                          {payout > 0 ? "Raggiunta" : "Non raggiunta"}
                         </span>
-                      </>
-                    ) : (
-                      <span className="flex items-center gap-2 text-[13px] font-semibold">
-                        <Globe className="h-3.5 w-3.5 text-muted" /> Soglia globale · tutte le schede
-                      </span>
-                    )}
+                      ) : (
+                        <span
+                          className="rounded-full bg-[#eef1f5] px-2 py-[2px] text-[11px] font-bold tabular-nums text-ink"
+                          title={`${formatValue(r.def, m.actual!)} → payout ${payout}%`}
+                        >
+                          Payout {payout}%
+                        </span>
+                      )}
+                    </div>
                   </div>
-                  <div className={type === "progetto" ? "w-full sm:w-[300px]" : ""}>
-                    <MeasureInput def={r.def} value={m} onChange={(next) => setDraft((d) => ({ ...d, [r.key]: next }))} disabled={!r.editable} />
-                  </div>
-                  <div className="flex w-[110px] items-center justify-end gap-1.5">
-                    {!r.editable && (
-                      <Tooltip label="Non modificabile con il tuo livello di accesso">
-                        <Lock className="h-3.5 w-3.5 text-faint" />
-                      </Tooltip>
-                    )}
-                    {payout == null ? (
-                      <span className="text-[12px] text-faint">Da misurare</span>
-                    ) : r.threshold ? (
-                      <span
-                        className={`rounded-full px-2 py-[2px] text-[11px] font-bold ${payout > 0 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}
-                      >
-                        {payout > 0 ? "Raggiunta" : "Non raggiunta"}
-                      </span>
-                    ) : (
-                      <span
-                        className="rounded-full bg-[#eef1f5] px-2 py-[2px] text-[11px] font-bold tabular-nums text-ink"
-                        title={`${formatValue(r.def, m.actual!)} → payout ${payout}%`}
-                      >
-                        Payout {payout}%
-                      </span>
-                    )}
+                  <div className="mt-1.5">
+                    <LevelChips def={r.def} actual={m.actual} />
                   </div>
                 </li>
               );

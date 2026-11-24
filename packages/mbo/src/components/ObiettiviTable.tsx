@@ -78,6 +78,7 @@ export function ObiettiviTable() {
   const [company, setCompany] = useState("");
   const [showArchived, setShowArchived] = useState("");
   const [q, setQ] = useState("");
+  const [person, setPerson] = useState("");
   const [sort, setSort] = useState<{ key: SortKey; dir: 1 | -1 }>({ key: "name", dir: 1 });
   const [viewing, setViewing] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<ObjectiveDef | null>(null);
@@ -100,6 +101,20 @@ export function ObiettiviTable() {
     return m;
   }, [objectives, schede, users]);
 
+  // objectives assigned (through a scheda) to people matching the "utente" search
+  const personObjectives = useMemo(() => {
+    const needle = person.trim().toLowerCase();
+    if (!needle) return null;
+    const ids = new Set(users.filter((u) => `${fullName(u)} ${u.email}`.toLowerCase().includes(needle)).map((u) => u.id));
+    const out = new Set<string>();
+    for (const s of schede) {
+      if (!s.assigneeIds.some((id) => ids.has(id))) continue;
+      for (const it of s.items) if (it.objectiveId) out.add(it.objectiveId);
+      if (s.threshold?.objectiveId) out.add(s.threshold.objectiveId);
+    }
+    return out;
+  }, [person, users, schede]);
+
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const val = (o: ObjectiveDef, k: SortKey): string | number =>
@@ -110,6 +125,7 @@ export function ObiettiviTable() {
         if (!!o.archived !== !!showArchived) return false;
         if (category && o.category !== category) return false;
         if (company && !u?.companies.has(company)) return false;
+        if (personObjectives && !personObjectives.has(o.id)) return false;
         if (needle && !`${o.name} ${o.description ?? ""}`.toLowerCase().includes(needle)) return false;
         return true;
       })
@@ -119,10 +135,10 @@ export function ObiettiviTable() {
         const c = typeof x === "number" && typeof y === "number" ? x - y : collator.compare(String(x), String(y));
         return c * sort.dir;
       });
-  }, [objectives, usageMap, category, company, showArchived, q, sort]);
+  }, [objectives, usageMap, category, company, showArchived, q, sort, personObjectives]);
 
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
-  const anyFilter = category || company || showArchived || q;
+  const anyFilter = category || company || showArchived || q || person;
   const viewed = viewing ? objectives.find((o) => o.id === viewing) : undefined;
 
   const cols: { key: SortKey | "levels"; label: string; sortable: boolean }[] = [
@@ -171,6 +187,24 @@ export function ObiettiviTable() {
           onChange={setCompany}
           options={COMPANIES.map((c) => ({ value: c, label: c }))}
         />
+        <label className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] ${person ? "bg-brand-soft text-brand" : "text-[#3f4757]"}`}>
+          <User className="h-3.5 w-3.5 shrink-0 text-[#7d8698]" />
+          <input
+            value={person}
+            onChange={(e) => setPerson(e.target.value)}
+            list="obiettivi-utenti"
+            placeholder="Cerca per utente"
+            aria-label="Cerca obiettivi assegnati a un utente"
+            className="w-[150px] bg-transparent outline-none placeholder:text-[#3f4757]"
+          />
+          <datalist id="obiettivi-utenti">
+            {users
+              .filter((u) => u.status === "attivo")
+              .map((u) => (
+                <option key={u.id} value={fullName(u)} />
+              ))}
+          </datalist>
+        </label>
         <FilterMenu
           icon={<Archive className="h-3.5 w-3.5 text-[#7d8698]" />}
           label="Archiviati"
@@ -186,6 +220,7 @@ export function ObiettiviTable() {
               setCompany("");
               setShowArchived("");
               setQ("");
+              setPerson("");
             }}
             className="px-2 py-1.5 text-[12.5px] font-semibold text-brand hover:underline"
           >
