@@ -559,7 +559,8 @@ export const EN: Record<string, string> = {
   "Workflow salvato": "Workflow saved",
   "Workflow creato": "Workflow created",
   // levels relative to last year's actual
-  "Livelli in % dell'actual anno precedente": "Levels in % of last year's actual",
+  "Livelli in percentuale (anno precedente e target)": "Levels in percent (last year and target)",
+  "Il target è una % dell'actual dell'anno precedente; ogni altro livello è una % dell'anno precedente o del target.": "The target is a % of last year's actual; every other level is a % of last year or of the target.",
   "Actual anno precedente": "Last year's actual",
   "actual anno precedente {0}": "last year's actual {0}",
   "Manca l'actual anno precedente": "Last year's actual missing",

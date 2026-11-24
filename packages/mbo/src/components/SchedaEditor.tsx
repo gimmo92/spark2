@@ -881,10 +881,15 @@ export function CustomObjectiveEditor({
           {type === "progetto" && <ActivitiesEditor def={def} onChange={onChange} />}
           {relativeOption && (
             <div className="flex items-center justify-between gap-3 rounded-lg bg-canvas px-3 py-2">
-              <span className="text-[12.5px] font-semibold">{tr("Livelli in % dell'actual anno precedente")}</span>
+              <span className="min-w-0">
+                <span className="block text-[12.5px] font-semibold">{tr("Livelli in percentuale (anno precedente e target)")}</span>
+                <span className="block text-[11.5px] text-muted">
+                  {tr("Il target è una % dell'actual dell'anno precedente; ogni altro livello è una % dell'anno precedente o del target.")}
+                </span>
+              </span>
               <Switch
                 checked={relative}
-                label={tr("Livelli in % dell'actual anno precedente")}
+                label={tr("Livelli in percentuale (anno precedente e target)")}
                 onChange={(v) => onChange(v ? relativePatch(DEFAULT_RELATIVE) : { relative: undefined, levels: typeDefaults("quantitativo").levels })}
               />
             </div>
