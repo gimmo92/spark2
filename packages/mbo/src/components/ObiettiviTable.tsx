@@ -334,7 +334,7 @@ export function ObiettiviTable() {
                     <button type="button" onClick={() => setViewing(o.id)} className="block text-left">
                       <span className="block max-w-[520px] truncate text-[13.5px] font-semibold text-brand hover:underline">{o.name}</span>
                       <span className="block max-w-[520px] truncate text-[11.5px] text-muted" title={tr(o.description)}>
-                        {tr(o.description) || tr("Nessuna descrizione")}
+                        {tr(o.description) || typeLabel(o)}
                       </span>
                     </button>
                   </td>
