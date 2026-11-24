@@ -46,8 +46,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <div className="thin-scroll flex-1 overflow-y-auto pb-6">
-        <p className="px-6 pb-2 pt-5 text-[11px] font-bold uppercase tracking-wide text-[#3d8be8]">Sezioni</p>
-        <ul className="space-y-0.5">
+        <ul className="space-y-0.5 pt-4">
           {nav.map((item) => {
             if ("children" in item) {
               const isOpen = !!open[item.id];

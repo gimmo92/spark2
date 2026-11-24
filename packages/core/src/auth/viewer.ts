@@ -1,5 +1,5 @@
 import "server-only";
-import { permissionsOf, type SparkConfig } from "../config";
+import { buOfTeam, permissionsOf, type SparkConfig } from "../config";
 import { ADMIN_LEVEL, makeChecker, resolveAccess, type AccessConfig, type Can } from "../access/permissions";
 import type { User } from "../people/data";
 import { getSupabaseAdmin } from "../supabase/admin";
@@ -16,7 +16,7 @@ export interface ViewerInfo {
 
 export interface Viewer extends ViewerInfo {
   /** The viewer as a person for permission checks (admins listed in ADMIN_EMAILS may have no record). */
-  person?: Pick<User, "id" | "level" | "team" | "managerId">;
+  person?: Pick<User, "id" | "level" | "team" | "managerId"> & { company?: string };
   users: User[];
   byId: Map<string, User>;
   can: Can;
@@ -27,7 +27,7 @@ export interface Viewer extends ViewerInfo {
  * ADMIN_EMAILS are always admins. With no ADMIN_EMAILS and no users yet, the first user is admin
  * (bootstrap of an empty project).
  */
-export async function loadViewer(email: string, config: Pick<SparkConfig, "modules" | "permissions">): Promise<Viewer | { error: string }> {
+export async function loadViewer(email: string, config: Pick<SparkConfig, "modules" | "permissions"> & { org?: SparkConfig["org"] }): Promise<Viewer | { error: string }> {
   const db = getSupabaseAdmin();
   const [{ data: userRows, error: e1 }, { data: accessRow, error: e2 }] = await Promise.all([
     db.from("app_data").select("data").eq("collection", "users").limit(100000),
@@ -38,7 +38,7 @@ export async function loadViewer(email: string, config: Pick<SparkConfig, "modul
   const users = (userRows ?? []).map((r) => r.data as User);
   const byId = new Map(users.map((u) => [u.id, u]));
   const levels = resolveAccess(accessRow?.data as AccessConfig | undefined, permissionsOf(config));
-  const can = makeChecker(levels, users);
+  const can = makeChecker(levels, users, buOfTeam(config.org));
 
   const record = users.find((u) => u.email?.toLowerCase() === email && u.status !== "disattivato");
   const admins = adminEmails();

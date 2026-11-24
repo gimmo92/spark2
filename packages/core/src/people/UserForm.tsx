@@ -10,7 +10,7 @@ import { Field, GhostButton, Modal, PrimaryButton, inputCls } from "../ui/ui";
 type Draft = Omit<User, "id" | "createdAt">;
 
 export function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) {
-  const { teamNames: TEAMS, companyForTeam, emailDomains } = useOrg();
+  const { teamNames: TEAMS, companyForTeam, buForTeam, emailDomains } = useOrg();
   const { users, addUser, updateUser, notify } = useCore();
   const { levels, allowed, isAdmin, adminLevel } = useAccess();
   const canSetLevel = allowed("people.level");
@@ -149,6 +149,11 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
         </div>
         <p className="text-[12px] text-muted sm:col-span-2">
           Società: <span className="font-semibold text-ink">{d.company}</span>
+          {buForTeam(d.team) && (
+            <>
+              {" · "}BU: <span className="font-semibold text-ink">{buForTeam(d.team)}</span>
+            </>
+          )}
         </p>
         <button type="submit" hidden />
       </form>

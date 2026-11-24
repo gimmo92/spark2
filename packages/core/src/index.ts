@@ -17,6 +17,7 @@ export * from "./people/invites";
 export * from "./people/Dashboard";
 export * from "./people/InviteAction";
 export * from "./people/TeamsGrid";
+export * from "./people/BusinessUnitsGrid";
 export * from "./people/UserDetail";
 export * from "./people/UserForm";
 export * from "./people/UsersTable";

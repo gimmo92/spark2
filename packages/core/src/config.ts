@@ -42,8 +42,14 @@ export interface OrgConfig {
   /** Employees' email domains. The first one is used to suggest nome.cognome@domain for new users. */
   emailDomains: string[];
   companies: string[];
-  teams: { name: string; company: string }[];
+  /** Business units: a group of teams, inside one company (or across companies when `company` is omitted). */
+  businessUnits?: { name: string; company?: string }[];
+  /** `bu`: the business unit the team belongs to (used by the "BU" permission scope). */
+  teams: { name: string; company: string; bu?: string }[];
 }
+
+/** Business unit of a team, from the organisation config. */
+export const buOfTeam = (org: Pick<OrgConfig, "teams"> | undefined) => (team: string) => org?.teams.find((t) => t.name === team)?.bu;
 
 /**
  * One per client app (apps/<client>/src/spark.config.ts). The core reads everything

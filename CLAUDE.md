@@ -63,7 +63,7 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 
 - Code: `packages/core/src/access/` (`permissions.ts` model, `useAccess()` hook, `AccessSettings` panel at Impostazioni → Permessi, route `apps/<app>/src/app/(app)/impostazioni/permessi`).
 - Catalog = core (`CORE_PERMISSIONS`) + modules (`SparkModule.permissions`, e.g. `MBO_PERMISSIONS`) + client (`SparkConfig.permissions`). Permission ids are stored in levels: never rename them.
-- A permission is on/off or scoped: `self` / `reports` (direct and indirect, via `User.managerId` = "Responsabile") / `team` / `all`. Grants are stored as `"id"` or `"id:scope"`.
+- A permission is on/off or scoped: `self` / `direct` (riporti diretti) / `reports` (riporti a cascata, via `User.managerId` = "Responsabile"; id kept from when it was the only reports scope) / `team` / `bu` (team → `OrgConfig.teams[].bu`, BUs in `OrgConfig.businessUnits`, page La mia azienda → Business Unit) / `company` (`User.company`) / `all`. Grants are stored as `"id"` or `"id:scope"`.
 - Levels in settings doc `"access"`. Built-in ADMIN (always everything, locked), MANAGER (self + team + reports), UTENTE (self only); clients create custom levels ("parti dai permessi di …"). Permissions added later get their defaults automatically (`known` list per level).
 - Check with `can(user, "mbo.schede.view", targetUser)`; without target = "has it for some scope" (menus).
 - **Who is logged in**: the server matches the login email to the `users` record (`loadViewer`, `packages/core/src/auth/viewer.ts`). Admins = `ADMIN_EMAILS` or level ADMIN (with no ADMIN_EMAILS and no users yet, the first login is admin). A login with no matching active user gets nothing (`unlinked` banner).

@@ -3,19 +3,33 @@
  *
  * - The catalog of permissions comes from the core (people, dashboard, settings), from each module
  *   (`SparkModule.permissions`) and from the client app (`SparkConfig.permissions`).
- * - A permission is either on/off, or scoped: granted for one's own records ("self"), for one's
- *   reports ("reports", direct and indirect, via `User.managerId`), for one's team ("team") or for all.
+ * - A permission is either on/off, or scoped: granted for one's own records ("self"), for one's direct
+ *   reports ("direct"), for all reports down the line ("reports", via `User.managerId`), for one's team,
+ *   business unit ("bu", from the team in `OrgConfig.teams`), company, or for all.
  * - Levels live in the settings doc "access". ADMIN, MANAGER and UTENTE always exist; ADMIN has every
  *   permission and can't be changed (so nobody can lock the organisation out). Clients add custom levels.
  */
 
-export type Scope = "self" | "reports" | "team" | "all";
-export const SCOPES: Scope[] = ["self", "reports", "team", "all"];
-export const SCOPE_LABELS: Record<Scope, string> = { self: "Propri", reports: "Dei riporti", team: "Del team", all: "Tutti" };
+export type Scope = "self" | "direct" | "reports" | "team" | "bu" | "company" | "all";
+export const SCOPES: Scope[] = ["self", "direct", "reports", "team", "bu", "company", "all"];
+/** Every scope except "self": for permissions that only make sense over other people. */
+export const OTHERS_SCOPES: Scope[] = SCOPES.filter((s) => s !== "self");
+export const SCOPE_LABELS: Record<Scope, string> = {
+  self: "Self",
+  direct: "Riporti",
+  reports: "Riporti a cascata",
+  team: "Team",
+  bu: "BU",
+  company: "Società",
+  all: "Tutto",
+};
 export const SCOPE_HINTS: Record<Scope, string> = {
   self: "Solo i propri dati",
-  reports: "Le persone che riportano a lui/lei, direttamente o indirettamente",
+  direct: "Le persone che riportano direttamente a lui/lei",
+  reports: "Tutte le persone sotto di lui/lei, direttamente o indirettamente",
   team: "Le persone del suo team",
+  bu: "Le persone della sua business unit",
+  company: "Le persone della sua società",
   all: "Tutta l'organizzazione",
 };
 
@@ -67,7 +81,7 @@ export const CORE_PERMISSIONS: PermissionDef[] = [
     group: "Persone",
     label: "Modificare i profili utente",
     hint: "Anagrafica, team, responsabile, stato dell'account",
-    scopes: ["reports", "team", "all"],
+    scopes: OTHERS_SCOPES,
   },
   { id: "people.create", group: "Persone", label: "Creare utenti e inviare inviti" },
   { id: "people.level", group: "Persone", label: "Cambiare il livello di accesso degli utenti" },
@@ -76,7 +90,7 @@ export const CORE_PERMISSIONS: PermissionDef[] = [
     id: "dashboard.view",
     group: "Dashboard",
     label: "Vedere la dashboard generale",
-    scopes: ["reports", "team", "all"],
+    scopes: OTHERS_SCOPES,
     defaults: { MANAGER: ["reports", "team"] },
   },
   { id: "letters.manage", group: "Lettere", label: "Gestire i modelli di lettera", hint: "Carta intestata, testi e variabili" },
@@ -99,7 +113,7 @@ export function defaultAccess(catalog: PermissionDef[]): AccessConfig {
       {
         id: "MANAGER",
         name: "Manager",
-        description: "Vede se stesso, il proprio team e i propri riporti.",
+        description: "Vede se stesso, il proprio team e i propri riporti a cascata.",
         system: true,
         grants: defaultGrants(catalog, "MANAGER"),
         known,
@@ -132,8 +146,12 @@ export function resolveAccess(stored: AccessConfig | undefined, catalog: Permiss
 export interface ScopedPerson {
   id: string;
   team: string;
+  company?: string;
   managerId?: string;
 }
+
+/** Business unit of a team (from `OrgConfig.teams`). */
+export type BuOf = (team: string) => string | undefined;
 
 /** True if `target` reports to `viewer`, directly or through other managers. */
 export function reportsTo(target: ScopedPerson, viewer: ScopedPerson, people: ScopedPerson[]) {
@@ -155,13 +173,21 @@ export function grantCovers(
   viewer?: ScopedPerson,
   target?: ScopedPerson,
   people: ScopedPerson[] = [],
+  buOf: BuOf = () => undefined,
 ) {
   if (grants.has(permission)) return true;
   if (!target || !viewer) return SCOPES.some((s) => grants.has(`${permission}:${s}`));
-  if (grants.has(`${permission}:all`)) return true;
-  if (grants.has(`${permission}:self`) && target.id === viewer.id) return true;
-  if (grants.has(`${permission}:team`) && viewer.team && target.team === viewer.team) return true;
-  if (grants.has(`${permission}:reports`) && reportsTo(target, viewer, people)) return true;
+  const has = (s: Scope) => grants.has(`${permission}:${s}`);
+  if (has("all")) return true;
+  if (has("self") && target.id === viewer.id) return true;
+  if (has("direct") && !!target.managerId && target.managerId === viewer.id) return true;
+  if (has("team") && viewer.team && target.team === viewer.team) return true;
+  if (has("company") && viewer.company && target.company === viewer.company) return true;
+  if (has("bu")) {
+    const bu = viewer.team ? buOf(viewer.team) : undefined;
+    if (bu && target.team && buOf(target.team) === bu) return true;
+  }
+  if (has("reports") && reportsTo(target, viewer, people)) return true;
   return false;
 }
 
@@ -169,12 +195,12 @@ export type LeveledPerson = ScopedPerson & { level: string };
 export type Can = (user: LeveledPerson | undefined, permission: string, target?: ScopedPerson) => boolean;
 
 /** Permission check shared by the browser (UI) and the server (/api/data). ADMIN can do everything. */
-export function makeChecker(levels: AccessLevelDef[], people: ScopedPerson[]): Can {
+export function makeChecker(levels: AccessLevelDef[], people: ScopedPerson[], buOf?: BuOf): Can {
   const byLevel = new Map(levels.map((l) => [l.id, new Set(l.grants)]));
   return (user, permission, target) => {
     if (!user) return false;
     if (user.level === ADMIN_LEVEL) return true;
     const grants = byLevel.get(user.level);
-    return grants ? grantCovers(grants, permission, user, target, people) : false;
+    return grants ? grantCovers(grants, permission, user, target, people, buOf) : false;
   };
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { permissionsOf } from "../config";
+import { buOfTeam, permissionsOf } from "../config";
 import { useCollection, useData, useSettings } from "../data/DataProvider";
 import type { User } from "../people/data";
 import { useSparkConfig } from "../shell/SparkProvider";
@@ -24,7 +24,7 @@ export function useAccess() {
   const { viewer, dataSource } = useData();
 
   const levels = useMemo(() => resolveAccess(stored, catalog), [stored, catalog]);
-  const can = useMemo(() => makeChecker(levels, users), [levels, users]);
+  const can = useMemo(() => makeChecker(levels, users, buOfTeam(config.org)), [levels, users, config.org]);
 
   const setLevels = useCallback((next: AccessLevelDef[]) => patch({ levels: next }), [patch]);
   const levelName = useCallback((id: string) => levels.find((l) => l.id === id)?.name ?? id, [levels]);

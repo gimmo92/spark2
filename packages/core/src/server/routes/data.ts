@@ -10,7 +10,7 @@ import { authConfigured } from "../../supabase/env";
 const PAGE = 1000;
 const CHUNK = 500;
 
-type AppConfig = Pick<SparkConfig, "modules" | "permissions">;
+type AppConfig = Pick<SparkConfig, "modules" | "permissions"> & { org?: SparkConfig["org"] };
 
 async function guard(config: AppConfig): Promise<NextResponse | Viewer> {
   if (!authConfigured || !adminConfigured()) return NextResponse.json({ error: "config" }, { status: 503 });

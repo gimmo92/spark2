@@ -3,22 +3,9 @@ import { slugEmail, type AccessLevel, type User } from "@spark/core";
 
 export const EMAIL_DOMAIN = "tryspark.co";
 
-export const TEAM_NAMES = [
-  "Direzione Italia",
-  "Engineering India",
-  "Sales Asia Pacific",
-  "Service Australia",
-  "Commerciale Francia",
-  "Produzione Italia",
-];
+export const TEAM_NAMES = ["Direzione Italia", "Engineering India", "Sales Asia Pacific", "Service Australia", "Commerciale Francia", "Produzione Italia"];
 
-export const COMPANIES = [
-  "Valmec S.p.A.",
-  "Valmec Engineering India Pvt Ltd",
-  "Valmec Asia Pacific Sdn Bhd",
-  "Valmec Australia Pty Ltd",
-  "Valmec France SAS",
-];
+export const COMPANIES = ["Valmec S.p.A.", "Valmec Engineering India Pvt Ltd", "Valmec Asia Pacific Sdn Bhd", "Valmec Australia Pty Ltd", "Valmec France SAS"];
 
 const TEAM_COMPANY: Record<string, string> = {
   "Direzione Italia": "Valmec S.p.A.",
@@ -61,9 +48,21 @@ export function assignManagers(users: User[]): User[] {
 /** Upgrades for demo users saved with an older shape. */
 export const migrateUsers = (users: User[]) => assignManagers(migrateTeams(users));
 
-export const TEAMS = TEAM_NAMES.map((name) => ({ name, company: TEAM_COMPANY[name] }));
+/** Business units span companies: each team belongs to one. */
+export const BUSINESS_UNITS = [{ name: "Corporate", company: "Valmec S.p.A." }, { name: "Operations" }, { name: "Commercial" }];
 
-export const companyForTeam =(team: string) => TEAM_COMPANY[team] ?? COMPANIES[0];
+const TEAM_BU: Record<string, string> = {
+  "Direzione Italia": "Corporate",
+  "Engineering India": "Operations",
+  "Produzione Italia": "Operations",
+  "Service Australia": "Operations",
+  "Sales Asia Pacific": "Commercial",
+  "Commerciale Francia": "Commercial",
+};
+
+export const TEAMS = TEAM_NAMES.map((name) => ({ name, company: TEAM_COMPANY[name], bu: TEAM_BU[name] }));
+
+export const companyForTeam = (team: string) => TEAM_COMPANY[team] ?? COMPANIES[0];
 
 const ROLES = [
   "Manager - Technical & Customer Support",
@@ -109,17 +108,98 @@ const SEED: Array<[string, string, AccessLevel, string, string]> = [
 ];
 
 const FIRST = [
-  "Marco", "Giulia", "Luca", "Francesca", "Matteo", "Chiara", "Andrea", "Sara", "Davide", "Valentina",
-  "Simone", "Martina", "Federico", "Elena", "Stefano", "Paola", "Riccardo", "Silvia", "Lorenzo", "Anna",
-  "Alessio", "Irene", "Gabriele", "Camilla", "Nicola", "Alice", "Pietro", "Serena", "Filippo", "Laura",
-  "Giacomo", "Elisa", "Emanuele", "Roberta", "Daniele", "Federica", "Massimo", "Ilaria", "Giorgio", "Monica",
+  "Marco",
+  "Giulia",
+  "Luca",
+  "Francesca",
+  "Matteo",
+  "Chiara",
+  "Andrea",
+  "Sara",
+  "Davide",
+  "Valentina",
+  "Simone",
+  "Martina",
+  "Federico",
+  "Elena",
+  "Stefano",
+  "Paola",
+  "Riccardo",
+  "Silvia",
+  "Lorenzo",
+  "Anna",
+  "Alessio",
+  "Irene",
+  "Gabriele",
+  "Camilla",
+  "Nicola",
+  "Alice",
+  "Pietro",
+  "Serena",
+  "Filippo",
+  "Laura",
+  "Giacomo",
+  "Elisa",
+  "Emanuele",
+  "Roberta",
+  "Daniele",
+  "Federica",
+  "Massimo",
+  "Ilaria",
+  "Giorgio",
+  "Monica",
 ];
 const LAST = [
-  "Bianchi", "Romano", "Colombo", "Ricci", "Marino", "Greco", "Bruno", "Gallo", "Conti", "De Luca",
-  "Mancini", "Costa", "Giordano", "Rizzo", "Lombardi", "Moretti", "Barbieri", "Fontana", "Santoro", "Mariani",
-  "Rinaldi", "Caruso", "Ferrara", "Galli", "Martini", "Leone", "Longo", "Gentile", "Martinelli", "Vitale",
-  "Benedetti", "Pellegrini", "Serra", "Ferri", "Fabbri", "Villa", "Cattaneo", "Testa", "Parisi", "Sala",
-  "Bellini", "Marchetti", "Guerra", "Sartori", "Grasso", "Monti", "Silvestri", "Orlando", "Neri", "Valentini",
+  "Bianchi",
+  "Romano",
+  "Colombo",
+  "Ricci",
+  "Marino",
+  "Greco",
+  "Bruno",
+  "Gallo",
+  "Conti",
+  "De Luca",
+  "Mancini",
+  "Costa",
+  "Giordano",
+  "Rizzo",
+  "Lombardi",
+  "Moretti",
+  "Barbieri",
+  "Fontana",
+  "Santoro",
+  "Mariani",
+  "Rinaldi",
+  "Caruso",
+  "Ferrara",
+  "Galli",
+  "Martini",
+  "Leone",
+  "Longo",
+  "Gentile",
+  "Martinelli",
+  "Vitale",
+  "Benedetti",
+  "Pellegrini",
+  "Serra",
+  "Ferri",
+  "Fabbri",
+  "Villa",
+  "Cattaneo",
+  "Testa",
+  "Parisi",
+  "Sala",
+  "Bellini",
+  "Marchetti",
+  "Guerra",
+  "Sartori",
+  "Grasso",
+  "Monti",
+  "Silvestri",
+  "Orlando",
+  "Neri",
+  "Valentini",
 ];
 
 function mulberry32(seed: number) {
@@ -140,7 +220,7 @@ function isoDaysAgo(days: number) {
 
 export function buildSeedUsers(): User[] {
   const rand = mulberry32(42);
-  const pick = <T,>(arr: T[]) => arr[Math.floor(rand() * arr.length)];
+  const pick = <T>(arr: T[]) => arr[Math.floor(rand() * arr.length)];
   const users: User[] = [];
   const emails = new Set<string>();
 
@@ -189,4 +269,3 @@ export function buildSeedUsers(): User[] {
   }
   return assignManagers(users);
 }
-

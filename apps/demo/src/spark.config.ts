@@ -1,7 +1,7 @@
 import { BookOpen, ChartColumn, Goal, Info, Settings, Star, Target, User } from "lucide-react";
 import { defineConfig, type Doc } from "@spark/core";
 import { mboModule } from "@spark/mbo";
-import { COMPANIES, TEAMS, buildSeedUsers, migrateUsers, EMAIL_DOMAIN } from "./seed/users";
+import { BUSINESS_UNITS, COMPANIES, TEAMS, buildSeedUsers, migrateUsers, EMAIL_DOMAIN } from "./seed/users";
 import { SEED_OBJECTIVES, SEED_PRESETS, SEED_WORKFLOWS, buildSeedSchede } from "./seed/mbo";
 import { LEGACY_LETTER_IDS, SEED_LETTERS } from "./seed/letters";
 import type { User as SparkUser } from "@spark/core";
@@ -15,6 +15,7 @@ export default defineConfig({
     name: "Valmec S.p.A.",
     emailDomains: [EMAIL_DOMAIN],
     companies: COMPANIES,
+    businessUnits: BUSINESS_UNITS,
     teams: TEAMS,
   },
   modules: [mboModule],
@@ -28,6 +29,7 @@ export default defineConfig({
       children: [
         { label: "Lista Utenti", href: "/azienda/utenti", permission: "people.view" },
         { label: "Lista Team", href: "/azienda/team", permission: "teams.manage" },
+        { label: "Business Unit", href: "/azienda/bu", permission: "teams.manage" },
         { label: "Modifica azienda", href: "/azienda/modifica" },
         { label: "Gestione Società", href: "/azienda/societa" },
         { label: "Gestione Ruoli", href: "/azienda/ruoli" },

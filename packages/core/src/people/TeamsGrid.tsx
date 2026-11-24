@@ -7,7 +7,7 @@ import { useCore } from "../shell/SparkProvider";
 import { Badge } from "../ui/ui";
 
 export function TeamsGrid() {
-  const { teamNames: TEAMS, companyForTeam } = useOrg();
+  const { teamNames: TEAMS, companyForTeam, buForTeam } = useOrg();
   const { users } = useCore();
   const active = users.filter((u) => u.status === "attivo");
 
@@ -28,7 +28,10 @@ export function TeamsGrid() {
             <div key={t} className="card flex flex-col p-5 transition-shadow hover:shadow-[0_10px_30px_-10px_rgb(16_24_40/0.18)]">
               <div className="flex items-start justify-between gap-3">
                 <Badge>{t}</Badge>
-                <span className="text-[12px] text-muted">{companyForTeam(t)}</span>
+                <span className="text-right text-[12px] text-muted">
+                  {companyForTeam(t)}
+                  {buForTeam(t) && <span className="block">BU {buForTeam(t)}</span>}
+                </span>
               </div>
               <p className="mt-4 text-[26px] font-extrabold leading-none tabular-nums">{members.length}</p>
               <p className="mt-1 text-[12.5px] text-muted">membri attivi · {managers.length} manager</p>
