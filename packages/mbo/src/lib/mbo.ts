@@ -72,6 +72,42 @@ export interface Activity {
   /** "kpi": unit of measure and the target that means 100% done. */
   unit?: string;
   target?: number;
+  /** Own target → payout levels (objective with `activityLevels`). */
+  levels?: Level[];
+}
+
+/** Switches of the MBO module a client app can turn on (`createMboModule(options)`). */
+export interface MboOptions {
+  /** "progetto" objectives may have target → payout levels per activity. */
+  activityLevels?: boolean;
+}
+
+/** Levels an activity starts from: its completion pays 100%. */
+export function activityDefaultLevels(a: Activity): Level[] {
+  const kind = activityKind(a);
+  return [{ target: kind === "onoff" ? 1 : kind === "pct" ? 100 : (a.target ?? 100), payout: 100 }];
+}
+
+const KIND_TYPE: Record<ActivityKind, ObjectiveType> = { onoff: "onoff", pct: "qualitativo_pct", kpi: "quantitativo" };
+
+/** An activity seen as an objective of its own (its kind, unit and levels): for payout, labels and the levels editor. */
+export function activityDef(d: Pick<ObjectiveDef, "calc">, a: Activity): ObjectiveDef {
+  const kind = activityKind(a);
+  return {
+    id: a.id,
+    name: a.title,
+    type: KIND_TYPE[kind],
+    unit: kind === "kpi" ? (a.unit ?? "") : kind === "pct" ? "%" : "",
+    calc: d.calc,
+    levels: a.levels?.length ? a.levels : activityDefaultLevels(a),
+  };
+}
+
+/** Measured value of one activity (on/off: 1 or 0). */
+export function activityValue(a: Activity, m: Measure): number | undefined {
+  if (activityKind(a) === "onoff") return m.done?.includes(a.id) ? 1 : 0;
+  const v = m.values?.[a.id];
+  return v == null || Number.isNaN(v) ? undefined : v;
 }
 
 /** How a project activity is measured: done / not done, a 0-100 % completion, or a KPI against its target. */
@@ -196,6 +232,8 @@ export interface ObjectiveDef {
   activities?: Activity[];
   /** "progetto": the objective's weight is distributed over the activities (`Activity.weight`, summing to 100). */
   weightedActivities?: boolean;
+  /** "progetto": every activity has its own target → payout levels; the objective's payout is their weighted sum. */
+  activityLevels?: boolean;
   unit: string;
   calc: CalcMode;
   levels: Level[]; // ordered by ascending target
@@ -275,6 +313,8 @@ export const schedeUsing = (schede: Scheda[], objectiveId: string) =>
 
 /** Payout % for an objective given the actual value. */
 export function payoutFor(def: ObjectiveDef, actual?: number): number {
+  // levels per activity: the measured value is the project's payout itself
+  if (typeOf(def) === "progetto" && def.activityLevels) return actual == null ? 0 : Math.round(actual);
   // dates: earlier is better, so the scale is flipped (a later date is a "smaller" result)
   if (typeOf(def) === "data")
     return payoutFor(
@@ -340,12 +380,16 @@ export function projectActual(d: ObjectiveDef, m: Measure): number | undefined {
   const acts = d.activities ?? [];
   if (!acts.length) return undefined;
   if (!m.done?.length && !Object.keys(m.values ?? {}).length) return undefined;
+  // levels per activity: the "actual" is already the payout (weighted sum of each activity's payout)
+  if (d.activityLevels)
+    return Math.round(acts.reduce((sum, a) => sum + (activityWeight(d, a) * payoutFor(activityDef(d, a), activityValue(a, m))) / 100, 0) * 10) / 10;
   return Math.round(acts.reduce((sum, a) => sum + activityWeight(d, a) * activityProgress(a, m), 0) * 10) / 10;
 }
 
 /** Short description of the levels, e.g. "80 % → 50% · 100 % → 100%" or "Raggiunto → 100%". */
 export function levelsText(d: ObjectiveDef, sep = " · "): string {
   if (typeOf(d) === "onoff") return `Raggiunto → ${d.levels[0]?.payout ?? 100}%`;
+  if (typeOf(d) === "progetto" && d.activityLevels) return "Livelli per attività";
   return d.levels.map((l) => `${formatValue(d, l.target)} → ${l.payout}%`).join(sep);
 }
 

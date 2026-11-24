@@ -1,10 +1,16 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { useAccess, useCollection, useCore, useSettings, type LetterTemplate } from "@spark/core";
+import { useAccess, useCollection, useCore, useSettings, useSparkConfig, type LetterTemplate } from "@spark/core";
 import { SCHEDA_EDIT } from "./module";
-import type { GlobalGate, ObjectiveDef, Preset, Scheda } from "./lib/mbo";
+import type { GlobalGate, MboOptions, ObjectiveDef, Preset, Scheda } from "./lib/mbo";
 import type { Workflow } from "./lib/workflow";
+
+/** Switches the client app turned on for the MBO module (`createMboModule(options)`). */
+export function useMboOptions(): MboOptions {
+  const { modules } = useSparkConfig();
+  return useMemo(() => (modules.find((m) => m.id === "mbo")?.options ?? {}) as MboOptions, [modules]);
+}
 
 export interface MboSettings {
   /** Global threshold objective (catalog id): if missed, no scheda pays out. */
@@ -41,8 +47,7 @@ export function useMbo() {
     [setSchede],
   );
   const updateScheda = useCallback(
-    (id: string, patch: Partial<Scheda>) =>
-      setSchede((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch, updatedAt: today() } : s))),
+    (id: string, patch: Partial<Scheda>) => setSchede((prev) => prev.map((s) => (s.id === id ? { ...s, ...patch, updatedAt: today() } : s))),
     [setSchede],
   );
 
@@ -55,8 +60,7 @@ export function useMbo() {
     [setObjectives],
   );
   const updateObjective = useCallback(
-    (id: string, patch: Partial<ObjectiveDef>) =>
-      setObjectives((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch, updatedAt: today() } : o))),
+    (id: string, patch: Partial<ObjectiveDef>) => setObjectives((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch, updatedAt: today() } : o))),
     [setObjectives],
   );
 
@@ -79,15 +83,11 @@ export function useMbo() {
     [setWorkflows],
   );
   const updateWorkflow = useCallback(
-    (id: string, patch: Partial<Workflow>) =>
-      setWorkflows((prev) => prev.map((w) => (w.id === id ? { ...w, ...patch, updatedAt: today() } : w))),
+    (id: string, patch: Partial<Workflow>) => setWorkflows((prev) => prev.map((w) => (w.id === id ? { ...w, ...patch, updatedAt: today() } : w))),
     [setWorkflows],
   );
 
-  const globalGate = useMemo<GlobalGate>(
-    () => ({ objectiveId: mboSettings.globalThresholdId, actual: mboSettings.globalThresholdActual }),
-    [mboSettings],
-  );
+  const globalGate = useMemo<GlobalGate>(() => ({ objectiveId: mboSettings.globalThresholdId, actual: mboSettings.globalThresholdActual }), [mboSettings]);
 
   /** The logged-in user may create schede (for someone) / change this scheda (every assignee in scope). */
   const canCreateScheda = SCHEDA_EDIT.some((p) => allowed(p));

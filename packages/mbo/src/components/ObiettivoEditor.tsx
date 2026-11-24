@@ -112,11 +112,13 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
   const patchAssignment = (id: string, p: Partial<Assignment>) => setAssignments((a) => ({ ...a, [id]: { ...a[id], ...p } }));
 
   const draftError = customError(draft);
+  // levels per activity: per-scheda target/payout overrides don't apply
+  const perActivity = typeOf(draft) === "progetto" && !!draft.activityLevels;
   const nameError = submitted && !draft.name.trim() ? "Inserisci la descrizione dell'obiettivo" : null;
   const rowErrors: Record<string, string> = {};
   for (const [id, a] of Object.entries(assignments)) {
     if (!(a.weight > 0 && a.weight <= 100)) rowErrors[id] = "Il peso deve essere tra 1 e 100%";
-    else if (a.levels) {
+    else if (a.levels && !perActivity) {
       const e = levelsError(a.levels, typeOf(draft));
       if (e) rowErrors[id] = e;
     }
@@ -124,7 +126,8 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
   const patch = (p: Partial<ObjectiveDef>) => {
     setDraft((d) => ({ ...d, ...p }));
     // a new type has a different scale: per-scheda levels of the old type no longer apply
-    if (p.type && p.type !== typeOf(draft)) setAssignments((a) => Object.fromEntries(Object.entries(a).map(([id, x]) => [id, { ...x, levels: undefined }])));
+    if ((p.type && p.type !== typeOf(draft)) || p.activityLevels)
+      setAssignments((a) => Object.fromEntries(Object.entries(a).map(([id, x]) => [id, { ...x, levels: undefined }])));
   };
 
   const save = () => {
@@ -141,6 +144,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
       type: typeOf(draft),
       activities: typeOf(draft) === "progetto" ? (draft.activities ?? []).map((x) => ({ ...x, title: x.title.trim() })).filter((x) => x.title) : undefined,
       weightedActivities: typeOf(draft) === "progetto" && draft.weightedActivities ? true : undefined,
+      activityLevels: typeOf(draft) === "progetto" && draft.activityLevels ? true : undefined,
       category: draft.category,
       cycle: draft.cycle,
       unit: draft.unit.trim(),
@@ -309,7 +313,13 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                         <span className="block truncate text-[11.5px] text-muted">
                           {first ? fullName(first) : "—"}
                           {s.assigneeIds.length > 1 && ` +${s.assigneeIds.length - 1}`} · {cycleLabel(s.cycle)} ·{" "}
-                          {a.levels ? <span className="font-semibold text-violet-700">livelli personalizzati</span> : "livelli standard"}
+                          {perActivity ? (
+                            "livelli per attività"
+                          ) : a.levels ? (
+                            <span className="font-semibold text-violet-700">livelli personalizzati</span>
+                          ) : (
+                            "livelli standard"
+                          )}
                         </span>
                       </span>
                     </button>
@@ -357,30 +367,32 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                         </p>
                       </div>
 
-                      <div className="space-y-3 rounded-lg bg-canvas p-3">
-                        {["quantitativo", "qualitativo_pct", "progetto"].includes(typeOf(draft)) && (
-                          <div className="max-w-[420px]">
-                            <PresetPicker
-                              hint=""
-                              onApply={(pr) =>
-                                patchAssignment(id, {
-                                  levels: pr.levels.map((l) => ({ ...l })),
-                                })
-                              }
-                            />
-                          </div>
-                        )}
-                        <LevelsEditor unit={draft.unit} type={typeOf(draft)} levels={lv} onChange={(levels) => patchAssignment(id, { levels })} />
-                        {a.levels && (
-                          <button
-                            type="button"
-                            onClick={() => patchAssignment(id, { levels: undefined })}
-                            className="mt-2 ml-4 text-[12px] font-semibold text-muted hover:text-ink hover:underline"
-                          >
-                            Ripristina livelli standard
-                          </button>
-                        )}
-                      </div>
+                      {!perActivity && (
+                        <div className="space-y-3 rounded-lg bg-canvas p-3">
+                          {["quantitativo", "qualitativo_pct", "progetto"].includes(typeOf(draft)) && (
+                            <div className="max-w-[420px]">
+                              <PresetPicker
+                                hint=""
+                                onApply={(pr) =>
+                                  patchAssignment(id, {
+                                    levels: pr.levels.map((l) => ({ ...l })),
+                                  })
+                                }
+                              />
+                            </div>
+                          )}
+                          <LevelsEditor unit={draft.unit} type={typeOf(draft)} levels={lv} onChange={(levels) => patchAssignment(id, { levels })} />
+                          {a.levels && (
+                            <button
+                              type="button"
+                              onClick={() => patchAssignment(id, { levels: undefined })}
+                              className="mt-2 ml-4 text-[12px] font-semibold text-muted hover:text-ink hover:underline"
+                            >
+                              Ripristina livelli standard
+                            </button>
+                          )}
+                        </div>
+                      )}
                       {e && (
                         <p className="flex items-center gap-1.5 text-[12px] font-semibold text-red-600">
                           <TriangleAlert className="h-3.5 w-3.5" /> {e}

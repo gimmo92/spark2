@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Check, Globe, Lock } from "lucide-react";
 import { GhostButton, Modal, PrimaryButton, Tooltip, fullName, useAccess } from "@spark/core";
 import {
+  activityDef,
   activityKind,
   activityWeight,
   formatValue,
@@ -137,7 +138,7 @@ export function MeasureInput({ def, value, onChange, disabled }: { def: Objectiv
                   </span>
                   {kind === "kpi" && (
                     <span className="w-[64px] shrink-0 truncate text-[11px] tabular-nums text-muted">
-                      / {a.target ?? "—"} {a.unit}
+                      / {def.activityLevels ? activityDef(def, a).levels.at(-1)?.target : (a.target ?? "—")} {a.unit}
                     </span>
                   )}
                 </>
@@ -149,7 +150,7 @@ export function MeasureInput({ def, value, onChange, disabled }: { def: Objectiv
         {!acts.length && <p className="text-[12px] text-faint">Nessuna attività definita</p>}
         {!!acts.length && (
           <p className="px-1 pt-0.5 text-[11.5px] text-muted">
-            Avanzamento progetto: <span className="font-semibold tabular-nums text-ink">{value.actual ?? 0}%</span>
+            {def.activityLevels ? "Payout progetto" : "Avanzamento progetto"}: <span className="font-semibold tabular-nums text-ink">{value.actual ?? 0}%</span>
           </p>
         )}
       </div>

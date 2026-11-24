@@ -25,6 +25,9 @@ import {
   OBJECTIVE_TYPES,
   SCHEDA_STATUSES,
   ACTIVITY_KINDS,
+  activityWeight,
+  activityDef,
+  activityDefaultLevels,
   activityKind,
   catalogById,
   evenWeights,
@@ -47,7 +50,7 @@ import {
   type SchedaItem,
   type SchedaStatus,
 } from "../lib/mbo";
-import { useMbo } from "../store";
+import { useMbo, useMboOptions } from "../store";
 import { MultiSelect } from "@spark/core";
 import { GhostButton, PrimaryButton, Switch, inputCls } from "@spark/core";
 
@@ -480,15 +483,22 @@ export function levelsError(levels: Level[], type: ObjectiveType = "quantitativo
 export function customError(d: ObjectiveDef): string | null {
   if (!d.name.trim()) return "Inserisci la descrizione dell'obiettivo";
   if (typeOf(d) === "progetto" && !d.activities?.some((a) => a.title.trim())) return "Aggiungi almeno un'attività al progetto";
-  if (typeOf(d) === "progetto" && d.activities?.some((a) => a.title.trim() && activityKind(a) === "kpi" && !((a.target ?? 0) > 0)))
+  if (typeOf(d) === "progetto" && !d.activityLevels && d.activities?.some((a) => a.title.trim() && activityKind(a) === "kpi" && !((a.target ?? 0) > 0)))
     return "Le attività KPI devono avere un target maggiore di 0";
+  if (typeOf(d) === "progetto" && d.activityLevels)
+    for (const a of d.activities ?? []) {
+      if (!a.title.trim()) continue;
+      const ad = activityDef(d, a);
+      const e = levelsError(ad.levels, typeOf(ad));
+      if (e) return `${a.title.trim()}: ${e}`;
+    }
   if (typeOf(d) === "progetto" && d.weightedActivities) {
     const acts = (d.activities ?? []).filter((a) => a.title.trim());
     if (acts.some((a) => !((a.weight ?? 0) > 0))) return "Ogni attività deve avere un peso maggiore di 0";
     const total = acts.reduce((sum, a) => sum + (a.weight ?? 0), 0);
     if (Math.abs(total - 100) > 0.001) return `I pesi delle attività devono sommare 100% (ora ${total}%)`;
   }
-  return levelsError(d.levels, typeOf(d));
+  return typeOf(d) === "progetto" && d.activityLevels ? null : levelsError(d.levels, typeOf(d));
 }
 
 /** Icon of each objective type. */
@@ -549,19 +559,22 @@ export function typePatch(def: ObjectiveDef, type: ObjectiveType): Partial<Objec
     ...typeDefaults(type),
     activities: type === "progetto" ? (def.activities?.length ? def.activities : [{ id: uid("at"), title: "" }]) : undefined,
     weightedActivities: type === "progetto" ? def.weightedActivities : undefined,
+    activityLevels: type === "progetto" ? def.activityLevels : undefined,
   };
 }
 
 /** Editable list of a project's activities, optionally with the objective's weight distributed over them. */
 function ActivitiesEditor({
-  activities,
-  weighted,
+  def,
   onChange,
 }: {
-  activities: Activity[];
-  weighted: boolean;
-  onChange: (p: { activities?: Activity[]; weightedActivities?: boolean }) => void;
+  def: ObjectiveDef;
+  onChange: (p: { activities?: Activity[]; weightedActivities?: boolean; activityLevels?: boolean }) => void;
 }) {
+  const activities = def.activities ?? [];
+  const weighted = !!def.weightedActivities;
+  const perActivity = !!def.activityLevels;
+  const levelsOption = !!useMboOptions().activityLevels || perActivity;
   const setActs = (a: Activity[]) => onChange({ activities: a });
   const set = (id: string, patch: Partial<Activity>) => setActs(activities.map((a) => (a.id === id ? { ...a, ...patch } : a)));
   const spread = (acts: Activity[]) => {
@@ -582,80 +595,121 @@ function ActivitiesEditor({
           }
         />
       </div>
-      <div className="space-y-1.5">
+      {levelsOption && (
+        <div className="-mt-1 mb-2 flex items-center justify-between gap-3 rounded-lg bg-canvas px-3 py-2">
+          <span className="text-[12.5px] font-semibold">Livelli target / payout per attività</span>
+          <Switch
+            checked={perActivity}
+            label="Livelli target / payout per attività"
+            onChange={(v) =>
+              onChange(
+                v
+                  ? { activityLevels: true, activities: activities.map((a) => ({ ...a, levels: a.levels?.length ? a.levels : activityDefaultLevels(a) })) }
+                  : { activityLevels: false, activities: activities.map((a) => ({ ...a, levels: undefined })) },
+              )
+            }
+          />
+        </div>
+      )}
+      <div className={perActivity ? "space-y-2" : "space-y-1.5"}>
         {activities.map((a, i) => (
-          <div key={a.id} className="flex items-center gap-2">
-            <span className="w-5 shrink-0 text-right text-[12px] font-semibold tabular-nums text-muted">{i + 1}.</span>
-            <input
-              className={inputCls}
-              value={a.title}
-              onChange={(e) => set(a.id, { title: e.target.value })}
-              placeholder={i === 0 ? "es. Analisi dei requisiti" : "Attività"}
-            />
-            <select
-              className={`${inputCls} w-[92px] shrink-0`}
-              value={activityKind(a)}
-              onChange={(e) => {
-                const kind = e.target.value as ActivityKind;
-                set(a.id, kind === "kpi" ? { kind } : { kind, unit: undefined, target: undefined });
-              }}
-              aria-label={`Misura di ${a.title || `attività ${i + 1}`}`}
-            >
-              {ACTIVITY_KINDS.map((k) => (
-                <option key={k.value} value={k.value}>
-                  {k.label}
-                </option>
-              ))}
-            </select>
-            {activityKind(a) === "kpi" && (
-              <>
-                <input
-                  type="number"
-                  className={`${inputCls} w-[80px] shrink-0 text-right tabular-nums`}
-                  value={a.target ?? ""}
-                  placeholder="Target"
-                  onChange={(e) => set(a.id, { target: e.target.value === "" ? undefined : Number(e.target.value) })}
-                  aria-label={`Target di ${a.title || `attività ${i + 1}`}`}
+          <div key={a.id} className={perActivity ? "rounded-lg border border-line p-2" : ""}>
+            <div className="flex items-center gap-2">
+              <span className="w-5 shrink-0 text-right text-[12px] font-semibold tabular-nums text-muted">{i + 1}.</span>
+              <input
+                className={inputCls}
+                value={a.title}
+                onChange={(e) => set(a.id, { title: e.target.value })}
+                placeholder={i === 0 ? "es. Analisi dei requisiti" : "Attività"}
+              />
+              <select
+                className={`${inputCls} w-[92px] shrink-0`}
+                value={activityKind(a)}
+                onChange={(e) => {
+                  const kind = e.target.value as ActivityKind;
+                  const next: Activity = kind === "kpi" ? { ...a, kind } : { ...a, kind, unit: undefined, target: undefined };
+                  set(a.id, perActivity ? { ...next, levels: activityDefaultLevels(next) } : next);
+                }}
+                aria-label={`Misura di ${a.title || `attività ${i + 1}`}`}
+              >
+                {ACTIVITY_KINDS.map((k) => (
+                  <option key={k.value} value={k.value}>
+                    {k.label}
+                  </option>
+                ))}
+              </select>
+              {activityKind(a) === "kpi" && (
+                <>
+                  {!perActivity && (
+                    <input
+                      type="number"
+                      className={`${inputCls} w-[80px] shrink-0 text-right tabular-nums`}
+                      value={a.target ?? ""}
+                      placeholder="Target"
+                      onChange={(e) => set(a.id, { target: e.target.value === "" ? undefined : Number(e.target.value) })}
+                      aria-label={`Target di ${a.title || `attività ${i + 1}`}`}
+                    />
+                  )}
+                  <input
+                    className={`${inputCls} w-[64px] shrink-0`}
+                    value={a.unit ?? ""}
+                    placeholder="Unità"
+                    onChange={(e) => set(a.id, { unit: e.target.value })}
+                    aria-label={`Unità di ${a.title || `attività ${i + 1}`}`}
+                  />
+                </>
+              )}
+              {weighted && (
+                <span className="relative w-[76px] shrink-0">
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    className={`${inputCls} pr-6 text-right tabular-nums`}
+                    value={a.weight ?? ""}
+                    onChange={(e) => set(a.id, { weight: e.target.value === "" ? undefined : Number(e.target.value) })}
+                    aria-label={`Peso di ${a.title || `attività ${i + 1}`}`}
+                  />
+                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[12px] text-muted">%</span>
+                </span>
+              )}
+              <button
+                type="button"
+                aria-label="Rimuovi attività"
+                disabled={activities.length === 1}
+                onClick={() => setActs(activities.filter((x) => x.id !== a.id))}
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
+            {perActivity && (
+              <div className="mt-2 pl-7">
+                <LevelsEditor
+                  unit={activityDef(def, a).unit}
+                  type={activityDef(def, a).type}
+                  levels={activityDef(def, a).levels}
+                  onChange={(levels) => set(a.id, { levels })}
                 />
-                <input
-                  className={`${inputCls} w-[64px] shrink-0`}
-                  value={a.unit ?? ""}
-                  placeholder="Unità"
-                  onChange={(e) => set(a.id, { unit: e.target.value })}
-                  aria-label={`Unità di ${a.title || `attività ${i + 1}`}`}
-                />
-              </>
+              </div>
             )}
-            {weighted && (
-              <span className="relative w-[76px] shrink-0">
-                <input
-                  type="number"
-                  min={0}
-                  max={100}
-                  className={`${inputCls} pr-6 text-right tabular-nums`}
-                  value={a.weight ?? ""}
-                  onChange={(e) => set(a.id, { weight: e.target.value === "" ? undefined : Number(e.target.value) })}
-                  aria-label={`Peso di ${a.title || `attività ${i + 1}`}`}
-                />
-                <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[12px] text-muted">%</span>
-              </span>
-            )}
-            <button
-              type="button"
-              aria-label="Rimuovi attività"
-              disabled={activities.length === 1}
-              onClick={() => setActs(activities.filter((x) => x.id !== a.id))}
-              className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
           </div>
         ))}
       </div>
       <div className="mt-2 flex items-center justify-between gap-3">
         <button
           type="button"
-          onClick={() => setActs([...activities, { id: uid("at"), title: "", ...(weighted ? { weight: 0 } : {}) }])}
+          onClick={() =>
+            setActs([
+              ...activities,
+              {
+                id: uid("at"),
+                title: "",
+                ...(weighted ? { weight: 0 } : {}),
+                ...(perActivity ? { levels: activityDefaultLevels({ id: "", title: "" }) } : {}),
+              },
+            ])
+          }
           className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline"
         >
           <Plus className="h-3.5 w-3.5" /> Aggiungi attività
@@ -686,7 +740,8 @@ export function CustomObjectiveEditor({
   showName?: boolean;
 }) {
   const type = typeOf(def);
-  const presets = type === "quantitativo" || type === "qualitativo_pct" || type === "progetto";
+  const perActivity = type === "progetto" && !!def.activityLevels;
+  const presets = !perActivity && (type === "quantitativo" || type === "qualitativo_pct" || type === "progetto");
   return (
     <div className="space-y-3.5">
       <Block label="Tipo di obiettivo">
@@ -715,8 +770,8 @@ export function CustomObjectiveEditor({
             </div>
           )}
 
-          {type === "progetto" && <ActivitiesEditor activities={def.activities ?? []} weighted={!!def.weightedActivities} onChange={onChange} />}
-          <LevelsEditor unit={def.unit} type={type} levels={def.levels} onChange={(levels) => onChange({ levels })} />
+          {type === "progetto" && <ActivitiesEditor def={def} onChange={onChange} />}
+          {!perActivity && <LevelsEditor unit={def.unit} type={type} levels={def.levels} onChange={(levels) => onChange({ levels })} />}
           {error && (
             <p className="flex items-center gap-1.5 text-[12px] font-semibold text-red-600">
               <TriangleAlert className="h-3.5 w-3.5" /> {error}
@@ -724,7 +779,7 @@ export function CustomObjectiveEditor({
           )}
         </div>
         <div className="space-y-3.5">
-          <PayoutCurve def={def} />
+          {!perActivity && <PayoutCurve def={def} />}
           {presets && (
             <PresetPicker
               hint=""
@@ -903,6 +958,27 @@ export function PresetPicker({
 }
 
 export function LevelsReadOnly({ def }: { def: ObjectiveDef }) {
+  if (typeOf(def) === "progetto" && def.activityLevels)
+    return (
+      <table className="w-full text-left text-[12.5px]">
+        <thead>
+          <tr className="text-[11px] font-bold uppercase tracking-wide text-muted">
+            <th className="pb-1.5">Attività</th>
+            <th className="pb-1.5">Peso</th>
+            <th className="pb-1.5">Target → payout</th>
+          </tr>
+        </thead>
+        <tbody>
+          {(def.activities ?? []).map((a) => (
+            <tr key={a.id} className="border-t border-line align-top">
+              <td className="py-1.5 pr-2">{a.title}</td>
+              <td className="py-1.5 pr-2 font-semibold tabular-nums">{Math.round(activityWeight(def, a) * 10) / 10}%</td>
+              <td className="py-1.5 font-semibold tabular-nums">{levelsText(activityDef(def, a))}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
   return (
     <table className="w-full text-left text-[12.5px]">
       <thead>
@@ -927,6 +1003,12 @@ export function LevelsReadOnly({ def }: { def: ObjectiveDef }) {
 
 /** Small chart of payout % vs actual value, so the calc mode is visible at a glance. */
 export function PayoutCurve({ def }: { def: ObjectiveDef }) {
+  if (typeOf(def) === "progetto" && def.activityLevels)
+    return (
+      <div className="rounded-xl bg-canvas p-3 text-[12px] text-muted">
+        Il payout è la somma dei payout delle attività, ciascuna secondo i suoi livelli e il suo peso.
+      </div>
+    );
   if (typeOf(def) === "onoff")
     return (
       <div className="rounded-xl bg-canvas p-3">

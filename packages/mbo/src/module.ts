@@ -1,5 +1,6 @@
 import { OTHERS_SCOPES, SCOPES, type Doc, type PermissionDef, type SparkModule } from "@spark/core";
 import { mboLetters } from "./lib/letters";
+import type { MboOptions } from "./lib/mbo";
 
 const G = "MBO";
 
@@ -65,7 +66,7 @@ export const MBO_PERMISSIONS: PermissionDef[] = [
 export const SCHEDA_EDIT = ["mbo.schede.edit", "mbo.goals.edit", "mbo.results.edit", "mbo.schede.approve"];
 
 /** MBO module: schede obiettivo, catalogo obiettivi, preset, workflow (settings doc "mbo"). */
-export const mboModule: SparkModule = {
+const baseModule: SparkModule = {
   id: "mbo",
   collections: ["schede", "objectives", "presets", "workflows"],
   permissions: MBO_PERMISSIONS,
@@ -83,3 +84,9 @@ export const mboModule: SparkModule = {
   settingsAccess: { mbo: ["mbo.settings.manage"] },
   letters: mboLetters,
 };
+
+/** The MBO module with client-specific switches (see `MboOptions`). */
+export const createMboModule = (options: MboOptions = {}): SparkModule => ({ ...baseModule, options: { ...options } });
+
+/** The standard MBO module, no options. */
+export const mboModule = createMboModule();

@@ -1,6 +1,6 @@
 import { ChartColumn, Info, Settings, Target, User } from "lucide-react";
 import { defineConfig } from "@spark/core";
-import { mboModule } from "@spark/mbo";
+import { createMboModule } from "@spark/mbo";
 
 /**
  * Client: Carlo Gavazzi Services AG.
@@ -19,7 +19,8 @@ export default defineConfig({
     // TODO(owner): teams, from the client's organisation
     teams: [],
   },
-  modules: [mboModule],
+  // levels target / payout per project activity (their bonus roadmaps: milestones → payout)
+  modules: [createMboModule({ activityLevels: true })],
   nav: [
     { label: "Profilo", href: "/profilo", icon: Info },
     { label: "Dashboard", href: "/dashboard", icon: ChartColumn },

@@ -34,6 +34,8 @@ export interface SparkModule {
   settingsAccess?: SettingsAccess;
   /** Variables the module adds to letters (Gestione Lettere). */
   letters?: LetterSource;
+  /** Per-client switches of the module, set by the client app (e.g. `createMboModule({ ... })`). */
+  options?: Record<string, unknown>;
 }
 
 export interface OrgConfig {
