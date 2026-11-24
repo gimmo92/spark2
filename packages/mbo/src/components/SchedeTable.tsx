@@ -41,7 +41,7 @@ import {
   typeLabel,
   typeOf,
 } from "../lib/mbo";
-import { useMbo, useMboOptions } from "../store";
+import { useCatalogCustomObjectives, useMbo, useMboOptions } from "../store";
 import { InviaWorkflowModal, WorkflowBadge } from "./InviaWorkflow";
 import { Badge, FilterMenu, GhostButton, Modal, PrimaryButton, Tooltip } from "@spark/core";
 
@@ -66,6 +66,7 @@ export function SchedeTable() {
   const { teamNames: TEAMS, companies: COMPANIES } = useOrg();
   const router = useRouter();
   const { schedaViewHref } = useMboOptions();
+  useCatalogCustomObjectives();
   const { schede, users, addScheda, updateScheda, notify, objectives, globalGate, canCreateScheda, canEditScheda } = useMbo();
   const byId = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
 

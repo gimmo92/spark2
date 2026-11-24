@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useAccess, useCollection, useCore, useSettings, useSparkConfig, type LetterTemplate } from "@spark/core";
 import { SCHEDA_EDIT } from "./module";
-import type { GlobalGate, MboOptions, ObjectiveDef, Preset, Scheda } from "./lib/mbo";
+import type { GlobalGate, MboOptions, ObjectiveDef, Preset, Scheda, SchedaItem } from "./lib/mbo";
 import type { Workflow } from "./lib/workflow";
 
 /** Switches the client app turned on for the MBO module (`createMboModule(options)`). */
@@ -56,6 +56,30 @@ export function useMbo() {
       const obj: ObjectiveDef = { ...o, id: `ob${Date.now().toString(36)}`, updatedAt: today() };
       setObjectives((prev) => [obj, ...prev]);
       return obj;
+    },
+    [setObjectives],
+  );
+  /**
+   * Objectives created inside a scheda are catalog objectives like any other: each one-off definition
+   * (`item.custom`) becomes a catalog objective and the item points to it. Returns the new items.
+   */
+  const catalogItems = useCallback(
+    (items: SchedaItem[], cycle: string): SchedaItem[] => {
+      if (!items.some((it) => it.custom)) return items;
+      const created: ObjectiveDef[] = [];
+      const next = items.map((it) => {
+        if (!it.custom) return it;
+        const def = { ...it.custom };
+        // id derived from the one-off definition: running twice (e.g. React dev double effects) can't duplicate it
+        const obj: ObjectiveDef = { ...def, id: `ob-${def.id}`, cycle: def.cycle ?? cycle, updatedAt: today() };
+        created.push(obj);
+        const rest = { ...it };
+        delete rest.custom;
+        delete rest.levels;
+        return { ...rest, objectiveId: obj.id };
+      });
+      setObjectives((prev) => [...created, ...prev.filter((o) => !created.some((c) => c.id === o.id))]);
+      return next;
     },
     [setObjectives],
   );
@@ -112,6 +136,7 @@ export function useMbo() {
     updateScheda,
     objectives,
     addObjective,
+    catalogItems,
     updateObjective,
     presets,
     savePreset,
@@ -131,4 +156,19 @@ export function useLetterTemplates() {
   const sorted = useMemo(() => [...letters].sort((a, b) => a.name.localeCompare(b.name, "it")), [letters]);
   const letterName = useCallback((id?: string) => (id ? (letters.find((l) => l.id === id)?.name ?? id) : "—"), [letters]);
   return { letters: sorted, letterName };
+}
+
+/**
+ * One-time upgrade: schede saved when objectives created inside a scheda stayed there (`item.custom`)
+ * get them moved to the catalog, so the objectives list shows every objective. Needs the catalog permission.
+ */
+export function useCatalogCustomObjectives() {
+  const { schede, hydrated, catalogItems, updateScheda, canEditScheda } = useMbo();
+  const { allowed } = useAccess();
+  const done = useRef(false);
+  useEffect(() => {
+    if (!hydrated || done.current || !allowed("mbo.catalog.manage")) return;
+    done.current = true;
+    for (const s of schede) if (s.items.some((it) => it.custom) && canEditScheda(s)) updateScheda(s.id, { items: catalogItems(s.items, s.cycle) });
+  }, [hydrated, schede, allowed, catalogItems, updateScheda, canEditScheda]);
 }

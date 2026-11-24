@@ -19,7 +19,7 @@ import {
   TriangleAlert,
   type LucideIcon,
 } from "lucide-react";
-import { fullName } from "@spark/core";
+import { fullName, useAccess } from "@spark/core";
 import {
   CYCLES,
   OBJECTIVE_TYPES,
@@ -95,7 +95,8 @@ function NoEdit() {
 
 function SchedaEditor({ scheda }: { scheda?: Scheda }) {
   const router = useRouter();
-  const { users, addScheda, updateScheda, notify, objectives, mboSettings } = useMbo();
+  const { users, addScheda, updateScheda, notify, objectives, mboSettings, catalogItems } = useMbo();
+  const { allowed } = useAccess();
   const globalDef = catalogById(objectives, mboSettings.globalThresholdId);
 
   const [name, setName] = useState(scheda?.name ?? "");
@@ -203,7 +204,8 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
       assigneeIds,
       cycle,
       status,
-      items,
+      // objectives created here go to the catalog like any other (needs the catalog permission)
+      items: allowed("mbo.catalog.manage") ? catalogItems(items, cycle) : items,
       threshold: thresholdOn ? { objectiveId: thresholdId, actual: prevThreshold?.actual } : undefined,
     };
     if (scheda) {
