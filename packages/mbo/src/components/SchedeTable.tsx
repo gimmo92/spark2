@@ -44,6 +44,7 @@ import {
 import { useCatalogCustomObjectives, useMbo, useMboOptions } from "../store";
 import { InviaWorkflowModal, WorkflowBadge } from "./InviaWorkflow";
 import { Badge, FilterMenu, GhostButton, Modal, PrimaryButton, Tooltip } from "@spark/core";
+import { localeTag, tr } from "@spark/core";
 
 const STATUS_STYLE: Record<SchedaStatus, string> = {
   bozza: "bg-[#eef1f5] text-[#5b6476]",
@@ -55,7 +56,7 @@ const STATUS_STYLE: Record<SchedaStatus, string> = {
 
 export function StatusPill({ status }: { status: SchedaStatus }) {
   return (
-    <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-bold ${STATUS_STYLE[status]}`}>{statusLabel(status)}</span>
+    <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-bold ${STATUS_STYLE[status]}`}>{tr(statusLabel(status))}</span>
   );
 }
 
@@ -137,14 +138,14 @@ export function SchedeTable() {
     const stamp = Date.now().toString(36);
     for (const s of picked)
       addScheda({
-        name: `${s.name} (copia)`,
+        name: tr("{0} (copia)", [s.name]),
         assigneeIds: s.assigneeIds,
         cycle: s.cycle,
         status: "bozza",
         items: s.items.map((it, i) => ({ ...it, id: `${it.id}-c${stamp}${i}`, actual: undefined, done: undefined, values: undefined })),
         threshold: s.threshold ? { objectiveId: s.threshold.objectiveId } : undefined,
       });
-    notify(picked.length === 1 ? "Scheda duplicata come bozza" : `${picked.length} schede duplicate come bozza`);
+    notify(picked.length === 1 ? tr("Scheda duplicata come bozza") : tr("{0} schede duplicate come bozza", [picked.length]));
     setSelected(new Set());
   };
 
@@ -156,21 +157,20 @@ export function SchedeTable() {
             href="/mbo/schede/nuova"
             className="btn-gradient flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[11.5px] font-extrabold uppercase tracking-[-0.02em] text-white sm:px-5"
           >
-            <Plus className="h-3.5 w-3.5" strokeWidth={3} /> Nuova scheda
-          </Link>
+            <Plus className="h-3.5 w-3.5" strokeWidth={3} />{" "}{tr("Nuova scheda")}</Link>
         </div>
       )}
 
       <div className="card overflow-hidden px-4 pb-3 pt-2.5">
         <div className="flex items-baseline justify-between gap-4">
-          <h1 className="text-[14px] font-semibold text-ink">Schede Obiettivo MBO</h1>
-          <span className="text-[13px] font-semibold tabular-nums text-ink">{rows.length} schede</span>
+          <h1 className="text-[14px] font-semibold text-ink">{tr("Schede Obiettivo MBO")}</h1>
+          <span className="text-[13px] font-semibold tabular-nums text-ink">{tr("{0} schede", [rows.length])}</span>
         </div>
         <div className="mt-2 flex h-1 overflow-hidden rounded-full bg-[#eef1f5]">
           {SCHEDA_STATUSES.filter((s) => s.value !== "archiviata").map((s) => {
             const n = rows.filter((r) => r.status === s.value).length;
             const color = { bozza: "#c3c8d1", in_approvazione: "#f59e0b", approvata: "#1673e6", consuntivata: "#10b981", archiviata: "" }[s.value];
-            return <div key={s.value} title={`${s.label}: ${n}`} style={{ width: `${rows.length ? (n / rows.length) * 100 : 0}%`, background: color }} />;
+            return <div key={s.value} title={`${tr(s.label)}: ${n}`} style={{ width: `${rows.length ? (n / rows.length) * 100 : 0}%`, background: color }} />;
           })}
         </div>
       </div>
@@ -178,32 +178,32 @@ export function SchedeTable() {
       <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
         <FilterMenu
           icon={<CalendarDays className="h-3.5 w-3.5 text-[#7d8698]" />}
-          label="Filtra per anno"
-          activeLabel="Anno"
+          label={tr("Filtra per anno")}
+          activeLabel={tr("Anno")}
           value={year}
           onChange={setYear}
           options={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
         />
         <FilterMenu
           icon={<CircleDot className="h-3.5 w-3.5 text-[#7d8698]" />}
-          label="Stato scheda"
-          activeLabel="Stato"
+          label={tr("Stato scheda")}
+          activeLabel={tr("Stato")}
           value={status}
           onChange={setStatus}
           options={SCHEDA_STATUSES}
         />
         <FilterMenu
           icon={<UserRound className="h-3.5 w-3.5 fill-[#7d8698] text-[#7d8698]" />}
-          label="Filtra per gruppo"
-          activeLabel="Gruppo"
+          label={tr("Filtra per gruppo")}
+          activeLabel={tr("Gruppo")}
           value={team}
           onChange={setTeam}
           options={TEAMS.map((t) => ({ value: t, label: t }))}
         />
         <FilterMenu
           icon={<Building2 className="h-3.5 w-3.5 text-[#7d8698]" />}
-          label="Filtra per società"
-          activeLabel="Società"
+          label={tr("Filtra per società")}
+          activeLabel={tr("Società")}
           value={company}
           onChange={setCompany}
           options={COMPANIES.map((c) => ({ value: c, label: c }))}
@@ -211,7 +211,7 @@ export function SchedeTable() {
         {!status && (
           <FilterMenu
             icon={<Archive className="h-3.5 w-3.5 text-[#7d8698]" />}
-            label="Archiviate"
+            label={tr("Archiviate")}
             value={showArchived}
             onChange={setShowArchived}
             options={[{ value: "si", label: "Mostra archiviate" }]}
@@ -229,16 +229,14 @@ export function SchedeTable() {
               setQ("");
             }}
             className="px-2 py-1.5 text-[12.5px] font-semibold text-brand hover:underline"
-          >
-            Azzera
-          </button>
+          >{tr("Azzera")}</button>
         )}
         <div className="relative ml-auto w-full sm:w-[240px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Cerca scheda o assegnatario..."
+            placeholder={tr("Cerca scheda o assegnatario...")}
             className="w-full rounded-lg border border-[#e3e7ee] bg-white py-1.5 pl-9 pr-3 text-[13px] outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-brand focus:ring-3 focus:ring-brand/15"
           />
         </div>
@@ -247,20 +245,16 @@ export function SchedeTable() {
       {picked.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl bg-brand-soft px-3.5 py-2 text-[12.5px]">
           <span className="font-semibold text-brand">
-            {picked.length} {picked.length === 1 ? "scheda selezionata" : "schede selezionate"}
+            {picked.length} {picked.length === 1 ? tr("scheda selezionata") : tr("schede selezionate")}
           </span>
           <span className="ml-auto flex flex-wrap items-center gap-1.5">
             {canCreateScheda && (
               <BulkBtn onClick={duplicate}>
-                <Copy className="h-3.5 w-3.5" /> Duplica
-              </BulkBtn>
+                <Copy className="h-3.5 w-3.5" />{" "}{tr("Duplica")}</BulkBtn>
             )}
             <BulkBtn onClick={() => setSending(picked.filter((s) => s.status !== "archiviata"))} disabled={picked.every((s) => s.status === "archiviata")}>
-              <Send className="h-3.5 w-3.5" /> Invia a workflow
-            </BulkBtn>
-            <button type="button" onClick={() => setSelected(new Set())} className="px-2 py-1 font-semibold text-muted hover:text-ink">
-              Deseleziona
-            </button>
+              <Send className="h-3.5 w-3.5" />{" "}{tr("Invia a workflow")}</BulkBtn>
+            <button type="button" onClick={() => setSelected(new Set())} className="px-2 py-1 font-semibold text-muted hover:text-ink">{tr("Deseleziona")}</button>
           </span>
         </div>
       )}
@@ -271,7 +265,7 @@ export function SchedeTable() {
             <tr className="border-b border-line">
               <th className="w-10 py-2.5 pl-4 pr-1">
                 <SelectBox
-                  label="Seleziona tutte"
+                  label={tr("Seleziona tutte")}
                   checked={allOn}
                   indeterminate={!allOn && picked.length > 0}
                   disabled={!selectable.length}
@@ -283,7 +277,7 @@ export function SchedeTable() {
                 return (
                   <th key={c.key} className="px-3 py-2.5">
                     {c.key === "objectives" ? (
-                      <span className="text-[11px] font-bold uppercase text-[#9aa2b1]">{c.label}</span>
+                      <span className="text-[11px] font-bold uppercase text-[#9aa2b1]">{tr(c.label)}</span>
                     ) : (
                       <button
                         type="button"
@@ -292,7 +286,7 @@ export function SchedeTable() {
                           active ? "text-[#5c6577]" : "text-[#9aa2b1] hover:text-[#5c6577]"
                         }`}
                       >
-                        {c.label}
+                        {tr(c.label)}
                         {active ? (
                           sort.dir === 1 ? (
                             <ChevronUp className="h-3 w-3 fill-current" strokeWidth={3} />
@@ -307,7 +301,7 @@ export function SchedeTable() {
                   </th>
                 );
               })}
-              <th className="sticky right-0 w-[140px] border-l border-line bg-white px-3 py-2.5 text-[11px] font-bold uppercase text-[#9aa2b1]">Azioni</th>
+              <th className="sticky right-0 w-[140px] border-l border-line bg-white px-3 py-2.5 text-[11px] font-bold uppercase text-[#9aa2b1]">{tr("Azioni")}</th>
             </tr>
           </thead>
           <tbody>
@@ -323,7 +317,7 @@ export function SchedeTable() {
                   <td className="w-10 py-[9px] pl-4 pr-1">
                     {canEditScheda(s) && (
                       <SelectBox
-                        label={`Seleziona ${s.name}`}
+                        label={tr("Seleziona {0}", [s.name])}
                         checked={selected.has(s.id)}
                         onChange={() =>
                           setSelected((prev) => {
@@ -342,13 +336,13 @@ export function SchedeTable() {
                         {s.name}
                       </span>
                       <span className="block max-w-[300px] truncate text-[11.5px] text-muted">
-                        {people.length ? fullName(people[0]) : "Nessun assegnatario"}
+                        {people.length ? fullName(people[0]) : tr("Nessun assegnatario")}
                         {people.length > 1 && <span className="font-semibold text-ink/70"> +{people.length - 1}</span>}
                       </span>
                     </button>
                   </td>
-                  <td className="whitespace-nowrap px-3 text-[12.5px] text-[#5b6476]">{cycleLabel(s.cycle)}</td>
-                  <td className="px-3">{people[0]?.team ? <Badge>{people[0].team}</Badge> : <Badge tone="grey">Nessun team</Badge>}</td>
+                  <td className="whitespace-nowrap px-3 text-[12.5px] text-[#5b6476]">{tr(cycleLabel(s.cycle))}</td>
+                  <td className="px-3">{people[0]?.team ? <Badge>{people[0].team}</Badge> : <Badge tone="grey">{tr("Nessun team")}</Badge>}</td>
                   <td className="px-3 text-[13px] tabular-nums text-[#5b6476]">
                     <span className="inline-flex items-center gap-1.5">{s.items.length}</span>
                   </td>
@@ -364,7 +358,7 @@ export function SchedeTable() {
                         <span className="w-10 text-[12px] font-semibold tabular-nums text-[#5b6476]">{score}%</span>
                       </div>
                     ) : (
-                      <span className="text-[12px] text-faint">Da consuntivare</span>
+                      <span className="text-[12px] text-faint">{tr("Da consuntivare")}</span>
                     )}
                   </td>
                   <td className="px-3">
@@ -376,35 +370,35 @@ export function SchedeTable() {
                     )}
                   </td>
                   <td className="whitespace-nowrap px-3 text-[12px] tabular-nums text-muted">
-                    {new Date(s.updatedAt).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" })}
+                    {new Date(s.updatedAt).toLocaleDateString(localeTag(), { day: "2-digit", month: "short", year: "numeric" })}
                   </td>
                   <td className="sticky right-0 border-l border-line bg-white px-3 py-1 group-hover:bg-[#f8fafd]">
                     <div className="flex items-center gap-0.5">
-                      <IconBtn label="Visualizza" onClick={() => (schedaViewHref ? router.push(schedaViewHref(s.id)) : setViewing(s.id))}>
+                      <IconBtn label={tr("Visualizza")} onClick={() => (schedaViewHref ? router.push(schedaViewHref(s.id)) : setViewing(s.id))}>
                         <Eye className="h-4 w-4" strokeWidth={2.2} />
                       </IconBtn>
                       {canEditScheda(s) && (
-                        <IconBtn label="Modifica" onClick={() => router.push(`/mbo/schede/${s.id}`)} disabled={s.status === "archiviata"}>
+                        <IconBtn label={tr("Modifica")} onClick={() => router.push(`/mbo/schede/${s.id}`)} disabled={s.status === "archiviata"}>
                           <Pencil className="h-4 w-4" strokeWidth={2.2} />
                         </IconBtn>
                       )}
                       {canEditScheda(s) && (
-                        <IconBtn label="Invia a workflow" onClick={() => setSending([s])} disabled={s.status === "archiviata"}>
+                        <IconBtn label={tr("Invia a workflow")} onClick={() => setSending([s])} disabled={s.status === "archiviata"}>
                           <Send className="h-4 w-4" strokeWidth={2.2} />
                         </IconBtn>
                       )}
                       {!canEditScheda(s) ? null : s.status === "archiviata" ? (
                         <IconBtn
-                          label="Ripristina"
+                          label={tr("Ripristina")}
                           onClick={() => {
                             updateScheda(s.id, { status: "consuntivata" });
-                            notify("Scheda ripristinata");
+                            notify(tr("Scheda ripristinata"));
                           }}
                         >
                           <ArchiveRestore className="h-4 w-4" strokeWidth={2.2} />
                         </IconBtn>
                       ) : (
-                        <IconBtn label="Archivia" onClick={() => setArchiving(s)} danger>
+                        <IconBtn label={tr("Archivia")} onClick={() => setArchiving(s)} danger>
                           <Archive className="h-4 w-4" strokeWidth={2.2} />
                         </IconBtn>
                       )}
@@ -416,8 +410,8 @@ export function SchedeTable() {
             {rows.length === 0 && (
               <tr>
                 <td colSpan={cols.length + 2} className="px-4 py-12 text-center">
-                  <p className="text-[14px] font-semibold">Nessuna scheda trovata</p>
-                  <p className="mt-1 text-[12.5px] text-muted">Prova a modificare i filtri o la ricerca.</p>
+                  <p className="text-[14px] font-semibold">{tr("Nessuna scheda trovata")}</p>
+                  <p className="mt-1 text-[12.5px] text-muted">{tr("Prova a modificare i filtri o la ricerca.")}</p>
                 </td>
               </tr>
             )}
@@ -444,27 +438,23 @@ export function SchedeTable() {
       )}
       {archiving && (
         <Modal
-          title="Archiviare la scheda?"
+          title={tr("Archiviare la scheda?")}
           onClose={() => setArchiving(null)}
           width="max-w-md"
           footer={
             <>
-              <GhostButton onClick={() => setArchiving(null)}>Annulla</GhostButton>
+              <GhostButton onClick={() => setArchiving(null)}>{tr("Annulla")}</GhostButton>
               <PrimaryButton
                 onClick={() => {
                   updateScheda(archiving.id, { status: "archiviata" });
-                  notify("Scheda archiviata");
+                  notify(tr("Scheda archiviata"));
                   setArchiving(null);
                 }}
-              >
-                Archivia
-              </PrimaryButton>
+              >{tr("Archivia")}</PrimaryButton>
             </>
           }
         >
-          <p className="text-[13px] leading-relaxed text-muted">
-            La scheda <span className="font-semibold text-ink">{archiving.name}</span> non sarà più modificabile. Potrai ripristinarla dal filtro{" "}
-            <em>Archiviate</em>.
+          <p className="text-[13px] leading-relaxed text-muted">{tr("La scheda")}{" "}<span className="font-semibold text-ink">{archiving.name}</span>{" "}{tr("non sarà più modificabile. Potrai ripristinarla dal filtro")}{" "}<em>{tr("Archiviate")}</em>.
           </p>
         </Modal>
       )}
@@ -484,15 +474,15 @@ function SchedaView({ scheda: s, people, onClose, onEdit }: { scheda: Scheda; pe
       width="max-w-2xl"
       footer={
         <>
-          <GhostButton onClick={onClose}>Chiudi</GhostButton>
-          {s.status !== "archiviata" && <PrimaryButton onClick={onEdit}>Modifica</PrimaryButton>}
+          <GhostButton onClick={onClose}>{tr("Chiudi")}</GhostButton>
+          {s.status !== "archiviata" && <PrimaryButton onClick={onEdit}>{tr("Modifica")}</PrimaryButton>}
         </>
       }
     >
       <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-[12.5px]">
-        <span className="text-muted">{cycleLabel(s.cycle)}</span>
+        <span className="text-muted">{tr(cycleLabel(s.cycle))}</span>
         <StatusPill status={s.status} />
-        <span className="ml-auto font-bold tabular-nums">{measured ? `Payout ${score}%` : "Da consuntivare"}</span>
+        <span className="ml-auto font-bold tabular-nums">{measured ? tr("Payout {0}%", [score]) : tr("Da consuntivare")}</span>
       </div>
       <div className="mt-3 flex flex-wrap gap-1.5">
         {people.map((u) => (
@@ -510,12 +500,8 @@ function SchedaView({ scheda: s, people, onClose, onEdit }: { scheda: Scheda; pe
         <div
           className={`mt-4 rounded-lg px-3 py-2 text-[12px] ${thresholdMet(objectives, s) ? "bg-emerald-50 text-emerald-800" : "bg-amber-50 text-amber-800"}`}
         >
-          <span className="font-bold">Obiettivo soglia:</span> {gate.name} · almeno {formatValue(gate, gate.levels[0].target)}
-          {s.threshold?.actual != null && (
-            <>
-              {" "}
-              · consuntivo {formatValue(gate, s.threshold.actual)} — {thresholdMet(objectives, s) ? "raggiunta" : "non raggiunta, payout azzerato"}
-            </>
+          <span className="font-bold">{tr("Obiettivo soglia:")}</span>{" "}{tr("{0} · almeno {1}", [gate.name, formatValue(gate, gate.levels[0].target)])}{s.threshold?.actual != null && (
+            <>{" "}{tr("· consuntivo {0} — {1}", [formatValue(gate, s.threshold.actual), thresholdMet(objectives, s) ? tr("raggiunta") : tr("non raggiunta, payout azzerato")])}</>
           )}
         </div>
       )}
@@ -523,10 +509,10 @@ function SchedaView({ scheda: s, people, onClose, onEdit }: { scheda: Scheda; pe
       <table className="mt-4 w-full text-left">
         <thead>
           <tr className="border-b border-line text-[11px] font-bold uppercase text-[#9aa2b1]">
-            <th className="py-2">Obiettivo</th>
-            <th className="w-14 py-2 text-right">Peso</th>
-            <th className="w-28 py-2 text-right">Consuntivo</th>
-            <th className="w-20 py-2 text-right">Payout</th>
+            <th className="py-2">{tr("Obiettivo")}</th>
+            <th className="w-14 py-2 text-right">{tr("Peso")}</th>
+            <th className="w-28 py-2 text-right">{tr("Consuntivo")}</th>
+            <th className="w-20 py-2 text-right">{tr("Payout")}</th>
           </tr>
         </thead>
         <tbody>
@@ -538,8 +524,8 @@ function SchedaView({ scheda: s, people, onClose, onEdit }: { scheda: Scheda; pe
                 <td className="py-2.5">
                   <span className="block text-[13px] font-semibold">{def.name}</span>
                   <span className="block text-[11.5px] text-muted">
-                    {typeLabel(def)}
-                    {typeOf(def) !== "onoff" && ` · ${def.calc === "lineare" ? "Lineare" : "A scaglioni"}`} · {levelsText(def)}
+                    {tr(typeLabel(def))}
+                    {typeOf(def) !== "onoff" && ` · ${def.calc === "lineare" ? tr("Lineare") : tr("A scaglioni")}`} · {levelsText(def)}
                   </span>
                 </td>
                 <td className="py-2.5 text-right text-[13px] tabular-nums text-muted">{it.weight}%</td>

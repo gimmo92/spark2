@@ -7,6 +7,7 @@ import { Sidebar, SparkLogo } from "./Sidebar";
 import type { SparkConfig } from "../config";
 import { SparkProvider, useCore } from "./SparkProvider";
 import { RouteGuard } from "../access/navAccess";
+import { tr } from "../i18n/i18n";
 
 function Toasts() {
   const { toasts } = useCore();
@@ -31,11 +32,9 @@ function DataBanner() {
   return (
     <div role="status" className="mb-3 flex items-center gap-2 rounded-xl border border-amber-200 print:hidden bg-amber-50 px-3 py-2 text-[12.5px] font-semibold text-amber-900">
       <DatabaseZap className="h-4 w-4 shrink-0" />
-      <span className="min-w-0 flex-1">{dataMessage}</span>
+      <span className="min-w-0 flex-1">{tr(dataMessage)}</span>
       {dataSource === "local" && (
-      <Link href="/login?next=/" className="shrink-0 rounded-lg px-2 py-1 text-amber-900 underline hover:bg-amber-100">
-        Accedi
-      </Link>
+      <Link href="/login?next=/" className="shrink-0 rounded-lg px-2 py-1 text-amber-900 underline hover:bg-amber-100">{tr("Accedi")}</Link>
       )}
     </div>
   );
@@ -64,7 +63,7 @@ export function AppShell({ config, children }: { config: SparkConfig; children: 
             <div className="animate-pop absolute inset-y-0 left-0 w-[240px] bg-white shadow-xl">
               <button
                 type="button"
-                aria-label="Chiudi menu"
+                aria-label={tr("Chiudi menu")}
                 onClick={() => setDrawer(false)}
                 className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-canvas"
               >
@@ -81,7 +80,7 @@ export function AppShell({ config, children }: { config: SparkConfig; children: 
           <header className="flex items-center gap-3 px-4 pt-4 lg:hidden print:hidden">
             <button
               type="button"
-              aria-label="Apri menu"
+              aria-label={tr("Apri menu")}
               onClick={() => setDrawer(true)}
               className="card grid h-10 w-10 place-items-center"
             >

@@ -17,6 +17,7 @@ import {
   type WorkflowTask,
 } from "../lib/workflow";
 import { FilterMenu, GhostButton, Modal, PrimaryButton, Tooltip } from "@spark/core";
+import { localeTag, tr } from "@spark/core";
 
 export const TASK_ICON: Record<TaskType, typeof Target> = {
   definizione: Target,
@@ -34,7 +35,7 @@ const STATUS_STYLE: Record<WorkflowStatus, string> = {
 export function WorkflowStatusPill({ status }: { status: WorkflowStatus }) {
   return (
     <span className={`inline-flex whitespace-nowrap rounded-full px-2 py-[3px] text-[11px] font-bold ${STATUS_STYLE[status]}`}>
-      {WORKFLOW_STATUSES.find((s) => s.value === status)?.label}
+      {tr(WORKFLOW_STATUSES.find((s) => s.value === status)?.label)}
     </span>
   );
 }
@@ -50,7 +51,7 @@ export function TaskIcon({ type, size = "md" }: { type: TaskType; size?: "sm" | 
   );
 }
 
-const fmtDate = (d?: string) => (d ? new Date(d).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" }) : "—");
+const fmtDate = (d?: string) => (d ? new Date(d).toLocaleDateString(localeTag(), { day: "2-digit", month: "short", year: "numeric" }) : "—");
 
 /** Compact pipeline: one icon per task, in order, joined by a line. */
 function Pipeline({ tasks }: { tasks: WorkflowTask[] }) {
@@ -92,11 +93,11 @@ export function WorkflowList() {
     const copy = saveWorkflow({
       ...w,
       id: undefined,
-      name: `${w.name} (copia)`,
+      name: tr("{0} (copia)", [w.name]),
       status: "bozza",
       tasks: w.tasks.map((t, i) => ({ ...t, id: `${t.id}-c${Date.now().toString(36)}${i}` })),
     });
-    notify("Workflow duplicato come bozza");
+    notify(tr("Workflow duplicato come bozza"));
     router.push(`/mbo/workflow/${copy.id}`);
   };
 
@@ -106,20 +107,19 @@ export function WorkflowList() {
   return (
     <div className="space-y-3.5">
       <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-        <h1 className="sr-only">Workflow</h1>
+        <h1 className="sr-only">{tr("Workflow")}</h1>
         <Link
           href="/mbo/workflow/nuovo"
           className="btn-gradient flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[11.5px] font-extrabold uppercase tracking-[-0.02em] text-white sm:px-5"
         >
-          <Plus className="h-3.5 w-3.5" strokeWidth={3} /> Nuovo workflow
-        </Link>
+          <Plus className="h-3.5 w-3.5" strokeWidth={3} />{" "}{tr("Nuovo workflow")}</Link>
         <div className="relative ml-auto w-full sm:w-[280px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Cerca workflow..."
-            aria-label="Cerca workflow"
+            placeholder={tr("Cerca workflow...")}
+            aria-label={tr("Cerca workflow")}
             className="w-full rounded-lg border border-[#e3e7ee] bg-white py-2 pl-9 pr-3 text-[13px] outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-brand focus:ring-3 focus:ring-brand/15"
           />
         </div>
@@ -128,16 +128,16 @@ export function WorkflowList() {
       <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
         <FilterMenu
           icon={<CalendarDays className="h-3.5 w-3.5 text-[#7d8698]" />}
-          label="Anno"
-          activeLabel="Anno"
+          label={tr("Anno")}
+          activeLabel={tr("Anno")}
           value={year}
           onChange={setYear}
           options={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
         />
         <FilterMenu
           icon={<CircleDot className="h-3.5 w-3.5 text-[#7d8698]" />}
-          label="Stato"
-          activeLabel="Stato"
+          label={tr("Stato")}
+          activeLabel={tr("Stato")}
           value={status}
           onChange={setStatus}
           options={WORKFLOW_STATUSES}
@@ -151,9 +151,7 @@ export function WorkflowList() {
               setQ("");
             }}
             className="px-2 py-1.5 text-[12.5px] font-semibold text-brand hover:underline"
-          >
-            Azzera
-          </button>
+          >{tr("Azzera")}</button>
         )}
       </div>
 
@@ -161,12 +159,12 @@ export function WorkflowList() {
         <table className="w-full min-w-[860px] border-collapse text-left">
           <thead>
             <tr className="border-b border-line text-[11px] font-bold uppercase text-[#9aa2b1]">
-              <th className="px-3 py-2.5 pl-4">Workflow</th>
-              <th className="px-3 py-2.5">Ciclo</th>
-              <th className="px-3 py-2.5">Fasi</th>
-              <th className="px-3 py-2.5">Prossima scadenza</th>
-              <th className="px-3 py-2.5">Stato</th>
-              <th className="sticky right-0 w-[136px] border-l border-line bg-white px-3 py-2.5">Azioni</th>
+              <th className="px-3 py-2.5 pl-4">{tr("Workflow")}</th>
+              <th className="px-3 py-2.5">{tr("Ciclo")}</th>
+              <th className="px-3 py-2.5">{tr("Fasi")}</th>
+              <th className="px-3 py-2.5">{tr("Prossima scadenza")}</th>
+              <th className="px-3 py-2.5">{tr("Stato")}</th>
+              <th className="sticky right-0 w-[136px] border-l border-line bg-white px-3 py-2.5">{tr("Azioni")}</th>
             </tr>
           </thead>
           <tbody>
@@ -185,11 +183,11 @@ export function WorkflowList() {
                       <button type="button" onClick={() => setViewing(w.id)} className="block text-left">
                         <span className="block max-w-[320px] truncate text-[13.5px] font-semibold text-brand hover:underline">{w.name}</span>
                         <span className="block max-w-[320px] truncate text-[11.5px] text-muted">
-                          {w.companies.length ? w.companies.join(", ") : "Tutte le società"}
+                          {w.companies.length ? w.companies.join(", ") : tr("Tutte le società")}
                         </span>
                       </button>
                     </td>
-                    <td className="whitespace-nowrap px-3 text-[12.5px] text-[#5b6476]">{cycleLabel(w.cycle)}</td>
+                    <td className="whitespace-nowrap px-3 text-[12.5px] text-[#5b6476]">{tr(cycleLabel(w.cycle))}</td>
                     <td className="px-3">
                       <div className="flex items-center gap-2">
                         <Pipeline tasks={w.tasks} />
@@ -199,11 +197,11 @@ export function WorkflowList() {
                     <td className="px-3">
                       {nt ? (
                         <span className="block">
-                          <span className="block max-w-[200px] truncate text-[12.5px] font-semibold">{nt.title}</span>
+                          <span className="block max-w-[200px] truncate text-[12.5px] font-semibold">{tr(nt.title)}</span>
                           <span className="block text-[11.5px] text-muted">{fmtDate(nt.dueDate)}</span>
                         </span>
                       ) : (
-                        <span className="text-[12px] text-faint">Nessuna</span>
+                        <span className="text-[12px] text-faint">{tr("Nessuna")}</span>
                       )}
                     </td>
                     <td className="px-3">
@@ -211,27 +209,27 @@ export function WorkflowList() {
                     </td>
                     <td className="sticky right-0 border-l border-line bg-white px-3 py-1 group-hover:bg-[#f8fafd]">
                       <div className="flex items-center gap-0.5">
-                        <IconBtn label="Visualizza" onClick={() => setViewing(w.id)}>
+                        <IconBtn label={tr("Visualizza")} onClick={() => setViewing(w.id)}>
                           <Eye className="h-4 w-4" strokeWidth={2.2} />
                         </IconBtn>
-                        <IconBtn label="Modifica" onClick={() => router.push(`/mbo/workflow/${w.id}`)} disabled={w.status === "archiviato"}>
+                        <IconBtn label={tr("Modifica")} onClick={() => router.push(`/mbo/workflow/${w.id}`)} disabled={w.status === "archiviato"}>
                           <Pencil className="h-4 w-4" strokeWidth={2.2} />
                         </IconBtn>
-                        <IconBtn label="Duplica" onClick={() => duplicate(w)}>
+                        <IconBtn label={tr("Duplica")} onClick={() => duplicate(w)}>
                           <CopyPlus className="h-4 w-4" strokeWidth={2.2} />
                         </IconBtn>
                         {w.status === "archiviato" ? (
                           <IconBtn
-                            label="Ripristina"
+                            label={tr("Ripristina")}
                             onClick={() => {
                               updateWorkflow(w.id, { status: "bozza" });
-                              notify("Workflow ripristinato come bozza");
+                              notify(tr("Workflow ripristinato come bozza"));
                             }}
                           >
                             <ArchiveRestore className="h-4 w-4" strokeWidth={2.2} />
                           </IconBtn>
                         ) : (
-                          <IconBtn label="Archivia" onClick={() => setArchiving(w)} danger>
+                          <IconBtn label={tr("Archivia")} onClick={() => setArchiving(w)} danger>
                             <Archive className="h-4 w-4" strokeWidth={2.2} />
                           </IconBtn>
                         )}
@@ -244,8 +242,8 @@ export function WorkflowList() {
             {hydrated && rows.length === 0 && (
               <tr>
                 <td colSpan={6} className="px-4 py-12 text-center">
-                  <p className="text-[14px] font-semibold">Nessun workflow trovato</p>
-                  <p className="mt-1 text-[12.5px] text-muted">Prova a modificare i filtri o crea un nuovo workflow.</p>
+                  <p className="text-[14px] font-semibold">{tr("Nessun workflow trovato")}</p>
+                  <p className="mt-1 text-[12.5px] text-muted">{tr("Prova a modificare i filtri o crea un nuovo workflow.")}</p>
                 </td>
               </tr>
             )}
@@ -257,27 +255,24 @@ export function WorkflowList() {
 
       {archiving && (
         <Modal
-          title="Archiviare il workflow?"
+          title={tr("Archiviare il workflow?")}
           onClose={() => setArchiving(null)}
           width="max-w-md"
           footer={
             <>
-              <GhostButton onClick={() => setArchiving(null)}>Annulla</GhostButton>
+              <GhostButton onClick={() => setArchiving(null)}>{tr("Annulla")}</GhostButton>
               <PrimaryButton
                 onClick={() => {
                   updateWorkflow(archiving.id, { status: "archiviato" });
-                  notify("Workflow archiviato");
+                  notify(tr("Workflow archiviato"));
                   setArchiving(null);
                 }}
-              >
-                Archivia
-              </PrimaryButton>
+              >{tr("Archivia")}</PrimaryButton>
             </>
           }
         >
           <p className="text-[13px] leading-relaxed text-muted">
-            <span className="font-semibold text-ink">{archiving.name}</span> non sarà più modificabile. Potrai ripristinarlo dal filtro{" "}
-            <em>Stato: Archiviato</em>.
+            <span className="font-semibold text-ink">{archiving.name}</span>{" "}{tr("non sarà più modificabile. Potrai ripristinarlo dal filtro")}{" "}<em>{tr("Stato: Archiviato")}</em>.
           </p>
         </Modal>
       )}
@@ -294,17 +289,17 @@ function WorkflowView({ w, onClose, onEdit }: { w: Workflow; onClose: () => void
       width="max-w-2xl"
       footer={
         <>
-          <GhostButton onClick={onClose}>Chiudi</GhostButton>
-          {w.status !== "archiviato" && <PrimaryButton onClick={onEdit}>Modifica</PrimaryButton>}
+          <GhostButton onClick={onClose}>{tr("Chiudi")}</GhostButton>
+          {w.status !== "archiviato" && <PrimaryButton onClick={onEdit}>{tr("Modifica")}</PrimaryButton>}
         </>
       }
     >
       <div className="flex flex-wrap items-center gap-2 text-[12.5px]">
         <WorkflowStatusPill status={w.status} />
-        <span className="text-muted">{cycleLabel(w.cycle)}</span>
-        <span className="text-muted">· {w.companies.length ? w.companies.join(", ") : "Tutte le società"}</span>
+        <span className="text-muted">{tr(cycleLabel(w.cycle))}</span>
+        <span className="text-muted">· {w.companies.length ? w.companies.join(", ") : tr("Tutte le società")}</span>
       </div>
-      {w.description && <p className="mt-3 text-[13px] text-[#3f4757]">{w.description}</p>}
+      {w.description && <p className="mt-3 text-[13px] text-[#3f4757]">{tr(w.description)}</p>}
       <ol className="mt-5">
         {w.tasks.map((t, i) => (
           <li key={t.id} className="relative flex gap-3 pb-4 last:pb-0">
@@ -313,17 +308,13 @@ function WorkflowView({ w, onClose, onEdit }: { w: Workflow; onClose: () => void
             <div className="min-w-0 flex-1 pt-0.5">
               <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                 <p className="text-[13px] font-semibold">
-                  {i + 1}. {t.title}
+                  {i + 1}. {tr(t.title)}
                 </p>
                 <span className="text-[12px] tabular-nums text-muted">{fmtDate(t.dueDate)}</span>
               </div>
-              <p className="text-[12px] text-muted">
-                {taskType(t.type).label} · Responsabile: {roleLabel(t.owner)}
-                {t.type === "approvazione" && t.approvers?.length
-                  ? ` · Approvano: ${t.approvers.map(roleLabel).join(", ")} (${t.approvalMode === "almeno_uno" ? "almeno uno" : "tutti"})`
-                  : ""}
-                {t.type === "lettera" ? ` · ${letterName(t.letterTemplate)} · Firmano: ${(t.signers ?? []).map(roleLabel).join(", ") || "—"}` : ""}
-              </p>
+              <p className="text-[12px] text-muted">{tr("{0} · Responsabile: {1}{2}{3}", [taskType(t.type).label, roleLabel(t.owner), t.type === "approvazione" && t.approvers?.length
+                  ? tr(" · Approvano: {0} ({1})", [t.approvers.map(roleLabel).join(", "), t.approvalMode === "almeno_uno" ? tr("almeno uno") : tr("tutti")])
+                  : "", t.type === "lettera" ? tr(" · {0} · Firmano: {1}", [letterName(t.letterTemplate), (t.signers ?? []).map(roleLabel).join(", ") || "—"]) : ""])}</p>
             </div>
           </li>
         ))}

@@ -4,6 +4,7 @@
  */
 import type { PDFFont, PDFPage, PDFEmbeddedPage } from "pdf-lib";
 import type { LetterTemplate, LetterValue } from "./data";
+import { tr } from "../i18n/i18n";
 
 const MM = 72 / 25.4;
 const A4 = { w: 595.28, h: 841.89 };
@@ -17,7 +18,7 @@ const SUBST: Record<string, string> = { "→": "->", "←": "<-", "≥": ">=", "
 
 async function loadBytes(src: string) {
   const res = await fetch(src);
-  if (!res.ok) throw new Error(`Carta intestata non trovata (${res.status})`);
+  if (!res.ok) throw new Error(tr("Carta intestata non trovata ({0})", [res.status]));
   return new Uint8Array(await res.arrayBuffer());
 }
 

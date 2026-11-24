@@ -12,6 +12,7 @@ import { Block, ChoiceButtons, CustomObjectiveEditor, LevelsEditor, PresetPicker
 import { CATEGORY_ICON } from "./ObiettiviTable";
 import { StatusPill } from "./SchedeTable";
 import { GhostButton, PrimaryButton, inputCls } from "@spark/core";
+import { tr } from "@spark/core";
 
 /** Route entry: /mbo/obiettivi/[id] (edit) or /mbo/obiettivi/nuovo (create). */
 export function ObiettivoEditorPage({ isNew }: { isNew?: boolean }) {
@@ -23,10 +24,8 @@ export function ObiettivoEditorPage({ isNew }: { isNew?: boolean }) {
   if (!def)
     return (
       <div className="card p-10 text-center">
-        <p className="text-[14px] font-semibold">Obiettivo non trovato</p>
-        <Link href="/mbo/obiettivi" className="mt-2 inline-block text-[12.5px] font-semibold text-brand hover:underline">
-          Torna agli obiettivi
-        </Link>
+        <p className="text-[14px] font-semibold">{tr("Obiettivo non trovato")}</p>
+        <Link href="/mbo/obiettivi" className="mt-2 inline-block text-[12.5px] font-semibold text-brand hover:underline">{tr("Torna agli obiettivi")}</Link>
       </div>
     );
   return <ObiettivoEditor key={def.id} def={def} />;
@@ -135,7 +134,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
     const firstRowError = Object.keys(rowErrors)[0];
     if (draftError || firstRowError) {
       if (firstRowError) setExpanded(firstRowError);
-      notify("Controlla i campi evidenziati");
+      notify(tr("Controlla i campi evidenziati"));
       return;
     }
     const data = {
@@ -177,40 +176,39 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
       updateScheda(s.id, { items });
       touched++;
     }
-    notify(def ? `Obiettivo salvato${touched ? ` · ${touched} schede aggiornate` : ""}` : "Obiettivo creato");
+    notify(!def ? tr("Obiettivo creato") : touched ? tr("Obiettivo salvato · {0} schede aggiornate", [touched]) : tr("Obiettivo salvato"));
     router.push("/mbo/obiettivi");
   };
 
   const actions = (
     <div className="flex gap-2">
-      <GhostButton onClick={() => router.push("/mbo/obiettivi")}>Annulla</GhostButton>
-      <PrimaryButton onClick={save}>{def ? "Salva obiettivo" : "Crea obiettivo"}</PrimaryButton>
+      <GhostButton onClick={() => router.push("/mbo/obiettivi")}>{tr("Annulla")}</GhostButton>
+      <PrimaryButton onClick={save}>{def ? tr("Salva obiettivo") : tr("Crea obiettivo")}</PrimaryButton>
     </div>
   );
 
   return (
     <div className="mx-auto max-w-[920px] space-y-4 pb-20">
       <Link href="/mbo/obiettivi" className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-muted hover:text-ink">
-        <ArrowLeft className="h-3.5 w-3.5" /> Obiettivi
-      </Link>
+        <ArrowLeft className="h-3.5 w-3.5" />{" "}{tr("Obiettivi")}</Link>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[18px] font-bold leading-tight">{def ? "Modifica obiettivo" : "Nuovo obiettivo"}</h1>
-          <p className="mt-0.5 text-[12.5px] text-muted">{def ? def.name : "Misurazione, livelli e schede a cui assegnarlo"}</p>
+          <h1 className="text-[18px] font-bold leading-tight">{def ? tr("Modifica obiettivo") : tr("Nuovo obiettivo")}</h1>
+          <p className="mt-0.5 text-[12.5px] text-muted">{def ? def.name : tr("Misurazione, livelli e schede a cui assegnarlo")}</p>
         </div>
         <div className="flex flex-wrap items-end gap-2">
           <label className="relative">
-            <span className="sr-only">Anno o periodo di riferimento</span>
+            <span className="sr-only">{tr("Anno o periodo di riferimento")}</span>
             <CalendarDays className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
             <select
               className="h-9 rounded-lg border border-[#dfe3ea] bg-white pl-8 pr-2 text-[12.5px] font-semibold outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
               value={draft.cycle ?? "2026"}
               onChange={(e) => patch({ cycle: e.target.value })}
-              title="Anno o periodo di riferimento"
+              title={tr("Anno o periodo di riferimento")}
             >
               {CYCLES.map((c) => (
                 <option key={c.value} value={c.value}>
-                  {c.label}
+                  {tr(c.label)}
                 </option>
               ))}
             </select>
@@ -220,20 +218,20 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
       </div>
 
       <section className="card p-5">
-        <SectionTitle n={1} title="Obiettivo" />
+        <SectionTitle n={1} title={tr("Obiettivo")} />
         <div className="grid gap-4">
-          <Block label="Descrizione obiettivo" error={nameError ?? undefined}>
+          <Block label={tr("Descrizione obiettivo")} error={nameError ?? undefined}>
             <input
               autoFocus
               className={inputCls}
               value={draft.name}
               onChange={(e) => patch({ name: e.target.value })}
-              placeholder="es. Lancio nuova linea prodotto"
+              placeholder={tr("es. Lancio nuova linea prodotto")}
             />
           </Block>
-          <Block label="Livello">
+          <Block label={tr("Livello")}>
             <ChoiceButtons
-              label="Livello"
+              label={tr("Livello")}
               options={CATEGORIES.map((c) => ({
                 value: c,
                 label: c,
@@ -243,51 +241,50 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
               onChange={(category) => patch({ category })}
             />
           </Block>
-          <Block label="Dettagli">
+          <Block label={tr("Dettagli")}>
             <textarea
               rows={2}
               className={`${inputCls} resize-y`}
               value={draft.description ?? ""}
               onChange={(e) => patch({ description: e.target.value })}
-              placeholder="es. Ricavi netti da controllo di gestione, consuntivati a fine anno"
+              placeholder={tr("es. Ricavi netti da controllo di gestione, consuntivati a fine anno")}
             />
           </Block>
         </div>
       </section>
 
       <section className="card p-5">
-        <SectionTitle n={2} title="Misurazione e livelli standard" />
+        <SectionTitle n={2} title={tr("Misurazione e livelli standard")} />
         <CustomObjectiveEditor def={draft} onChange={patch} showName={false} error={submitted && !nameError ? (draftError ?? undefined) : undefined} />
       </section>
 
       <section className="card p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <SectionTitle n={3} title="Assegnazione alle schede" />
+          <SectionTitle n={3} title={tr("Assegnazione alle schede")} />
           <span className="text-[12px] font-semibold text-muted">
-            {selectedIds.length} {selectedIds.length === 1 ? "scheda" : "schede"}
+            {selectedIds.length} {selectedIds.length === 1 ? tr("scheda") : tr("schede")}
           </span>
         </div>
-        <Block label="Schede obiettivo">
+        <Block label={tr("Schede obiettivo")}>
           <MultiSelect
             options={schedaOptions}
             value={selectedIds}
             onChange={setSelection}
-            placeholder="Assegna l'obiettivo a una o più schede"
-            searchPlaceholder="Cerca scheda o assegnatario…"
-            allLabel="Seleziona tutte"
+            placeholder={tr("Assegna l'obiettivo a una o più schede")}
+            searchPlaceholder={tr("Cerca scheda o assegnatario…")}
+            allLabel={tr("Seleziona tutte")}
             maxChips={4}
           />
         </Block>
         {thresholdIn > 0 && (
           <p className="mt-2 flex items-center gap-1.5 text-[11.5px] text-amber-700">
-            <Info className="h-3.5 w-3.5" /> Usato anche come obiettivo soglia in {thresholdIn} schede (si gestisce dalla scheda).
-          </p>
+            <Info className="h-3.5 w-3.5" />{" "}{tr("Usato anche come obiettivo soglia in {0} schede (si gestisce dalla scheda).", [thresholdIn])}</p>
         )}
 
         {selectedIds.length === 0 ? (
           <div className="mt-4 rounded-xl border border-dashed border-[#dfe3ea] px-4 py-8 text-center">
-            <p className="text-[13px] font-semibold">Nessuna scheda assegnata</p>
-            <p className="mt-0.5 text-[12px] text-muted">Seleziona una o più schede per impostare peso e livelli target/payout.</p>
+            <p className="text-[13px] font-semibold">{tr("Nessuna scheda assegnata")}</p>
+            <p className="mt-0.5 text-[12px] text-muted">{tr("Seleziona una o più schede per impostare peso e livelli target/payout.")}</p>
           </div>
         ) : (
           <div className="mt-4 space-y-2">
@@ -312,29 +309,27 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                         </span>
                         <span className="block truncate text-[11.5px] text-muted">
                           {first ? fullName(first) : "—"}
-                          {s.assigneeIds.length > 1 && ` +${s.assigneeIds.length - 1}`} · {cycleLabel(s.cycle)} ·{" "}
+                          {s.assigneeIds.length > 1 && ` +${s.assigneeIds.length - 1}`} · {tr(cycleLabel(s.cycle))} ·{" "}
                           {perActivity ? (
-                            "livelli per attività"
+                            tr("livelli per attività")
                           ) : a.levels ? (
-                            <span className="font-semibold text-violet-700">livelli personalizzati</span>
+                            <span className="font-semibold text-violet-700">{tr("livelli personalizzati")}</span>
                           ) : (
-                            "livelli standard"
+                            tr("livelli standard")
                           )}
                         </span>
                       </span>
                     </button>
-                    <span className="text-[12px] font-semibold tabular-nums">Peso {a.weight || 0}%</span>
+                    <span className="text-[12px] font-semibold tabular-nums">{tr("Peso {0}%", [a.weight || 0])}</span>
                     <span
                       className={`rounded-full px-2 py-[2px] text-[11px] font-bold tabular-nums ${
                         total === 100 ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"
                       }`}
-                      title="Somma dei pesi di tutti gli obiettivi della scheda"
-                    >
-                      Totale {total}%
-                    </span>
+                      title={tr("Somma dei pesi di tutti gli obiettivi della scheda")}
+                    >{tr("Totale {0}%", [total])}</span>
                     <button
                       type="button"
-                      aria-label={`Rimuovi da ${s.name}`}
+                      aria-label={tr("Rimuovi da {0}", [s.name])}
                       onClick={() => setSelection(selectedIds.filter((x) => x !== id))}
                       className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-red-50 hover:text-red-600"
                     >
@@ -345,7 +340,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                   {isOpen && (
                     <div className="space-y-4 border-t border-line px-3.5 py-3.5">
                       <div className="flex flex-wrap items-end gap-4">
-                        <Block label="Peso nella scheda">
+                        <Block label={tr("Peso nella scheda")}>
                           <span className="relative block w-[110px]">
                             <input
                               type="number"
@@ -362,8 +357,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                             <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-muted">%</span>
                           </span>
                         </Block>
-                        <p className="pb-2 text-[11.5px] text-muted">
-                          Altri obiettivi della scheda: {otherWeight(s)}%. {total !== 100 && "La scheda dovrà arrivare a 100% prima dell'approvazione."}
+                        <p className="pb-2 text-[11.5px] text-muted">{tr("Altri obiettivi della scheda: {0}%.", [otherWeight(s)])}{" "}{total !== 100 && tr("La scheda dovrà arrivare a 100% prima dell'approvazione.")}
                         </p>
                       </div>
 
@@ -387,9 +381,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                               type="button"
                               onClick={() => patchAssignment(id, { levels: undefined })}
                               className="mt-2 ml-4 text-[12px] font-semibold text-muted hover:text-ink hover:underline"
-                            >
-                              Ripristina livelli standard
-                            </button>
+                            >{tr("Ripristina livelli standard")}</button>
                           )}
                         </div>
                       )}

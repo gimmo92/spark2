@@ -7,6 +7,7 @@ import { useAccess } from "../access/useAccess";
 import { useCore } from "../shell/SparkProvider";
 import { Badge } from "../ui/ui";
 import { fullName, type User } from "./data";
+import { tr } from "../i18n/i18n";
 
 const collator = new Intl.Collator("it", { sensitivity: "base" });
 
@@ -35,18 +36,16 @@ export function RolesList() {
     <div className="space-y-3.5">
       <div className="flex flex-wrap items-center gap-3">
         <div>
-          <h1 className="text-[14px] font-semibold">Ruoli</h1>
-          <p className="mt-0.5 text-[12.5px] text-muted">
-            {roles.length} ruoli · {people} utenti attivi
-          </p>
+          <h1 className="text-[14px] font-semibold">{tr("Ruoli")}</h1>
+          <p className="mt-0.5 text-[12.5px] text-muted">{tr("{0} ruoli · {1} utenti attivi", [roles.length, people])}</p>
         </div>
         <div className="relative ml-auto w-full sm:w-[280px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Cerca ruolo o persona..."
-            aria-label="Cerca ruolo o persona"
+            placeholder={tr("Cerca ruolo o persona...")}
+            aria-label={tr("Cerca ruolo o persona")}
             className="w-full rounded-lg border border-[#e3e7ee] bg-white py-2 pl-9 pr-3 text-[13px] outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-brand focus:ring-3 focus:ring-brand/15"
           />
         </div>
@@ -56,9 +55,9 @@ export function RolesList() {
         <table className="w-full min-w-[560px] border-collapse text-left">
           <thead>
             <tr className="border-b border-line text-[11px] font-bold uppercase text-[#9aa2b1]">
-              <th className="px-3 py-2.5 pl-4">Ruolo</th>
-              <th className="px-3 py-2.5">Persone</th>
-              <th className="px-3 py-2.5">Team</th>
+              <th className="px-3 py-2.5 pl-4">{tr("Ruolo")}</th>
+              <th className="px-3 py-2.5">{tr("Persone")}</th>
+              <th className="px-3 py-2.5">{tr("Team")}</th>
             </tr>
           </thead>
           <tbody>
@@ -70,7 +69,7 @@ export function RolesList() {
                   <td className="px-3 py-[9px] pl-4">
                     <button type="button" onClick={() => setOpen(isOpen ? null : role)} className="flex items-start gap-1.5 text-left" aria-expanded={isOpen}>
                       <ChevronDown className={`mt-0.5 h-3.5 w-3.5 shrink-0 text-muted transition-transform ${isOpen ? "rotate-180" : ""}`} />
-                      <span className={`text-[13.5px] font-semibold ${role === "Senza ruolo" ? "text-muted" : ""}`}>{role}</span>
+                      <span className={`text-[13.5px] font-semibold ${role === "Senza ruolo" ? "text-muted" : ""}`}>{tr(role)}</span>
                     </button>
                     {isOpen && (
                       <ul className="mt-2 space-y-1 pl-5">
@@ -81,7 +80,7 @@ export function RolesList() {
                               <Link href={`/azienda/utenti/${u.id}`} className="font-semibold text-brand hover:underline">
                                 {fullName(u)}
                               </Link>
-                              <span className="text-muted"> · {u.team || "Nessun team"}</span>
+                              <span className="text-muted"> · {u.team || tr("Nessun team")}</span>
                             </li>
                           ))}
                       </ul>
@@ -90,7 +89,7 @@ export function RolesList() {
                   <td className="px-3 py-[9px] text-[13px] tabular-nums text-[#5b6476]">{list.length}</td>
                   <td className="px-3 py-[7px]">
                     <div className="flex max-w-[420px] flex-wrap gap-1">
-                      {teams.length ? teams.map((t) => <Badge key={t}>{t}</Badge>) : <Badge tone="grey">Nessun team</Badge>}
+                      {teams.length ? teams.map((t) => <Badge key={t}>{t}</Badge>) : <Badge tone="grey">{tr("Nessun team")}</Badge>}
                     </div>
                   </td>
                 </tr>
@@ -99,8 +98,8 @@ export function RolesList() {
             {roles.length === 0 && (
               <tr>
                 <td colSpan={3} className="px-4 py-12 text-center">
-                  <p className="text-[14px] font-semibold">Nessun ruolo trovato</p>
-                  <p className="mt-1 text-[12.5px] text-muted">I ruoli vengono dal campo Ruolo degli utenti.</p>
+                  <p className="text-[14px] font-semibold">{tr("Nessun ruolo trovato")}</p>
+                  <p className="mt-1 text-[12.5px] text-muted">{tr("I ruoli vengono dal campo Ruolo degli utenti.")}</p>
                 </td>
               </tr>
             )}

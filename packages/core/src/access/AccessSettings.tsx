@@ -15,6 +15,7 @@ import {
   type PermissionDef,
 } from "./permissions";
 import { useAccess } from "./useAccess";
+import { tr } from "../i18n/i18n";
 
 /** Impostazioni → Permessi: access levels (built-in + custom) and their permissions as toggles. */
 export function AccessSettings() {
@@ -42,7 +43,7 @@ export function AccessSettings() {
   const resetDefaults = () => {
     const base = selected.id === "MANAGER" || selected.id === "UTENTE" ? selected.id : (selected.base ?? "UTENTE");
     update(selected.id, (l) => ({ ...l, grants: defaultGrants(catalog, base) }));
-    notify(`Permessi di ${selected.name} ripristinati`);
+    notify(tr("Permessi di {0} ripristinati", [selected.name]));
   };
 
   return (
@@ -51,7 +52,7 @@ export function AccessSettings() {
 
       <div className="grid gap-4 lg:grid-cols-[240px_minmax(0,1fr)]">
         <section className="card self-start p-2">
-          <p className="px-2.5 pb-1.5 pt-2 text-[11px] font-bold uppercase tracking-wide text-muted">Livelli di accesso</p>
+          <p className="px-2.5 pb-1.5 pt-2 text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Livelli di accesso")}</p>
           <ul>
             {levels.map((l) => {
               const active = l.id === selected.id;
@@ -66,10 +67,10 @@ export function AccessSettings() {
                     }`}
                   >
                     <span className="min-w-0">
-                      <span className="block truncate text-[13px] font-semibold">{l.name}</span>
+                      <span className="block truncate text-[13px] font-semibold">{tr(l.name)}</span>
                       <span className="block text-[11.5px] text-muted">
-                        {hydrated ? `${countFor(l.id)} ${countFor(l.id) === 1 ? "utente" : "utenti"}` : "…"}
-                        {!l.system && " · personalizzato"}
+                        {hydrated ? `${countFor(l.id)} ${countFor(l.id) === 1 ? tr("utente") : tr("utenti")}` : "…"}
+                        {!l.system && tr(" · personalizzato")}
                       </span>
                     </span>
                     {l.id === ADMIN_LEVEL && <Lock className="h-3.5 w-3.5 shrink-0 text-faint" />}
@@ -83,31 +84,30 @@ export function AccessSettings() {
             onClick={() => setEditing("new")}
             className="mt-1 flex w-full items-center gap-1.5 rounded-lg px-2.5 py-2 text-[12.5px] font-semibold text-brand transition-colors hover:bg-canvas"
           >
-            <Plus className="h-3.5 w-3.5" strokeWidth={3} /> Nuovo livello
-          </button>
+            <Plus className="h-3.5 w-3.5" strokeWidth={3} />{" "}{tr("Nuovo livello")}</button>
         </section>
 
         <section className="card min-w-0 p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
-              <h2 className="text-[15px] font-bold">{selected.name}</h2>
-              {selected.description && <p className="mt-0.5 max-w-xl text-[12.5px] text-muted">{selected.description}</p>}
+              <h2 className="text-[15px] font-bold">{tr(selected.name)}</h2>
+              {selected.description && <p className="mt-0.5 max-w-xl text-[12.5px] text-muted">{tr(selected.description)}</p>}
             </div>
             {!isAdmin && (
               <div className="flex items-center gap-0.5">
-                <Tooltip label="Ripristina i permessi predefiniti">
-                  <IconButton onClick={resetDefaults} label="Ripristina i permessi predefiniti">
+                <Tooltip label={tr("Ripristina i permessi predefiniti")}>
+                  <IconButton onClick={resetDefaults} label={tr("Ripristina i permessi predefiniti")}>
                     <RotateCcw className="h-4 w-4" />
                   </IconButton>
                 </Tooltip>
-                <Tooltip label="Rinomina">
-                  <IconButton onClick={() => setEditing(selected)} label="Rinomina">
+                <Tooltip label={tr("Rinomina")}>
+                  <IconButton onClick={() => setEditing(selected)} label={tr("Rinomina")}>
                     <Pencil className="h-4 w-4" />
                   </IconButton>
                 </Tooltip>
                 {!selected.system && (
-                  <Tooltip label="Elimina livello">
-                    <IconButton onClick={() => setDeleting(selected)} label="Elimina livello" danger>
+                  <Tooltip label={tr("Elimina livello")}>
+                    <IconButton onClick={() => setDeleting(selected)} label={tr("Elimina livello")} danger>
                       <Trash2 className="h-4 w-4" />
                     </IconButton>
                   </Tooltip>
@@ -118,29 +118,27 @@ export function AccessSettings() {
 
           {isAdmin && (
             <p className="mt-3 flex items-center gap-2 rounded-lg bg-brand-soft px-3 py-2 text-[12.5px] text-brand">
-              <ShieldCheck className="h-4 w-4 shrink-0" /> L&apos;Admin ha sempre tutti i permessi: non si possono togliere, così
-              l&apos;organizzazione non resta mai senza chi la gestisce.
-            </p>
+              <ShieldCheck className="h-4 w-4 shrink-0" />{" "}{tr("L'Admin ha sempre tutti i permessi: non si possono togliere, così l'organizzazione non resta mai senza chi la gestisce.")}</p>
           )}
 
           <div className="mt-4 space-y-5">
             {groups.map(([group, perms]) => (
               <div key={group}>
-                <h3 className="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted">{group}</h3>
+                <h3 className="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted">{tr(group)}</h3>
                 <ul className="divide-y divide-line rounded-xl border border-line">
                   {perms.map((p) => (
                     <li key={p.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3.5 py-2.5">
                       <div className="min-w-0">
-                        <p className="text-[13px] font-semibold">{p.label}</p>
-                        {p.hint && <p className="text-[11.5px] text-muted">{p.hint}</p>}
+                        <p className="text-[13px] font-semibold">{tr(p.label)}</p>
+                        {p.hint && <p className="text-[11.5px] text-muted">{tr(p.hint)}</p>}
                       </div>
                       {p.scopes ? (
-                        <div className="flex flex-wrap gap-1" role="group" aria-label={p.label}>
+                        <div className="flex flex-wrap gap-1" role="group" aria-label={tr(p.label)}>
                           {p.scopes.map((s) => {
                             const g = `${p.id}:${s}`;
                             const on = grants.has(g);
                             return (
-                              <Tooltip key={s} label={SCOPE_HINTS[s]}>
+                              <Tooltip key={s} label={tr(SCOPE_HINTS[s])}>
                                 <button
                                   type="button"
                                   aria-pressed={on}
@@ -151,14 +149,14 @@ export function AccessSettings() {
                                   } ${isAdmin ? "opacity-60" : ""}`}
                                 >
                                   {on && <Check className="h-3 w-3" strokeWidth={3} />}
-                                  {SCOPE_LABELS[s]}
+                                  {tr(SCOPE_LABELS[s])}
                                 </button>
                               </Tooltip>
                             );
                           })}
                         </div>
                       ) : (
-                        <Switch checked={grants.has(p.id)} onChange={(v) => toggle(p.id, v)} disabled={isAdmin} label={p.label} />
+                        <Switch checked={grants.has(p.id)} onChange={(v) => toggle(p.id, v)} disabled={isAdmin} label={tr(p.label)} />
                       )}
                     </li>
                   ))}
@@ -177,7 +175,7 @@ export function AccessSettings() {
           onSave={(l, isNew) => {
             setLevels(isNew ? [...levels, l] : levels.map((x) => (x.id === l.id ? l : x)));
             if (isNew) setSelectedId(l.id);
-            notify(isNew ? `Livello ${l.name} creato` : "Livello aggiornato");
+            notify(isNew ? tr("Livello {0} creato", [l.name]) : tr("Livello aggiornato"));
             setEditing(null);
           }}
         />
@@ -185,34 +183,28 @@ export function AccessSettings() {
 
       {deleting && (
         <Modal
-          title="Elimina livello"
+          title={tr("Elimina livello")}
           onClose={() => setDeleting(null)}
           footer={
             <>
-              <GhostButton onClick={() => setDeleting(null)}>Annulla</GhostButton>
+              <GhostButton onClick={() => setDeleting(null)}>{tr("Annulla")}</GhostButton>
               <PrimaryButton
                 disabled={countFor(deleting.id) > 0}
                 onClick={() => {
                   setLevels(levels.filter((l) => l.id !== deleting.id));
                   setSelectedId("MANAGER");
-                  notify(`Livello ${deleting.name} eliminato`);
+                  notify(tr("Livello {0} eliminato", [deleting.name]));
                   setDeleting(null);
                 }}
-              >
-                Elimina
-              </PrimaryButton>
+              >{tr("Elimina")}</PrimaryButton>
             </>
           }
         >
           {countFor(deleting.id) > 0 ? (
             <p className="text-[13px]">
-              <span className="font-semibold">{deleting.name}</span> è assegnato a {countFor(deleting.id)}{" "}
-              {countFor(deleting.id) === 1 ? "utente" : "utenti"}. Assegna prima un altro livello da Lista Utenti, poi eliminalo.
-            </p>
+              <span className="font-semibold">{deleting.name}</span>{" "}{tr("è assegnato a {0} {1}. Assegna prima un altro livello da Lista Utenti, poi eliminalo.", [countFor(deleting.id), countFor(deleting.id) === 1 ? tr("utente") : tr("utenti")])}</p>
           ) : (
-            <p className="text-[13px]">
-              Eliminare il livello <span className="font-semibold">{deleting.name}</span>? Nessun utente lo usa.
-            </p>
+            <p className="text-[13px]">{tr("Eliminare il livello")}{" "}<span className="font-semibold">{deleting.name}</span>{tr("? Nessun utente lo usa.")}</p>
           )}
         </Modal>
       )}
@@ -270,12 +262,12 @@ function LevelModal({
 
   return (
     <Modal
-      title={level ? "Modifica livello" : "Nuovo livello di accesso"}
+      title={level ? tr("Modifica livello") : tr("Nuovo livello di accesso")}
       onClose={onClose}
       footer={
         <>
-          <GhostButton onClick={onClose}>Annulla</GhostButton>
-          <PrimaryButton onClick={save}>{level ? "Salva" : "Crea livello"}</PrimaryButton>
+          <GhostButton onClick={onClose}>{tr("Annulla")}</GhostButton>
+          <PrimaryButton onClick={save}>{level ? tr("Salva") : tr("Crea livello")}</PrimaryButton>
         </>
       }
     >
@@ -286,18 +278,18 @@ function LevelModal({
           save();
         }}
       >
-        <Field label="Nome" error={submitted ? error : undefined}>
-          <input autoFocus className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder="es. HR Business Partner" />
+        <Field label={tr("Nome")} error={submitted ? error : undefined}>
+          <input autoFocus className={inputCls} value={name} onChange={(e) => setName(e.target.value)} placeholder={tr("es. HR Business Partner")} />
         </Field>
-        <Field label="Descrizione">
-          <input className={inputCls} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Facoltativa" />
+        <Field label={tr("Descrizione")}>
+          <input className={inputCls} value={description} onChange={(e) => setDescription(e.target.value)} placeholder={tr("Facoltativa")} />
         </Field>
         {!level && (
-          <Field label="Parti dai permessi di">
+          <Field label={tr("Parti dai permessi di")}>
             <select className={inputCls} value={from} onChange={(e) => setFrom(e.target.value)}>
               {levels.map((l) => (
                 <option key={l.id} value={l.id}>
-                  {l.name}
+                  {tr(l.name)}
                 </option>
               ))}
             </select>

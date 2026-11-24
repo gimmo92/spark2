@@ -11,7 +11,8 @@
     "dev:gavazzi": "npm run dev -w @spark/carlo-gavazzi",
     "build": "npm run build --workspaces --if-present",
     "lint": "eslint",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "i18n:check": "node scripts/i18n-check.mjs"
   },
   "devDependencies": {
     "@types/node": "^20",

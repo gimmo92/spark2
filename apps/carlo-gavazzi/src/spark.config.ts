@@ -1,6 +1,7 @@
 import { ChartColumn, Info, Settings, Target, User } from "lucide-react";
 import { defineConfig } from "@spark/core";
 import { createMboModule } from "@spark/mbo";
+import { EN } from "./i18n/en";
 
 /**
  * Client: Carlo Gavazzi Services AG.
@@ -9,6 +10,8 @@ import { createMboModule } from "@spark/mbo";
 export default defineConfig({
   appName: "Spark",
   home: "/azienda/utenti",
+  // English copy of this app (core and modules bring their own); users switch IT / EN from the menu
+  messages: { en: EN },
   storagePrefix: "spark.cg",
   org: {
     name: "Carlo Gavazzi Services AG",

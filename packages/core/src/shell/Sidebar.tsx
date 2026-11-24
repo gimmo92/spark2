@@ -8,6 +8,8 @@ import { Tooltip } from "../ui/ui";
 import { ChevronDown, LogOut } from "lucide-react";
 import { useSparkConfig } from "./SparkProvider";
 import { useNavAccess } from "../access/navAccess";
+import { LocaleSwitch } from "../i18n/LocaleProvider";
+import { tr } from "../i18n/i18n";
 
 export function SparkLogo({ className = "" }: { className?: string }) {
   const gid = useId();
@@ -63,7 +65,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     }`}
                   >
                     <Icon className="h-[18px] w-[18px] shrink-0 text-[#7d8698]" strokeWidth={1.4} />
-                    <span className="flex-1">{item.label}</span>
+                    <span className="flex-1">{tr(item.label)}</span>
                     <ChevronDown
                       className={`h-3.5 w-3.5 fill-current text-ink/70 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                     />
@@ -85,9 +87,9 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                                 }`}
                               >
                                 <span
-                                  className={`h-1.5 w-1.5 rounded-full ${active ? "scale-125 bg-ink" : "bg-faint"}`}
+                                  className={`h-1.5 w-1.5 shrink-0 rounded-full ${active ? "scale-125 bg-ink" : "bg-faint"}`}
                                 />
-                                <span className="flex-1 whitespace-nowrap">{c.label}</span>
+                                <span className="flex-1 whitespace-nowrap">{tr(c.label)}</span>
                                 {c.badge && (
                                   <span className="rounded bg-[#20a8ef] px-1.5 py-[1px] text-[11px] font-bold text-white">
                                     {c.badge}
@@ -118,7 +120,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     className={`h-[18px] w-[18px] shrink-0 ${item.muted && !active ? "text-[#c3c8d1]" : "text-[#7d8698]"}`}
                     strokeWidth={1.4}
                   />
-                  {item.label}
+                  {tr(item.label)}
                 </Link>
               </li>
             );
@@ -144,14 +146,14 @@ function AccountFooter() {
       const u = data.user;
       if (!alive || !u) return;
       const meta = (u.user_metadata ?? {}) as Record<string, string | undefined>;
-      setWho({ name: meta.full_name ?? meta.name ?? u.email?.split("@")[0] ?? "Utente", email: u.email ?? "" });
+      setWho({ name: meta.full_name ?? meta.name ?? u.email?.split("@")[0] ?? tr("Utente"), email: u.email ?? "" });
     });
     return () => {
       alive = false;
     };
   }, []);
 
-  const name = who?.name ?? "Amministratore";
+  const name = who?.name ?? tr("Amministratore");
   const initials = name
     .split(/[\s.]+/)
     .filter(Boolean)
@@ -161,17 +163,18 @@ function AccountFooter() {
 
   return (
     <div className="border-t border-line px-4 py-3">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-brand-soft text-[12px] font-bold text-brand">{initials || "U"}</div>
         <div className="min-w-0 flex-1">
           <p className="truncate text-[12.5px] font-semibold">{name}</p>
           <p className="truncate text-[11px] text-muted">{who?.email || org.name}</p>
         </div>
+        <LocaleSwitch />
         <form action="/auth/signout" method="post">
-          <Tooltip label="Esci">
+          <Tooltip label={tr("Esci")}>
             <button
               type="submit"
-              aria-label="Esci"
+              aria-label={tr("Esci")}
               className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-canvas hover:text-ink"
             >
               <LogOut className="h-4 w-4" />

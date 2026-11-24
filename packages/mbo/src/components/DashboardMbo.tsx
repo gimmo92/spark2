@@ -8,6 +8,7 @@ import { CATEGORIES, SCHEDA_STATUSES, globalGateMet, YEARS, catalogById, cycleYe
 import { useMbo } from "../store";
 import { DashboardTabs } from "@spark/core";
 import { FilterMenu, Tooltip } from "@spark/core";
+import { tr } from "@spark/core";
 
 /* Single-series magnitude charts: one hue (brand blue), no legend, values direct-labeled in text ink. */
 const BAR = "bg-[#1673e6]";
@@ -139,7 +140,7 @@ export function DashboardMbo() {
 
   const globalDef = catalogById(objectives, globalGate.objectiveId);
   const globalName = globalDef?.name;
-  const globalStatus = globalGate.actual == null ? "da consuntivare" : globalGateMet(objectives, globalGate) ? "raggiunta" : "non raggiunta";
+  const globalStatus = globalGate.actual == null ? tr("da consuntivare") : globalGateMet(objectives, globalGate) ? tr("raggiunta") : tr("non raggiunta");
 
   return (
     <div className="space-y-4">
@@ -148,16 +149,16 @@ export function DashboardMbo() {
       <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
         <FilterMenu
           icon={<CalendarDays className="h-3.5 w-3.5 text-[#7d8698]" />}
-          label="Anno"
-          activeLabel="Anno"
+          label={tr("Anno")}
+          activeLabel={tr("Anno")}
           value={year}
           onChange={setYear}
           options={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
         />
         <FilterMenu
           icon={<Building2 className="h-3.5 w-3.5 text-[#7d8698]" />}
-          label="Filtra per società"
-          activeLabel="Società"
+          label={tr("Filtra per società")}
+          activeLabel={tr("Società")}
           value={company}
           onChange={setCompany}
           options={COMPANIES.map((c) => ({ value: c, label: c }))}
@@ -168,36 +169,36 @@ export function DashboardMbo() {
         <div className="card h-64 animate-pulse" />
       ) : data.total === 0 ? (
         <div className="card px-6 py-14 text-center">
-          <p className="text-[14px] font-semibold">Nessuna scheda nel periodo selezionato</p>
-          <p className="mt-1 text-[12.5px] text-muted">Cambia anno o società.</p>
+          <p className="text-[14px] font-semibold">{tr("Nessuna scheda nel periodo selezionato")}</p>
+          <p className="mt-1 text-[12.5px] text-muted">{tr("Cambia anno o società.")}</p>
         </div>
       ) : (
         <>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <Stat label="Schede nel ciclo" value={String(data.total)} sub={`${data.measured} con consuntivo`} />
+            <Stat label={tr("Schede nel ciclo")} value={String(data.total)} sub={tr("{0} con consuntivo", [data.measured])} />
             <Stat
-              label="Payout medio"
+              label={tr("Payout medio")}
               value={data.measured ? `${data.avgPayout}%` : "—"}
-              sub={data.gatesMissed ? `${data.gatesMissed} schede con soglia non raggiunta` : "Sulle schede consuntivate"}
+              sub={data.gatesMissed ? tr("{0} schede con soglia non raggiunta", [data.gatesMissed]) : tr("Sulle schede consuntivate")}
             />
-            <Stat label="Approvate o consuntivate" value={`${data.advancedPct}%`} sub="delle schede del ciclo" />
-            <Stat label="Copertura utenti" value={`${data.coverage}%`} sub={`${data.assignees} utenti con una scheda`} />
+            <Stat label={tr("Approvate o consuntivate")} value={`${data.advancedPct}%`} sub={tr("delle schede del ciclo")} />
+            <Stat label={tr("Copertura utenti")} value={`${data.coverage}%`} sub={tr("{0} utenti con una scheda", [data.assignees])} />
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <ChartCard title="Schede per stato" note="Numero di schede">
-              <HBars rows={data.byStatus.map((r) => ({ ...r, tip: `${r.label}: ${r.value} schede` }))} format={(v) => String(v)} />
+            <ChartCard title={tr("Schede per stato")} note={tr("Numero di schede")}>
+              <HBars rows={data.byStatus.map((r) => ({ ...r, tip: tr("{0}: {1} schede", [tr(r.label), r.value]) }))} format={(v) => String(v)} />
             </ChartCard>
-            <ChartCard title="Distribuzione del payout" note="Schede consuntivate per fascia di payout">
+            <ChartCard title={tr("Distribuzione del payout")} note={tr("Schede consuntivate per fascia di payout")}>
               {data.measured ? <Histogram cols={data.histogram} /> : <Empty />}
             </ChartCard>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-2">
-            <ChartCard title="Payout medio per società" note="Linea tratteggiata = 100% del target">
+            <ChartCard title={tr("Payout medio per società")} note={tr("Linea tratteggiata = 100% del target")}>
               {data.byCompany.length ? (
                 <HBars
-                  rows={data.byCompany.map((r) => ({ ...r, tip: `${r.label}: payout medio ${r.value}% su ${r.n} schede` }))}
+                  rows={data.byCompany.map((r) => ({ ...r, tip: tr("{0}: payout medio {1}% su {2} schede", [r.label, r.value, r.n]) }))}
                   format={(v) => `${v}%`}
                   reference={100}
                 />
@@ -205,10 +206,10 @@ export function DashboardMbo() {
                 <Empty />
               )}
             </ChartCard>
-            <ChartCard title="Payout medio per livello obiettivo" note="Media sugli obiettivi consuntivati · linea = 100%">
+            <ChartCard title={tr("Payout medio per livello obiettivo")} note={tr("Media sugli obiettivi consuntivati · linea = 100%")}>
               {data.byLevel.length ? (
                 <HBars
-                  rows={data.byLevel.map((r) => ({ ...r, tip: `${r.label}: payout medio ${r.value}% su ${r.n} obiettivi` }))}
+                  rows={data.byLevel.map((r) => ({ ...r, tip: tr("{0}: payout medio {1}% su {2} obiettivi", [tr(r.label), r.value, r.n]) }))}
                   format={(v) => `${v}%`}
                   reference={100}
                 />
@@ -219,23 +220,23 @@ export function DashboardMbo() {
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-            <ChartCard title="Composizione dei pesi per livello" note="Quota del peso totale delle schede assegnata a ciascun livello">
+            <ChartCard title={tr("Composizione dei pesi per livello")} note={tr("Quota del peso totale delle schede assegnata a ciascun livello")}>
               <StackedShare parts={data.weightMix} />
             </ChartCard>
             <ChartCard
-              title="Esito obiettivo soglia"
+              title={tr("Esito obiettivo soglia")}
               note={[
-                globalName ? `Globale: ${globalName} (${globalStatus})` : null,
-                data.gateNames.length ? `Soglie delle schede: ${data.gateNames.join(", ")}` : "Nessuna scheda con soglia propria",
+                globalName ? tr("Globale: {0} ({1})", [globalName, globalStatus]) : null,
+                data.gateNames.length ? tr("Soglie delle schede: {0}", [data.gateNames.join(", ")]) : tr("Nessuna scheda con soglia propria"),
               ]
                 .filter(Boolean)
                 .join(" · ")}
             >
-              <HBars rows={data.gate.map((r) => ({ ...r, tip: `${r.label}: ${r.value} schede` }))} format={(v) => String(v)} />
+              <HBars rows={data.gate.map((r) => ({ ...r, tip: tr("{0}: {1} schede", [tr(r.label), r.value]) }))} format={(v) => String(v)} />
             </ChartCard>
           </div>
 
-          <ChartCard title="Raggiungimento per obiettivo" note="Payout medio sulle schede che lo usano">
+          <ChartCard title={tr("Raggiungimento per obiettivo")} note={tr("Payout medio sulle schede che lo usano")}>
             {data.objRank.length ? <ObjectiveTable rows={data.objRank} /> : <Empty />}
           </ChartCard>
         </>
@@ -265,7 +266,7 @@ export function ChartCard({ title, note, children }: { title: string; note?: str
 }
 
 function Empty() {
-  return <p className="py-8 text-center text-[12.5px] text-muted">Nessun consuntivo disponibile nel periodo.</p>;
+  return <p className="py-8 text-center text-[12.5px] text-muted">{tr("Nessun consuntivo disponibile nel periodo.")}</p>;
 }
 
 /** Horizontal bar list: label | bar (4px rounded data-end) | value. Whole row is the hover target. */
@@ -285,7 +286,7 @@ function HBars({
         <li key={r.label}>
           <Tooltip label={r.tip} className="flex w-full">
             <div className="grid w-full grid-cols-[minmax(0,170px)_1fr_48px] items-center gap-3 rounded-md px-1 py-1.5 hover:bg-canvas">
-              <span className="truncate text-[12.5px] text-[#3f4757]">{r.label}</span>
+              <span className="truncate text-[12.5px] text-[#3f4757]">{tr(r.label)}</span>
               <span className="relative h-2.5">
                 <span className={`absolute inset-y-0 left-0 rounded-r-[4px] ${BAR}`} style={{ width: `${(r.value / max) * 100}%` }} />
                 {reference != null && (
@@ -309,7 +310,7 @@ export function Histogram({ cols }: { cols: { label: string; value: number }[] }
     <div>
       <div className="flex items-end gap-2 border-b border-[#d5dae2]" style={{ height: H + 22 }}>
         {cols.map((c) => (
-          <Tooltip key={c.label} label={`Payout ${c.label}: ${c.value} schede`} className="flex h-full flex-1">
+          <Tooltip key={c.label} label={tr("Payout {0}: {1} schede", [c.label, c.value])} className="flex h-full flex-1">
             <div className="group flex h-full w-full flex-1 flex-col items-center justify-end">
               <span className="mb-1 text-[12px] font-semibold tabular-nums text-ink">{c.value}</span>
               <span
@@ -323,7 +324,7 @@ export function Histogram({ cols }: { cols: { label: string; value: number }[] }
       <div className="mt-1.5 flex gap-2">
         {cols.map((c) => (
           <span key={c.label} className="flex-1 text-center text-[11px] text-muted">
-            {c.label}
+            {tr(c.label)}
           </span>
         ))}
       </div>
@@ -337,9 +338,9 @@ function ObjectiveTable({ rows }: { rows: { name: string; value: number; n: numb
     <table className="w-full text-left">
       <thead>
         <tr className="border-b border-line text-[11px] font-bold uppercase text-[#9aa2b1]">
-          <th className="pb-2">Obiettivo</th>
-          <th className="w-16 pb-2 text-right">Schede</th>
-          <th className="w-[42%] pb-2 pl-4">Payout medio</th>
+          <th className="pb-2">{tr("Obiettivo")}</th>
+          <th className="w-16 pb-2 text-right">{tr("Schede")}</th>
+          <th className="w-[42%] pb-2 pl-4">{tr("Payout medio")}</th>
         </tr>
       </thead>
       <tbody>
@@ -370,7 +371,7 @@ function StackedShare({ parts }: { parts: { label: string; value: number }[] }) 
       <div className="flex h-7 w-full gap-[2px]">
         {parts.map((p, i) => (
           <span key={p.label} className="flex h-full min-w-[3px]" style={{ width: `${p.value}%` }}>
-            <Tooltip label={`${p.label}: ${Math.round(p.value)}% del peso`} className="flex h-full w-full">
+            <Tooltip label={tr("{0}: {1}% del peso", [tr(p.label), Math.round(p.value)])} className="flex h-full w-full">
               <span
                 className={`h-full w-full ${i === 0 ? "rounded-l-[4px]" : ""} ${i === parts.length - 1 ? "rounded-r-[4px]" : ""}`}
                 style={{ background: LEVEL_COLOR[p.label] ?? LEVEL_COLOR.Altro }}
@@ -383,7 +384,7 @@ function StackedShare({ parts }: { parts: { label: string; value: number }[] }) 
         {parts.map((p) => (
           <li key={p.label} className="flex items-center gap-2 text-[12.5px]">
             <span className="h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: LEVEL_COLOR[p.label] ?? LEVEL_COLOR.Altro }} />
-            <span className="text-[#3f4757]">{p.label}</span>
+            <span className="text-[#3f4757]">{tr(p.label)}</span>
             <span className="font-semibold tabular-nums text-ink">{Math.round(p.value)}%</span>
           </li>
         ))}

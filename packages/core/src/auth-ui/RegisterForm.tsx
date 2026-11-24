@@ -6,6 +6,8 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { authConfigured } from "../supabase/env";
 import { AuthCard, EmailField, Notice, authInputCls, authPrimaryCls } from "./LoginForm";
+import { tr } from "../i18n/i18n";
+import { LocaleProvider } from "../i18n/LocaleProvider";
 
 const ERRORS: Record<string, string> = {
   invalid_code: "Email o codice di registrazione non validi. Controlla l'email di invito.",
@@ -17,6 +19,14 @@ const ERRORS: Record<string, string> = {
 
 /** First access: users pre-loaded by the admin choose their own password. */
 export function RegisterForm() {
+  return (
+    <LocaleProvider>
+      <RegisterSteps />
+    </LocaleProvider>
+  );
+}
+
+function RegisterSteps() {
   const router = useRouter();
   const params = useSearchParams();
   const [email, setEmail] = useState(params.get("email") ?? "");
@@ -30,7 +40,7 @@ export function RegisterForm() {
     e.preventDefault();
     setError(null);
     if (password.length < 8) return setError(ERRORS.weak);
-    if (password !== confirm) return setError("Le due password non coincidono.");
+    if (password !== confirm) return setError(tr("Le due password non coincidono."));
     setBusy(true);
     const res = await fetch("/api/auth/register", {
       method: "POST",
@@ -39,17 +49,17 @@ export function RegisterForm() {
     });
     const data = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; message?: string };
     setBusy(false);
-    if (!res.ok || !data.ok) return setError(ERRORS[data.error ?? ""] ?? data.message ?? "Registrazione non riuscita. Riprova.");
+    if (!res.ok || !data.ok) return setError(tr(ERRORS[data.error ?? ""] ?? data.message ?? "Registrazione non riuscita. Riprova."));
     router.replace("/login?registered=1");
   };
 
   return (
-    <AuthCard title="Registrazione" subtitle="Inserisci il codice che hai ricevuto via email e scegli la tua password.">
-      {error && <Notice kind="error">{error}</Notice>}
+    <AuthCard title={tr("Registrazione")} subtitle={tr("Inserisci il codice che hai ricevuto via email e scegli la tua password.")}>
+      {error && <Notice kind="error">{tr(error)}</Notice>}
       <form onSubmit={submit} className="mt-5 space-y-3">
         <EmailField value={email} onChange={setEmail} />
         <label className="block">
-          <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">Codice di registrazione</span>
+          <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Codice di registrazione")}</span>
           <input
             required
             autoComplete="off"
@@ -61,24 +71,18 @@ export function RegisterForm() {
           />
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">Password</span>
+          <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Password")}</span>
           <input type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className={authInputCls} />
-          <span className="mt-1 block text-[11.5px] text-faint">Almeno 8 caratteri.</span>
+          <span className="mt-1 block text-[11.5px] text-faint">{tr("Almeno 8 caratteri.")}</span>
         </label>
         <label className="block">
-          <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">Conferma password</span>
+          <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Conferma password")}</span>
           <input type="password" autoComplete="new-password" required minLength={8} value={confirm} onChange={(e) => setConfirm(e.target.value)} className={authInputCls} />
         </label>
         <button type="submit" disabled={!authConfigured || busy} className={authPrimaryCls}>
-          {busy && <Loader2 className="h-4 w-4 animate-spin" />}
-          Crea account
-        </button>
+          {busy && <Loader2 className="h-4 w-4 animate-spin" />}{tr("Crea account")}</button>
       </form>
-      <p className="mt-5 text-center text-[12.5px] text-muted">
-        Hai già un account?{" "}
-        <Link href="/login" className="font-semibold text-brand hover:underline">
-          Accedi
-        </Link>
+      <p className="mt-5 text-center text-[12.5px] text-muted">{tr("Hai già un account?")}{" "}<Link href="/login" className="font-semibold text-brand hover:underline">{tr("Accedi")}</Link>
       </p>
     </AuthCard>
   );

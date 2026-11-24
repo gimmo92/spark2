@@ -6,11 +6,14 @@ import { SEED_OBJECTIVES, SEED_PRESETS, SEED_WORKFLOWS, buildSeedSchede } from "
 import { LEGACY_LETTER_IDS, SEED_LETTERS } from "./seed/letters";
 import type { User as SparkUser } from "@spark/core";
 import type { Workflow } from "@spark/mbo";
+import { EN } from "./i18n/en";
 
 /** Demo client: Valmec S.p.A. (app.tryspark.it). Invented people and data. */
 export default defineConfig({
   appName: "Spark",
   home: "/azienda/utenti",
+  // English copy of this app (core and modules bring their own); users switch IT / EN from the menu
+  messages: { en: EN },
   org: {
     name: "Valmec S.p.A.",
     emailDomains: [EMAIL_DOMAIN],

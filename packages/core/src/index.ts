@@ -1,6 +1,8 @@
 // @spark/core: client-safe entry (types, config, data store, UI, shell, people, auth screens).
 // Server-only code (routes, proxy, admin client) is in "@spark/core/server" and "@spark/core/routes/*".
 export * from "./config";
+export * from "./i18n/i18n";
+export * from "./i18n/LocaleProvider";
 export * from "./data/sync";
 export * from "./data/DataProvider";
 export * from "./access/permissions";

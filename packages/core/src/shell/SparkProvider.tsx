@@ -5,6 +5,9 @@ import { buOfTeam, collectionsOf, type OrgConfig, type SparkConfig } from "../co
 import { DataProvider, useCollection, useData } from "../data/DataProvider";
 import type { User } from "../people/data";
 import { INVITE_ERRORS, type InviteDTO, type InvitesStatus } from "../people/invites";
+import { addMessages } from "../i18n/i18n";
+import { LocaleProvider } from "../i18n/LocaleProvider";
+import { tr } from "../i18n/i18n";
 
 interface Toast {
   id: number;
@@ -31,15 +34,20 @@ export function SparkProvider({ config, children }: { config: SparkConfig; child
   const [invitesStatus, setInvitesStatus] = useState<InvitesStatus>("loading");
   const [invitesMessage, setInvitesMessage] = useState<string | null>(null);
   const collections = useMemo(() => collectionsOf(config), [config]);
+  // module + client dictionaries (idempotent: same texts every render)
+  useMemo(() => {
+    for (const m of config.modules) addMessages(m.messages);
+    addMessages(config.messages);
+  }, [config]);
 
   const notify = useCallback((message: string) => {
     const id = Date.now() + Math.random();
     setToasts((t) => [...t, { id, message }]);
     setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 3200);
   }, []);
-  const onSaveError = useCallback(() => notify("Salvataggio nel database non riuscito: riprovo alla prossima modifica."), [notify]);
+  const onSaveError = useCallback(() => notify(tr("Salvataggio nel database non riuscito: riprovo alla prossima modifica.")), [notify]);
   const onRejected = useCallback(
-    (n: number) => notify(n === 1 ? "Una modifica non è consentita dal tuo livello di accesso: non è stata salvata." : `${n} modifiche non consentite dal tuo livello di accesso: non sono state salvate.`),
+    (n: number) => notify(n === 1 ? tr("Una modifica non è consentita dal tuo livello di accesso: non è stata salvata.") : tr("{0} modifiche non consentite dal tuo livello di accesso: non sono state salvate.", [n])),
     [notify],
   );
 
@@ -80,7 +88,7 @@ export function SparkProvider({ config, children }: { config: SparkConfig; child
       setInvitesStatus("ready");
       return { ok: true };
     }
-    return { ok: false, message: INVITE_ERRORS[data.error ?? ""] ?? "Invio non riuscito. Riprova." };
+    return { ok: false, message: tr(INVITE_ERRORS[data.error ?? ""] ?? "Invio non riuscito. Riprova.") };
   }, []);
 
   const value = useMemo(
@@ -98,7 +106,8 @@ export function SparkProvider({ config, children }: { config: SparkConfig; child
         onSaveError={onSaveError}
         onRejected={onRejected}
       >
-        {children}
+        {/* below the data store: switching language remounts the UI, not the data */}
+        <LocaleProvider defaultLocale={config.locale}>{children}</LocaleProvider>
       </DataProvider>
     </Ctx.Provider>
   );

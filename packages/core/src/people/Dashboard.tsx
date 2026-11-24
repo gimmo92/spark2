@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useAccess } from "../access/useAccess";
 import { useCore } from "../shell/SparkProvider";
 import { DashboardTabs } from "../shell/PageTabs";
+import { localeTag, tr } from "../i18n/i18n";
 
 export function Dashboard() {
   const { teamNames: TEAMS } = useOrg();
@@ -28,14 +29,14 @@ export function Dashboard() {
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {stats.map((s) => (
           <div key={s.label} className="card p-5">
-            <p className="text-[12px] font-bold uppercase tracking-wide text-muted">{s.label}</p>
+            <p className="text-[12px] font-bold uppercase tracking-wide text-muted">{tr(s.label)}</p>
             <p className="mt-2 text-[24px] font-extrabold leading-none tabular-nums">{s.value}</p>
           </div>
         ))}
       </div>
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="card p-5 lg:col-span-2">
-          <h2 className="mb-5 text-[12px] font-bold uppercase tracking-wide text-muted">Utenti attivi per team</h2>
+          <h2 className="mb-5 text-[12px] font-bold uppercase tracking-wide text-muted">{tr("Utenti attivi per team")}</h2>
           <ul className="space-y-3.5">
             {byTeam.map(({ t, n }) => (
               <li key={t} className="grid grid-cols-[minmax(0,200px)_1fr_40px] items-center gap-4">
@@ -57,7 +58,7 @@ export function Dashboard() {
           </div>
         </div>
         <div className="card p-5">
-          <h2 className="mb-4 text-[12px] font-bold uppercase tracking-wide text-muted">Ultimi registrati</h2>
+          <h2 className="mb-4 text-[12px] font-bold uppercase tracking-wide text-muted">{tr("Ultimi registrati")}</h2>
           <ul className="space-y-1">
             {recent.map((u) => (
               <li key={u.id}>
@@ -66,7 +67,7 @@ export function Dashboard() {
                     {u.firstName} {u.lastName}
                   </span>
                   <span className="shrink-0 text-[11px] text-muted">
-                    {new Date(u.createdAt).toLocaleDateString("it-IT", { day: "2-digit", month: "short" })}
+                    {new Date(u.createdAt).toLocaleDateString(localeTag(), { day: "2-digit", month: "short" })}
                   </span>
                 </Link>
               </li>

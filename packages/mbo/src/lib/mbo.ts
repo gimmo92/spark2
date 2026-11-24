@@ -1,3 +1,5 @@
+import { localeTag, tr } from "@spark/core";
+
 export type SchedaStatus = "bozza" | "in_approvazione" | "approvata" | "consuntivata" | "archiviata";
 export type CalcMode = "lineare" | "scaglioni";
 
@@ -57,9 +59,9 @@ export const OBJECTIVE_TYPES: {
 export const toDay = (iso: string) => Math.round(Date.parse(`${iso}T00:00:00Z`) / 86_400_000);
 /** Days since 1970-01-01 → "2026-06-30". */
 export const fromDay = (n: number) => new Date(n * 86_400_000).toISOString().slice(0, 10);
-const dateLabel = (n: number) => new Date(n * 86_400_000).toLocaleDateString("it-IT", { timeZone: "UTC" });
+const dateLabel = (n: number) => new Date(n * 86_400_000).toLocaleDateString(localeTag(), { timeZone: "UTC" });
 export const typeOf = (d: Pick<ObjectiveDef, "type">): ObjectiveType => d.type ?? "quantitativo";
-export const typeLabel = (d: Pick<ObjectiveDef, "type">) => OBJECTIVE_TYPES.find((t) => t.value === typeOf(d))?.label ?? "Quantitativo";
+export const typeLabel = (d: Pick<ObjectiveDef, "type">) => tr(OBJECTIVE_TYPES.find((t) => t.value === typeOf(d))?.label ?? "Quantitativo");
 
 /** One activity of a "progetto" objective. */
 export interface Activity {
@@ -213,14 +215,14 @@ export function typeRange(type: ObjectiveType): { min: number; max: number; step
   return undefined;
 }
 
-const num = (n: number) => n.toLocaleString("it-IT", { maximumFractionDigits: 2 });
+const num = (n: number) => n.toLocaleString(localeTag(), { maximumFractionDigits: 2 });
 
 /** An actual (or target) value as people read it: "Raggiunto", "4/5", "60%", "1.200 €". */
 export function formatValue(d: ObjectiveDef, v: number): string {
   const t = typeOf(d);
-  if (t === "onoff") return v >= 1 ? "Raggiunto" : "Non raggiunto";
+  if (t === "onoff") return v >= 1 ? tr("Raggiunto") : tr("Non raggiunto");
   if (t === "qualitativo_5") return `${num(v)}/5`;
-  if (t === "progetto") return `${num(v)}% attività`;
+  if (t === "progetto") return tr("{0}% attività", [num(v)]);
   if (t === "data") return dateLabel(v);
   return `${num(v)}${d.unit ? ` ${d.unit}` : ""}`;
 }
@@ -287,7 +289,7 @@ export const SCHEDA_STATUSES: { value: SchedaStatus; label: string }[] = [
   { value: "consuntivata", label: "Consuntivata" },
   { value: "archiviata", label: "Archiviata" },
 ];
-export const statusLabel = (s: SchedaStatus) => SCHEDA_STATUSES.find((x) => x.value === s)?.label ?? s;
+export const statusLabel = (s: SchedaStatus) => tr(SCHEDA_STATUSES.find((x) => x.value === s)?.label ?? s);
 
 export const CYCLES: { value: string; label: string }[] = [
   { value: "2026", label: "Anno 2026" },
@@ -297,7 +299,7 @@ export const CYCLES: { value: string; label: string }[] = [
   { value: "2025-H2", label: "2025 · Secondo semestre" },
   { value: "2024", label: "Anno 2024" },
 ];
-export const cycleLabel = (c: string) => CYCLES.find((x) => x.value === c)?.label ?? c;
+export const cycleLabel = (c: string) => tr(CYCLES.find((x) => x.value === c)?.label ?? c);
 export const cycleYear = (c: string) => Number(c.slice(0, 4));
 export const YEARS = [2026, 2025, 2024];
 
@@ -390,8 +392,8 @@ export function projectActual(d: ObjectiveDef, m: Measure): number | undefined {
 
 /** Short description of the levels, e.g. "80 % → 50% · 100 % → 100%" or "Raggiunto → 100%". */
 export function levelsText(d: ObjectiveDef, sep = " · "): string {
-  if (typeOf(d) === "onoff") return `Raggiunto → ${d.levels[0]?.payout ?? 100}%`;
-  if (typeOf(d) === "progetto" && d.activityLevels) return "Livelli per attività";
+  if (typeOf(d) === "onoff") return tr("Raggiunto → {0}%", [d.levels[0]?.payout ?? 100]);
+  if (typeOf(d) === "progetto" && d.activityLevels) return tr("Livelli per attività");
   return d.levels.map((l) => `${formatValue(d, l.target)} → ${l.payout}%`).join(sep);
 }
 

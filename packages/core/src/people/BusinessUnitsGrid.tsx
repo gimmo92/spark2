@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCore, useOrg } from "../shell/SparkProvider";
 import { Badge } from "../ui/ui";
+import { tr } from "../i18n/i18n";
 
 /** La mia azienda → Business Unit: each BU with its company, teams and active people. */
 export function BusinessUnitsGrid() {
@@ -14,14 +15,12 @@ export function BusinessUnitsGrid() {
   return (
     <div className="space-y-4">
       <div className="card px-5 py-4">
-        <h1 className="text-[14px] font-semibold">Business Unit</h1>
-        <p className="mt-0.5 text-[12.5px] text-muted">
-          {businessUnits.length} business unit · {teams.length} team
-          {unassigned.length > 0 && ` · ${unassigned.length} team senza BU`}
+        <h1 className="text-[14px] font-semibold">{tr("Business Unit")}</h1>
+        <p className="mt-0.5 text-[12.5px] text-muted">{tr("{0} business unit · {1} team", [businessUnits.length, teams.length])}{unassigned.length > 0 && tr(" · {0} team senza BU", [unassigned.length])}
         </p>
       </div>
       {businessUnits.length === 0 && (
-        <div className="card px-5 py-10 text-center text-[12.5px] text-muted">Nessuna business unit configurata per questa azienda.</div>
+        <div className="card px-5 py-10 text-center text-[12.5px] text-muted">{tr("Nessuna business unit configurata per questa azienda.")}</div>
       )}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {businessUnits.map((bu) => {
@@ -35,9 +34,9 @@ export function BusinessUnitsGrid() {
                 <span className="text-right text-[12px] text-muted">{companies.join(", ") || "—"}</span>
               </div>
               <p className="mt-4 text-[26px] font-extrabold leading-none tabular-nums">{members.length}</p>
-              <p className="mt-1 text-[12.5px] text-muted">membri attivi · {buTeams.length} team</p>
+              <p className="mt-1 text-[12.5px] text-muted">{tr("membri attivi · {0} team", [buTeams.length])}</p>
               <div className="mt-4 flex flex-wrap gap-1.5">
-                {buTeams.length ? buTeams.map((t) => <Badge key={t.name}>{t.name}</Badge>) : <Badge tone="grey">Nessun team</Badge>}
+                {buTeams.length ? buTeams.map((t) => <Badge key={t.name}>{t.name}</Badge>) : <Badge tone="grey">{tr("Nessun team")}</Badge>}
               </div>
               {members.length > 0 && (
                 <div className="mt-4 flex -space-x-2">

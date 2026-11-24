@@ -25,10 +25,11 @@ import { BUCKETS, ChartCard, Histogram } from "./DashboardMbo";
 import { fmt } from "./SchedaEditor";
 import { StatusPill } from "./SchedeTable";
 import { FilterMenu, GhostButton, Modal, Popover, PrimaryButton, Tooltip } from "@spark/core";
+import { localeTag, tr } from "@spark/core";
 
 const CURRENT_KEY = "spark.forecast.current.v1";
 const SAVED_KEY = "spark.forecast.saved.v1";
-const eur = new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
+const eur = { format: (n: number) => new Intl.NumberFormat(localeTag(), { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n) };
 const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0);
 
 function load<T>(key: string, fallback: T): T {
@@ -134,7 +135,7 @@ export function Forecast() {
     const snap: ForecastScenario = { ...sc, id: `fc${Date.now().toString(36)}`, name, savedAt: new Date().toISOString() };
     setSaved((list) => [snap, ...list]);
     setSc((s) => ({ ...s, name }));
-    notify(`Scenario “${name}” salvato`);
+    notify(tr("Scenario “{0}” salvato", [name]));
   };
 
   if (!hydrated || !loaded) return <div className="card h-64 animate-pulse" />;
@@ -146,14 +147,11 @@ export function Forecast() {
       {/* header */}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[18px] font-bold leading-tight">Forecast MBO</h1>
-          <p className="mt-0.5 text-[12.5px] text-muted">
-            Stima il risultato degli obiettivi e guarda l&apos;effetto su payout e costo dei bonus. Le stime non modificano le schede.
-          </p>
+          <h1 className="text-[18px] font-bold leading-tight">{tr("Forecast MBO")}</h1>
+          <p className="mt-0.5 text-[12.5px] text-muted">{tr("Stima il risultato degli obiettivi e guarda l'effetto su payout e costo dei bonus. Le stime non modificano le schede.")}</p>
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-[12px] text-muted">
-            Scenario: <span className="font-semibold text-ink">{sc.name}</span>
+          <span className="text-[12px] text-muted">{tr("Scenario:")}{" "}<span className="font-semibold text-ink">{tr(sc.name)}</span>
           </span>
           <Popover
             trigger={(toggle, open) => (
@@ -163,12 +161,11 @@ export function Forecast() {
                 aria-expanded={open}
                 className="flex items-center gap-1.5 rounded-lg border border-[#dfe3ea] bg-white px-3 py-2 text-[12.5px] font-semibold text-ink hover:bg-canvas"
               >
-                <FolderOpen className="h-3.5 w-3.5" /> Scenari salvati ({saved.length})
-              </button>
+                <FolderOpen className="h-3.5 w-3.5" />{" "}{tr("Scenari salvati ({0})", [saved.length])}</button>
             )}
           >
             {saved.length === 0 ? (
-              <p className="px-2 py-2 text-[12.5px] text-muted">Nessuno scenario salvato.</p>
+              <p className="px-2 py-2 text-[12.5px] text-muted">{tr("Nessuno scenario salvato.")}</p>
             ) : (
               <ul className="max-h-72 w-[300px] overflow-y-auto">
                 {saved.map((x) => (
@@ -178,19 +175,17 @@ export function Forecast() {
                       className="min-w-0 flex-1 text-left"
                       onClick={() => {
                         setSc({ ...x, id: "current" });
-                        notify(`Scenario “${x.name}” caricato`);
+                        notify(tr("Scenario “{0}” caricato", [x.name]));
                       }}
                     >
                       <span className="block truncate text-[13px] font-semibold">{x.name}</span>
-                      <span className="block text-[11px] text-muted">
-                        {BASES.find((b) => b.value === x.base)?.label} · {Object.keys(x.estimates).length} stime
-                        {x.savedAt && ` · ${new Date(x.savedAt).toLocaleDateString("it-IT", { day: "2-digit", month: "short" })}`}
+                      <span className="block text-[11px] text-muted">{tr("{0} · {1} stime", [tr(BASES.find((b) => b.value === x.base)?.label), Object.keys(x.estimates).length])}{x.savedAt && ` · ${new Date(x.savedAt).toLocaleDateString(localeTag(), { day: "2-digit", month: "short" })}`}
                       </span>
                     </button>
-                    <Tooltip label="Elimina">
+                    <Tooltip label={tr("Elimina")}>
                       <button
                         type="button"
-                        aria-label={`Elimina ${x.name}`}
+                        aria-label={tr("Elimina {0}", [x.name])}
                         onClick={() => setSaved((list) => list.filter((y) => y.id !== x.id))}
                         className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-red-50 hover:text-red-600"
                       >
@@ -207,8 +202,7 @@ export function Forecast() {
             onClick={() => setSaving(true)}
             className="btn-gradient flex items-center gap-1.5 rounded-lg px-4 py-2 text-[11.5px] font-extrabold uppercase tracking-tight text-white"
           >
-            <Save className="h-3.5 w-3.5" /> Salva scenario
-          </button>
+            <Save className="h-3.5 w-3.5" />{" "}{tr("Salva scenario")}</button>
         </div>
       </div>
 
@@ -216,25 +210,25 @@ export function Forecast() {
       <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
         <FilterMenu
           icon={<CalendarDays className="h-3.5 w-3.5 text-[#7d8698]" />}
-          label="Anno"
-          activeLabel="Anno"
+          label={tr("Anno")}
+          activeLabel={tr("Anno")}
           value={year}
           onChange={setYear}
           options={YEARS.map((y) => ({ value: String(y), label: String(y) }))}
         />
         <FilterMenu
           icon={<Building2 className="h-3.5 w-3.5 text-[#7d8698]" />}
-          label="Filtra per società"
-          activeLabel="Società"
+          label={tr("Filtra per società")}
+          activeLabel={tr("Società")}
           value={company}
           onChange={setCompany}
           options={COMPANIES.map((c) => ({ value: c, label: c }))}
         />
         <div className="ml-auto flex items-center gap-2">
-          <span className="text-[12px] font-semibold text-muted">Punto di partenza</span>
-          <div className="inline-flex rounded-lg bg-white p-1 shadow-[0_1px_2px_rgb(16_24_40/0.06)]" role="radiogroup" aria-label="Punto di partenza">
+          <span className="text-[12px] font-semibold text-muted">{tr("Punto di partenza")}</span>
+          <div className="inline-flex rounded-lg bg-white p-1 shadow-[0_1px_2px_rgb(16_24_40/0.06)]" role="radiogroup" aria-label={tr("Punto di partenza")}>
             {BASES.map((b) => (
-              <Tooltip key={b.value} label={b.hint}>
+              <Tooltip key={b.value} label={tr(b.hint)}>
                 <button
                   type="button"
                   role="radio"
@@ -244,7 +238,7 @@ export function Forecast() {
                     sc.base === b.value ? "bg-brand text-white" : "text-muted hover:text-ink"
                   }`}
                 >
-                  {b.label}
+                  {tr(b.label)}
                 </button>
               </Tooltip>
             ))}
@@ -254,29 +248,29 @@ export function Forecast() {
 
       {scope.length === 0 ? (
         <div className="card px-6 py-14 text-center">
-          <p className="text-[14px] font-semibold">Nessuna scheda nel periodo selezionato</p>
-          <p className="mt-1 text-[12.5px] text-muted">Cambia anno o società.</p>
+          <p className="text-[14px] font-semibold">{tr("Nessuna scheda nel periodo selezionato")}</p>
+          <p className="mt-1 text-[12.5px] text-muted">{tr("Cambia anno o società.")}</p>
         </div>
       ) : (
         <>
           {/* KPIs */}
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <Stat
-              label="Payout medio stimato"
+              label={tr("Payout medio stimato")}
               value={`${kpi.avg}%`}
               sub={
                 kpi.actualAvg == null
-                  ? `${scope.length} schede`
-                  : `Consuntivo attuale ${kpi.actualAvg}% (${kpi.avg - kpi.actualAvg >= 0 ? "+" : ""}${kpi.avg - kpi.actualAvg} pt)`
+                  ? tr("{0} schede", [scope.length])
+                  : tr("Consuntivo attuale {0}% ({1}{2} pt)", [kpi.actualAvg, kpi.avg - kpi.actualAvg >= 0 ? "+" : "", kpi.avg - kpi.actualAvg])
               }
             />
             <Stat
-              label="Costo bonus stimato"
+              label={tr("Costo bonus stimato")}
               value={eur.format(kpi.bonusForecast)}
-              sub={`${kpi.bonusAtTarget ? Math.round((kpi.bonusForecast / kpi.bonusAtTarget) * 100) : 0}% del budget a target (${eur.format(kpi.bonusAtTarget)})`}
+              sub={tr("{0}% del budget a target ({1})", [kpi.bonusAtTarget ? Math.round((kpi.bonusForecast / kpi.bonusAtTarget) * 100) : 0, eur.format(kpi.bonusAtTarget)])}
             />
-            <Stat label="Schede a target o oltre" value={String(kpi.atTarget)} sub={`su ${scope.length} schede (payout ≥ 100%)`} />
-            <Stat label="Azzerate dalla soglia" value={String(kpi.zeroed)} sub={kpi.zeroed ? "obiettivo soglia non raggiunto" : "nessuna scheda azzerata"} />
+            <Stat label={tr("Schede a target o oltre")} value={String(kpi.atTarget)} sub={tr("su {0} schede (payout ≥ 100%)", [scope.length])} />
+            <Stat label={tr("Azzerate dalla soglia")} value={String(kpi.zeroed)} sub={kpi.zeroed ? tr("obiettivo soglia non raggiunto") : tr("nessuna scheda azzerata")} />
           </div>
 
           <div className="space-y-4">
@@ -284,11 +278,11 @@ export function Forecast() {
             <section className="card p-5">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h2 className="text-[13px] font-bold">Stima dei risultati</h2>
+                  <h2 className="text-[13px] font-bold">{tr("Stima dei risultati")}</h2>
                   <p className="mt-0.5 text-[11.5px] text-muted">
                     {explicitCount
-                      ? `${explicitCount} obiettivi stimati a mano, gli altri dal punto di partenza.`
-                      : "Muovi i cursori per stimare il risultato di ogni obiettivo."}
+                      ? tr("{0} obiettivi stimati a mano, gli altri dal punto di partenza.", [explicitCount])
+                      : tr("Muovi i cursori per stimare il risultato di ogni obiettivo.")}
                   </p>
                 </div>
                 {explicitCount > 0 && (
@@ -297,8 +291,7 @@ export function Forecast() {
                     onClick={() => setSc((s) => ({ ...s, estimates: {} }))}
                     className="flex shrink-0 items-center gap-1 text-[12px] font-semibold text-muted hover:text-ink"
                   >
-                    <RotateCcw className="h-3.5 w-3.5" /> Azzera
-                  </button>
+                    <RotateCcw className="h-3.5 w-3.5" />{" "}{tr("Azzera")}</button>
                 )}
               </div>
 
@@ -306,8 +299,7 @@ export function Forecast() {
                 {gates.length > 0 && (
                   <div>
                     <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-amber-700">
-                      <ShieldAlert className="h-3.5 w-3.5" /> Obiettivi soglia
-                    </p>
+                      <ShieldAlert className="h-3.5 w-3.5" />{" "}{tr("Obiettivi soglia")}</p>
                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                       {gates.map(({ def, n, ...g }) => (
                         <EstimateRow key={def.id} def={def} n={n} gate global={"global" in g} sc={sc} onChange={(v) => setEstimate(def.id, v)} />
@@ -316,35 +308,30 @@ export function Forecast() {
                   </div>
                 )}
                 <div>
-                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted">Obiettivi delle schede</p>
+                  <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Obiettivi delle schede")}</p>
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {weighted.map(({ def, n }) => (
                       <EstimateRow key={def.id} def={def} n={n} sc={sc} onChange={(v) => setEstimate(def.id, v)} />
                     ))}
                   </div>
-                  <p className="mt-3 text-[11px] text-faint">
-                    Gli obiettivi creati dentro una singola scheda seguono il punto di partenza. Il payout usa i livelli di ogni scheda, anche se
-                    personalizzati.
-                  </p>
+                  <p className="mt-3 text-[11px] text-faint">{tr("Gli obiettivi creati dentro una singola scheda seguono il punto di partenza. Il payout usa i livelli di ogni scheda, anche se personalizzati.")}</p>
                 </div>
               </div>
             </section>
 
             {/* results */}
             <div className="min-w-0 space-y-4">
-              <ChartCard title="Distribuzione del payout stimato" note="Numero di schede per fascia di payout">
+              <ChartCard title={tr("Distribuzione del payout stimato")} note={tr("Numero di schede per fascia di payout")}>
                 <Histogram cols={kpi.histogram} />
               </ChartCard>
 
               <section className="card overflow-hidden">
                 <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5">
                   <div>
-                    <h2 className="text-[13px] font-bold">Payout per scheda</h2>
-                    <p className="mt-0.5 text-[11.5px] text-muted">Bonus a target per assegnatario: modificabile per ogni scheda.</p>
+                    <h2 className="text-[13px] font-bold">{tr("Payout per scheda")}</h2>
+                    <p className="mt-0.5 text-[11.5px] text-muted">{tr("Bonus a target per assegnatario: modificabile per ogni scheda.")}</p>
                   </div>
-                  <label className="flex items-center gap-2 text-[12px] font-semibold text-muted">
-                    Bonus a target predefinito
-                    <span className="relative">
+                  <label className="flex items-center gap-2 text-[12px] font-semibold text-muted">{tr("Bonus a target predefinito")}<span className="relative">
                       <input
                         type="number"
                         min={0}
@@ -361,10 +348,10 @@ export function Forecast() {
                   <table className="w-full min-w-[720px] border-collapse text-left">
                     <thead>
                       <tr className="border-y border-line text-[11px] font-bold uppercase text-[#9aa2b1]">
-                        <th className="px-5 py-2.5">Scheda</th>
-                        <th className="px-3 py-2.5">Payout stimato</th>
-                        <th className="px-3 py-2.5 text-right">Bonus a target</th>
-                        <th className="px-5 py-2.5 text-right">Bonus stimato</th>
+                        <th className="px-5 py-2.5">{tr("Scheda")}</th>
+                        <th className="px-3 py-2.5">{tr("Payout stimato")}</th>
+                        <th className="px-3 py-2.5 text-right">{tr("Bonus a target")}</th>
+                        <th className="px-5 py-2.5 text-right">{tr("Bonus stimato")}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -382,7 +369,7 @@ export function Forecast() {
                                     <span className="block max-w-[380px] truncate text-[13px] font-semibold">{r.scheda.name}</span>
                                     <span className="block max-w-[300px] truncate text-[11.5px] text-muted">
                                       {ppl[0] ? fullName(ppl[0]) : "—"}
-                                      {ppl.length > 1 && ` +${ppl.length - 1}`} · {cycleLabel(r.scheda.cycle)}
+                                      {ppl.length > 1 && ` +${ppl.length - 1}`} · {tr(cycleLabel(r.scheda.cycle))}
                                     </span>
                                   </span>
                                 </button>
@@ -399,8 +386,7 @@ export function Forecast() {
                                   <span className="w-10 text-[12.5px] font-semibold tabular-nums">{r.score}%</span>
                                   {!r.gateOk && (
                                     <span className="flex items-center gap-1 rounded bg-amber-50 px-1.5 py-[1px] text-[10.5px] font-bold text-amber-700">
-                                      <ShieldAlert className="h-3 w-3" /> Soglia
-                                    </span>
+                                      <ShieldAlert className="h-3 w-3" />{" "}{tr("Soglia")}</span>
                                   )}
                                 </div>
                               </td>
@@ -409,7 +395,7 @@ export function Forecast() {
                                   type="number"
                                   min={0}
                                   step={500}
-                                  aria-label={`Bonus a target per ${r.scheda.name}`}
+                                  aria-label={tr("Bonus a target per {0}", [r.scheda.name])}
                                   value={bonus}
                                   onChange={(e) =>
                                     setSc((s) => ({ ...s, bonusBySchede: { ...s.bonusBySchede, [r.scheda.id]: Math.max(0, Number(e.target.value) || 0) } }))
@@ -427,18 +413,16 @@ export function Forecast() {
                                 <td colSpan={4} className="px-5 py-3">
                                   <div className="mb-2 flex items-center gap-2">
                                     <StatusPill status={r.scheda.status} />
-                                    <Link href={`/mbo/schede/${r.scheda.id}`} className="text-[12px] font-semibold text-brand hover:underline">
-                                      Apri scheda
-                                    </Link>
+                                    <Link href={`/mbo/schede/${r.scheda.id}`} className="text-[12px] font-semibold text-brand hover:underline">{tr("Apri scheda")}</Link>
                                   </div>
                                   <table className="w-full text-left text-[12.5px]">
                                     <thead>
                                       <tr className="text-[10.5px] font-bold uppercase text-[#9aa2b1]">
-                                        <th className="py-1">Obiettivo</th>
-                                        <th className="w-14 py-1 text-right">Peso</th>
-                                        <th className="w-28 py-1 text-right">Risultato</th>
-                                        <th className="w-20 py-1 text-right">Payout</th>
-                                        <th className="w-24 py-1 text-right">Contributo</th>
+                                        <th className="py-1">{tr("Obiettivo")}</th>
+                                        <th className="w-14 py-1 text-right">{tr("Peso")}</th>
+                                        <th className="w-28 py-1 text-right">{tr("Risultato")}</th>
+                                        <th className="w-20 py-1 text-right">{tr("Payout")}</th>
+                                        <th className="w-24 py-1 text-right">{tr("Contributo")}</th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -446,13 +430,13 @@ export function Forecast() {
                                         <tr key={it.id} className="border-t border-line">
                                           <td className="py-1.5">
                                             {it.name}
-                                            {it.estimated && <span className="ml-1.5 text-[10.5px] font-bold text-brand">stimato</span>}
+                                            {it.estimated && <span className="ml-1.5 text-[10.5px] font-bold text-brand">{tr("stimato")}</span>}
                                           </td>
                                           <td className="py-1.5 text-right tabular-nums text-muted">{it.weight}%</td>
                                           <td className="py-1.5 text-right tabular-nums">{fmt(it.value)}</td>
                                           <td className="py-1.5 text-right tabular-nums">{it.payout}%</td>
                                           <td className="py-1.5 text-right font-semibold tabular-nums">
-                                            {r.gateOk ? `${Math.round((it.weight * it.payout) / 100)} pt` : "0 pt"}
+                                            {r.gateOk ? tr("{0} pt", [Math.round((it.weight * it.payout) / 100)]) : tr("0 pt")}
                                           </td>
                                         </tr>
                                       ))}
@@ -467,8 +451,8 @@ export function Forecast() {
                     </tbody>
                     <tfoot>
                       <tr className="border-t-2 border-line text-[13px] font-bold">
-                        <td className="px-5 py-3">Totale ({scope.length} schede)</td>
-                        <td className="px-3 tabular-nums">{kpi.avg}% medio</td>
+                        <td className="px-5 py-3">{tr("Totale ({0} schede)", [scope.length])}</td>
+                        <td className="px-3 tabular-nums">{tr("{0}% medio", [kpi.avg])}</td>
                         <td className="px-3 text-right tabular-nums">{eur.format(kpi.bonusAtTarget)}</td>
                         <td className="px-5 text-right tabular-nums">{eur.format(kpi.bonusForecast)}</td>
                       </tr>
@@ -527,14 +511,14 @@ function EstimateRow({
             {def.name}
           </p>
           <p className="text-[11px] text-muted">
-            {global ? "Soglia globale · tutte le schede" : `${n} ${n === 1 ? "scheda" : "schede"}`} · {levelsText(def)}
+            {global ? tr("Soglia globale · tutte le schede") : `${n} ${n === 1 ? tr("scheda") : tr("schede")}`} · {levelsText(def)}
           </p>
         </div>
         {gate ? (
           <span
             className={`shrink-0 rounded-full px-2 py-[2px] text-[11px] font-bold ${met ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700"}`}
           >
-            {met ? "Raggiunta" : "Non raggiunta"}
+            {met ? tr("Raggiunta") : tr("Non raggiunta")}
           </span>
         ) : (
           <span className="shrink-0 rounded-full bg-[#eef1f5] px-2 py-[2px] text-[11px] font-bold tabular-nums text-ink">{payout}%</span>
@@ -548,7 +532,7 @@ function EstimateRow({
           step={step}
           value={Math.min(Math.max(value, min), max)}
           onChange={(e) => onChange(Number(e.target.value))}
-          aria-label={`Risultato stimato ${def.name}`}
+          aria-label={tr("Risultato stimato {0}", [def.name])}
           // dates: earlier is better, so the slider grows towards the earliest date
           style={isDate ? { direction: "rtl" } : undefined}
           className="h-1.5 flex-1 cursor-pointer accent-[#1673e6]"
@@ -558,7 +542,7 @@ function EstimateRow({
             type="date"
             value={Number.isFinite(value) ? fromDay(value) : ""}
             onChange={(e) => onChange(e.target.value ? toDay(e.target.value) : undefined)}
-            aria-label={`Data stimata ${def.name}`}
+            aria-label={tr("Data stimata {0}", [def.name])}
             className="w-[132px] rounded-md border border-[#dfe3ea] bg-white px-2 py-1 text-[12.5px] font-semibold tabular-nums outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
           />
         ) : (
@@ -568,17 +552,17 @@ function EstimateRow({
               step={step}
               value={Number.isFinite(value) ? value : ""}
               onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
-              aria-label={`Valore stimato ${def.name}`}
+              aria-label={tr("Valore stimato {0}", [def.name])}
               className="w-[92px] rounded-md border border-[#dfe3ea] bg-white py-1 pl-2 pr-9 text-right text-[12.5px] font-semibold tabular-nums outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
             />
             <span className="pointer-events-none absolute right-2 top-1/2 max-w-[32px] -translate-y-1/2 truncate text-[10.5px] text-muted">{def.unit}</span>
           </span>
         )}
         {explicit != null && (
-          <Tooltip label="Torna al punto di partenza">
+          <Tooltip label={tr("Torna al punto di partenza")}>
             <button
               type="button"
-              aria-label="Torna al punto di partenza"
+              aria-label={tr("Torna al punto di partenza")}
               onClick={() => onChange(undefined)}
               className="grid h-6 w-6 place-items-center rounded-md text-muted hover:bg-white hover:text-ink"
             >
@@ -600,15 +584,13 @@ function SaveDialog({ defaultName, onClose, onSave }: { defaultName: string; onC
   };
   return (
     <Modal
-      title="Salva scenario"
+      title={tr("Salva scenario")}
       onClose={onClose}
       width="max-w-md"
       footer={
         <>
-          <GhostButton onClick={onClose}>Annulla</GhostButton>
-          <PrimaryButton onClick={submit} disabled={!name.trim()}>
-            Salva
-          </PrimaryButton>
+          <GhostButton onClick={onClose}>{tr("Annulla")}</GhostButton>
+          <PrimaryButton onClick={submit} disabled={!name.trim()}>{tr("Salva")}</PrimaryButton>
         </>
       }
     >
@@ -619,12 +601,12 @@ function SaveDialog({ defaultName, onClose, onSave }: { defaultName: string; onC
         }}
       >
         <label className="block">
-          <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">Nome scenario</span>
+          <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Nome scenario")}</span>
           <input
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="es. Budget 2026 · EBITDA prudente"
+            placeholder={tr("es. Budget 2026 · EBITDA prudente")}
             className="w-full rounded-lg border border-[#dfe3ea] px-3 py-2 text-[13px] outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
           />
         </label>

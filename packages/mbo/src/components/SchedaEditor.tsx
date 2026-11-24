@@ -53,12 +53,13 @@ import {
 import { useMbo, useMboOptions } from "../store";
 import { MultiSelect } from "@spark/core";
 import { GhostButton, PrimaryButton, Switch, inputCls } from "@spark/core";
+import { localeTag, tr } from "@spark/core";
 
 const collator = new Intl.Collator("it", { sensitivity: "base" });
 let seq = 0;
 const uid = (p: string) => `${p}${Date.now().toString(36)}${(seq++).toString(36)}`;
 
-export const fmt = (n: number) => n.toLocaleString("it-IT", { maximumFractionDigits: 2 });
+export const fmt = (n: number) => n.toLocaleString(localeTag(), { maximumFractionDigits: 2 });
 export const levelsSummary = (d: ObjectiveDef) => levelsText(d, "  ·  ");
 
 /** Route entry: /mbo/schede/[id] (edit) or /mbo/schede/nuova (create). */
@@ -72,10 +73,8 @@ export function SchedaEditorPage({ isNew }: { isNew?: boolean }) {
   if (!scheda)
     return (
       <div className="card p-10 text-center">
-        <p className="text-[14px] font-semibold">Scheda non trovata</p>
-        <Link href="/mbo/schede" className="mt-2 inline-block text-[12.5px] font-semibold text-brand hover:underline">
-          Torna alle schede obiettivo
-        </Link>
+        <p className="text-[14px] font-semibold">{tr("Scheda non trovata")}</p>
+        <Link href="/mbo/schede" className="mt-2 inline-block text-[12.5px] font-semibold text-brand hover:underline">{tr("Torna alle schede obiettivo")}</Link>
       </div>
     );
   return <SchedaEditor key={scheda.id} scheda={scheda} />;
@@ -84,11 +83,9 @@ export function SchedaEditorPage({ isNew }: { isNew?: boolean }) {
 function NoEdit() {
   return (
     <div className="card p-10 text-center">
-      <p className="text-[14px] font-semibold">Non puoi modificare questa scheda</p>
-      <p className="mt-1 text-[12.5px] text-muted">Il tuo livello di accesso non lo prevede. Puoi consultarla dalla lista.</p>
-      <Link href="/mbo/schede" className="mt-2 inline-block text-[12.5px] font-semibold text-brand hover:underline">
-        Torna alle schede obiettivo
-      </Link>
+      <p className="text-[14px] font-semibold">{tr("Non puoi modificare questa scheda")}</p>
+      <p className="mt-1 text-[12.5px] text-muted">{tr("Il tuo livello di accesso non lo prevede. Puoi consultarla dalla lista.")}</p>
+      <Link href="/mbo/schede" className="mt-2 inline-block text-[12.5px] font-semibold text-brand hover:underline">{tr("Torna alle schede obiettivo")}</Link>
     </div>
   );
 }
@@ -128,7 +125,7 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
     .map((o) => ({
       value: o.id,
       label: o.name,
-      hint: `${o.calc === "lineare" ? "Lineare" : "A scaglioni"} · ${levelsSummary(o)}`,
+      hint: `${o.calc === "lineare" ? tr("Lineare") : tr("A scaglioni")} · ${levelsSummary(o)}`,
     }));
 
   const catalogIds = items.filter((i) => i.objectiveId && !i.custom).map((i) => i.objectiveId!);
@@ -182,7 +179,7 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
   if (!name.trim()) errors.name = "Inserisci il nome della scheda";
   if (!assigneeIds.length) errors.assignees = "Assegna la scheda ad almeno un utente";
   if (!items.length) errors.items = "Aggiungi almeno un obiettivo";
-  else if (totalWeight !== 100) errors.items = `La somma dei pesi deve essere 100% (ora ${totalWeight}%)`;
+  else if (totalWeight !== 100) errors.items = tr("La somma dei pesi deve essere 100% (ora {0}%)", [totalWeight]);
   if (thresholdOn && !thresholdId) errors.threshold = "Seleziona l'obiettivo soglia";
   items.forEach((it) => {
     const e = it.custom ? customError(it.custom) : null;
@@ -195,7 +192,7 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
     if (Object.keys(errors).length) {
       const firstCustom = items.find((i) => errors[i.id]);
       if (firstCustom) setExpanded(firstCustom.id);
-      notify("Controlla i campi evidenziati");
+      notify(tr("Controlla i campi evidenziati"));
       return;
     }
     const prevThreshold = scheda?.threshold?.objectiveId === thresholdId ? scheda?.threshold : undefined;
@@ -210,10 +207,10 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
     };
     if (scheda) {
       updateScheda(scheda.id, data);
-      notify("Scheda salvata");
+      notify(tr("Scheda salvata"));
     } else {
       addScheda(data);
-      notify("Scheda creata");
+      notify(tr("Scheda creata"));
     }
     router.push("/mbo/schede");
   };
@@ -224,35 +221,34 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
     <div className="mx-auto max-w-[920px] space-y-4 pb-20">
       <div className="flex flex-wrap items-center gap-3">
         <Link href="/mbo/schede" className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-muted hover:text-ink">
-          <ArrowLeft className="h-3.5 w-3.5" /> Schede obiettivo
-        </Link>
+          <ArrowLeft className="h-3.5 w-3.5" />{" "}{tr("Schede obiettivo")}</Link>
       </div>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-[18px] font-bold leading-tight">{scheda ? "Modifica scheda" : "Nuova scheda obiettivo"}</h1>
+          <h1 className="text-[18px] font-bold leading-tight">{scheda ? tr("Modifica scheda") : tr("Nuova scheda obiettivo")}</h1>
           {scheda && <p className="mt-0.5 text-[12.5px] text-muted">{scheda.name}</p>}
         </div>
         <div className="flex gap-2">
-          <GhostButton onClick={() => router.push("/mbo/schede")}>Annulla</GhostButton>
-          <PrimaryButton onClick={save}>{scheda ? "Salva scheda" : "Crea scheda"}</PrimaryButton>
+          <GhostButton onClick={() => router.push("/mbo/schede")}>{tr("Annulla")}</GhostButton>
+          <PrimaryButton onClick={save}>{scheda ? tr("Salva scheda") : tr("Crea scheda")}</PrimaryButton>
         </div>
       </div>
 
       {/* 1. General info */}
       <section className="card p-5">
-        <SectionTitle n={1} title="Informazioni generali" />
+        <SectionTitle n={1} title={tr("Informazioni generali")} />
         <div className="grid gap-4 sm:grid-cols-2">
-          <Block label="Nome scheda" error={err("name")} className="sm:col-span-2">
+          <Block label={tr("Nome scheda")} error={err("name")} className="sm:col-span-2">
             <input
               className={`${inputCls} ${err("name") ? "border-red-300" : ""}`}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="es. MBO 2026 · Area Manager Nord"
+              placeholder={tr("es. MBO 2026 · Area Manager Nord")}
             />
           </Block>
           <Block
-            label="Assegnatari"
-            hint={assigneeIds.length > 1 ? `${assigneeIds.length} utenti ricevono la stessa scheda` : "Uno o più utenti"}
+            label={tr("Assegnatari")}
+            hint={assigneeIds.length > 1 ? tr("{0} utenti ricevono la stessa scheda", [assigneeIds.length]) : tr("Uno o più utenti")}
             error={err("assignees")}
             className="sm:col-span-2"
           >
@@ -260,25 +256,25 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
               options={userOptions}
               value={assigneeIds}
               onChange={setAssigneeIds}
-              placeholder="Seleziona uno o più utenti"
-              searchPlaceholder="Cerca per nome, ruolo o team…"
+              placeholder={tr("Seleziona uno o più utenti")}
+              searchPlaceholder={tr("Cerca per nome, ruolo o team…")}
               invalid={!!err("assignees")}
             />
           </Block>
-          <Block label="Ciclo di riferimento">
+          <Block label={tr("Ciclo di riferimento")}>
             <select className={inputCls} value={cycle} onChange={(e) => setCycle(e.target.value)}>
               {CYCLES.map((c) => (
                 <option key={c.value} value={c.value}>
-                  {c.label}
+                  {tr(c.label)}
                 </option>
               ))}
             </select>
           </Block>
-          <Block label="Stato">
+          <Block label={tr("Stato")}>
             <select className={inputCls} value={status} onChange={(e) => setStatus(e.target.value as SchedaStatus)}>
               {SCHEDA_STATUSES.filter((s) => s.value !== "archiviata").map((s) => (
                 <option key={s.value} value={s.value}>
-                  {s.label}
+                  {tr(s.label)}
                 </option>
               ))}
             </select>
@@ -294,9 +290,9 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
             className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
           >
             <span>
-              <span className="block text-[13px] font-bold">Opzioni avanzate</span>
+              <span className="block text-[13px] font-bold">{tr("Opzioni avanzate")}</span>
               <span className="block text-[11.5px] text-muted">
-                {thresholdOn && thresholdDef ? `Obiettivo soglia: ${thresholdDef.name}` : "Obiettivo soglia della scheda"}
+                {thresholdOn && thresholdDef ? tr("Obiettivo soglia: {0}", [thresholdDef.name]) : tr("Obiettivo soglia della scheda")}
               </span>
             </span>
             <ChevronDown className={`h-4 w-4 text-muted transition-transform duration-200 ${advancedOpen ? "rotate-180" : ""}`} />
@@ -305,39 +301,31 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
             <div className="overflow-hidden" inert={!advancedOpen}>
               <div className="border-t border-line px-4 py-4">
                 {globalDef && (
-                  <p className="mb-4 rounded-lg bg-canvas px-3 py-2 text-[12px] text-muted">
-                    Soglia globale attiva per tutte le schede: <span className="font-semibold text-ink">{globalDef.name}</span> (Impostazioni → MBO). Qui puoi
-                    aggiungere una soglia che vale solo per questa scheda.
-                  </p>
+                  <p className="mb-4 rounded-lg bg-canvas px-3 py-2 text-[12px] text-muted">{tr("Soglia globale attiva per tutte le schede:")}{" "}<span className="font-semibold text-ink">{globalDef.name}</span>{" "}{tr("(Impostazioni → MBO). Qui puoi aggiungere una soglia che vale solo per questa scheda.")}</p>
                 )}
                 <label className="flex cursor-pointer items-start gap-3">
                   <Switch checked={thresholdOn} onChange={setThresholdOn} />
                   <span>
-                    <span className="block text-[13px] font-semibold">Imposta un obiettivo soglia per questa scheda</span>
-                    <span className="block text-[12px] text-muted">
-                      Se l&apos;obiettivo soglia non raggiunge il primo livello target, la scheda non matura alcun payout, indipendentemente dagli altri
-                      obiettivi.
-                    </span>
+                    <span className="block text-[13px] font-semibold">{tr("Imposta un obiettivo soglia per questa scheda")}</span>
+                    <span className="block text-[12px] text-muted">{tr("Se l'obiettivo soglia non raggiunge il primo livello target, la scheda non matura alcun payout, indipendentemente dagli altri obiettivi.")}</span>
                   </span>
                 </label>
                 {thresholdOn && (
                   <div className="mt-3.5 grid gap-3 sm:grid-cols-[1fr_220px]">
-                    <Block label="Obiettivo soglia" error={err("threshold")}>
+                    <Block label={tr("Obiettivo soglia")} error={err("threshold")}>
                       <MultiSelect
                         multiple={false}
                         options={catalogOptions}
                         value={thresholdId ? [thresholdId] : []}
                         onChange={(v) => setThresholdId(v[0] ?? "")}
-                        placeholder="Seleziona obiettivo"
-                        searchPlaceholder="Cerca obiettivo…"
+                        placeholder={tr("Seleziona obiettivo")}
+                        searchPlaceholder={tr("Cerca obiettivo…")}
                         invalid={!!err("threshold")}
                       />
                     </Block>
                     {thresholdDef && (
                       <div className="rounded-lg bg-amber-50 px-3 py-2.5 text-[12px] text-amber-800">
-                        <span className="block font-bold">Soglia di accesso</span>
-                        Raggiunta con almeno {formatValue(thresholdDef, thresholdDef.levels[0].target)}
-                      </div>
+                        <span className="block font-bold">{tr("Soglia di accesso")}</span>{tr("Raggiunta con almeno {0}", [formatValue(thresholdDef, thresholdDef.levels[0].target)])}</div>
                     )}
                   </div>
                 )}
@@ -350,18 +338,18 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
       {/* 2. Objectives */}
       <section className="card p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <SectionTitle n={2} title="Obiettivi" />
+          <SectionTitle n={2} title={tr("Obiettivi")} />
           <WeightMeter total={totalWeight} />
         </div>
 
         <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-          <Block label="Seleziona obiettivi">
+          <Block label={tr("Seleziona obiettivi")}>
             <MultiSelect
               options={catalogOptions}
               value={catalogIds}
               onChange={setCatalog}
-              placeholder="Scegli uno o più obiettivi"
-              searchPlaceholder="Cerca obiettivo…"
+              placeholder={tr("Scegli uno o più obiettivi")}
+              searchPlaceholder={tr("Cerca obiettivo…")}
             />
           </Block>
           <button
@@ -369,8 +357,7 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
             onClick={addCustom}
             className="flex h-[38px] items-center justify-center gap-1.5 rounded-lg border border-dashed border-brand/50 px-3.5 text-[12.5px] font-bold text-brand transition-colors hover:bg-brand-soft"
           >
-            <Sparkles className="h-3.5 w-3.5" /> Crea nuovo obiettivo
-          </button>
+            <Sparkles className="h-3.5 w-3.5" />{" "}{tr("Crea nuovo obiettivo")}</button>
         </div>
 
         {err("items") && (
@@ -381,8 +368,8 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
 
         {items.length === 0 ? (
           <div className="mt-4 rounded-xl border border-dashed border-[#dfe3ea] px-4 py-8 text-center">
-            <p className="text-[13px] font-semibold">Nessun obiettivo nella scheda</p>
-            <p className="mt-0.5 text-[12px] text-muted">Selezionali dall&apos;elenco oppure creane uno nuovo.</p>
+            <p className="text-[13px] font-semibold">{tr("Nessun obiettivo nella scheda")}</p>
+            <p className="mt-0.5 text-[12px] text-muted">{tr("Selezionali dall'elenco oppure creane uno nuovo.")}</p>
           </div>
         ) : (
           <div className="mt-4 space-y-2">
@@ -398,14 +385,14 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
                       <ChevronDown className={`h-3.5 w-3.5 shrink-0 text-muted transition-transform ${isOpen ? "rotate-180" : ""}`} />
                       <span className="min-w-0">
                         <span className="flex items-center gap-2">
-                          <span className="truncate text-[13px] font-semibold">{def.name || "Obiettivo senza nome"}</span>
-                          <span className="shrink-0 text-[11px] text-muted">{def.calc === "lineare" ? "Lineare" : "A scaglioni"}</span>
+                          <span className="truncate text-[13px] font-semibold">{def.name || tr("Obiettivo senza nome")}</span>
+                          <span className="shrink-0 text-[11px] text-muted">{def.calc === "lineare" ? tr("Lineare") : tr("A scaglioni")}</span>
                         </span>
                         <span className="block truncate text-[11.5px] text-muted">{levelsSummary(def)}</span>
                       </span>
                     </button>
                     <label className="flex items-center gap-1.5">
-                      <span className="text-[11px] font-semibold text-muted">Peso</span>
+                      <span className="text-[11px] font-semibold text-muted">{tr("Peso")}</span>
                       <span className="relative">
                         <input
                           type="number"
@@ -424,8 +411,8 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
                     </label>
                     <button
                       type="button"
-                      aria-label="Rimuovi obiettivo"
-                      title="Rimuovi"
+                      aria-label={tr("Rimuovi obiettivo")}
+                      title={tr("Rimuovi")}
                       onClick={() => setItems((p) => p.filter((x) => x.id !== it.id))}
                       className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-red-50 hover:text-red-600"
                     >
@@ -446,8 +433,7 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
                               onClick={() => personalize(it)}
                               className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline"
                             >
-                              <Copy className="h-3.5 w-3.5" /> Personalizza per questa scheda
-                            </button>
+                              <Copy className="h-3.5 w-3.5" />{" "}{tr("Personalizza per questa scheda")}</button>
                           </div>
                           <PayoutCurve def={def} />
                         </div>
@@ -462,8 +448,8 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
       </section>
 
       <div className="flex justify-end gap-2">
-        <GhostButton onClick={() => router.push("/mbo/schede")}>Annulla</GhostButton>
-        <PrimaryButton onClick={save}>{scheda ? "Salva scheda" : "Crea scheda"}</PrimaryButton>
+        <GhostButton onClick={() => router.push("/mbo/schede")}>{tr("Annulla")}</GhostButton>
+        <PrimaryButton onClick={save}>{scheda ? tr("Salva scheda") : tr("Crea scheda")}</PrimaryButton>
       </div>
     </div>
   );
@@ -492,13 +478,13 @@ export function customError(d: ObjectiveDef): string | null {
       if (!a.title.trim()) continue;
       const ad = activityDef(d, a);
       const e = levelsError(ad.levels, typeOf(ad));
-      if (e) return `${a.title.trim()}: ${e}`;
+      if (e) return `${a.title.trim()}: ${tr(e)}`;
     }
   if (typeOf(d) === "progetto" && d.weightedActivities) {
     const acts = (d.activities ?? []).filter((a) => a.title.trim());
     if (acts.some((a) => !((a.weight ?? 0) > 0))) return "Ogni attività deve avere un peso maggiore di 0";
     const total = acts.reduce((sum, a) => sum + (a.weight ?? 0), 0);
-    if (Math.abs(total - 100) > 0.001) return `I pesi delle attività devono sommare 100% (ora ${total}%)`;
+    if (Math.abs(total - 100) > 0.001) return tr("I pesi delle attività devono sommare 100% (ora {0}%)", [total]);
   }
   return typeOf(d) === "progetto" && d.activityLevels ? null : levelsError(d.levels, typeOf(d));
 }
@@ -541,7 +527,7 @@ export function ChoiceButtons<T extends string>({
               on ? "border-brand bg-brand-soft text-brand" : "border-[#dfe3ea] bg-white text-muted hover:border-[#c6ccd6] hover:text-ink"
             }`}
           >
-            <Icon className="h-3.5 w-3.5" /> {o.label}
+            <Icon className="h-3.5 w-3.5" /> {tr(o.label)}
           </button>
         );
       })}
@@ -586,12 +572,12 @@ function ActivitiesEditor({
   const unweighted = (acts: Activity[]) => acts.map((a) => ({ ...a, weight: undefined }));
   const total = activities.reduce((s, a) => s + (a.weight ?? 0), 0);
   return (
-    <Block label="Attività del progetto">
+    <Block label={tr("Attività del progetto")}>
       <div className="mb-2 flex items-center justify-between gap-3 rounded-lg bg-canvas px-3 py-2">
-        <span className="text-[12.5px] font-semibold">Distribuisci il peso sulle attività</span>
+        <span className="text-[12.5px] font-semibold">{tr("Distribuisci il peso sulle attività")}</span>
         <Switch
           checked={weighted}
-          label="Distribuisci il peso sulle attività"
+          label={tr("Distribuisci il peso sulle attività")}
           onChange={(v) =>
             onChange(v ? { weightedActivities: true, activities: spread(activities) } : { weightedActivities: false, activities: unweighted(activities) })
           }
@@ -599,10 +585,10 @@ function ActivitiesEditor({
       </div>
       {levelsOption && (
         <div className="-mt-1 mb-2 flex items-center justify-between gap-3 rounded-lg bg-canvas px-3 py-2">
-          <span className="text-[12.5px] font-semibold">Livelli target / payout per attività</span>
+          <span className="text-[12.5px] font-semibold">{tr("Livelli target / payout per attività")}</span>
           <Switch
             checked={perActivity}
-            label="Livelli target / payout per attività"
+            label={tr("Livelli target / payout per attività")}
             onChange={(v) =>
               onChange(
                 v
@@ -622,7 +608,7 @@ function ActivitiesEditor({
                 className={inputCls}
                 value={a.title}
                 onChange={(e) => set(a.id, { title: e.target.value })}
-                placeholder={i === 0 ? "es. Analisi dei requisiti" : "Attività"}
+                placeholder={i === 0 ? tr("es. Analisi dei requisiti") : tr("Attività")}
               />
               <select
                 className={`${inputCls} w-[92px] shrink-0`}
@@ -632,11 +618,11 @@ function ActivitiesEditor({
                   const next: Activity = kind === "kpi" ? { ...a, kind } : { ...a, kind, unit: undefined, target: undefined };
                   set(a.id, perActivity ? { ...next, levels: activityDefaultLevels(next) } : next);
                 }}
-                aria-label={`Misura di ${a.title || `attività ${i + 1}`}`}
+                aria-label={tr("Misura di {0}", [a.title || tr("attività {0}", [i + 1])])}
               >
                 {ACTIVITY_KINDS.map((k) => (
                   <option key={k.value} value={k.value}>
-                    {k.label}
+                    {tr(k.label)}
                   </option>
                 ))}
               </select>
@@ -647,17 +633,17 @@ function ActivitiesEditor({
                       type="number"
                       className={`${inputCls} w-[80px] shrink-0 text-right tabular-nums`}
                       value={a.target ?? ""}
-                      placeholder="Target"
+                      placeholder={tr("Target")}
                       onChange={(e) => set(a.id, { target: e.target.value === "" ? undefined : Number(e.target.value) })}
-                      aria-label={`Target di ${a.title || `attività ${i + 1}`}`}
+                      aria-label={tr("Target di {0}", [a.title || tr("attività {0}", [i + 1])])}
                     />
                   )}
                   <input
                     className={`${inputCls} w-[64px] shrink-0`}
                     value={a.unit ?? ""}
-                    placeholder="Unità"
+                    placeholder={tr("Unità")}
                     onChange={(e) => set(a.id, { unit: e.target.value })}
-                    aria-label={`Unità di ${a.title || `attività ${i + 1}`}`}
+                    aria-label={tr("Unità di {0}", [a.title || tr("attività {0}", [i + 1])])}
                   />
                 </>
               )}
@@ -670,14 +656,14 @@ function ActivitiesEditor({
                     className={`${inputCls} pr-6 text-right tabular-nums`}
                     value={a.weight ?? ""}
                     onChange={(e) => set(a.id, { weight: e.target.value === "" ? undefined : Number(e.target.value) })}
-                    aria-label={`Peso di ${a.title || `attività ${i + 1}`}`}
+                    aria-label={tr("Peso di {0}", [a.title || tr("attività {0}", [i + 1])])}
                   />
                   <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[12px] text-muted">%</span>
                 </span>
               )}
               <button
                 type="button"
-                aria-label="Rimuovi attività"
+                aria-label={tr("Rimuovi attività")}
                 disabled={activities.length === 1}
                 onClick={() => setActs(activities.filter((x) => x.id !== a.id))}
                 className="grid h-7 w-7 shrink-0 place-items-center rounded-md text-muted hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent"
@@ -714,14 +700,11 @@ function ActivitiesEditor({
           }
           className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline"
         >
-          <Plus className="h-3.5 w-3.5" /> Aggiungi attività
-        </button>
+          <Plus className="h-3.5 w-3.5" />{" "}{tr("Aggiungi attività")}</button>
         {weighted && (
           <div className="flex items-center gap-3 text-[12px]">
-            <button type="button" onClick={() => setActs(spread(activities))} className="font-semibold text-brand hover:underline">
-              Dividi in parti uguali
-            </button>
-            <span className={`font-semibold tabular-nums ${Math.abs(total - 100) > 0.001 ? "text-red-600" : "text-muted"}`}>Totale {total}%</span>
+            <button type="button" onClick={() => setActs(spread(activities))} className="font-semibold text-brand hover:underline">{tr("Dividi in parti uguali")}</button>
+            <span className={`font-semibold tabular-nums ${Math.abs(total - 100) > 0.001 ? "text-red-600" : "text-muted"}`}>{tr("Totale {0}%", [total])}</span>
           </div>
         )}
       </div>
@@ -746,26 +729,26 @@ export function CustomObjectiveEditor({
   const presets = !perActivity && (type === "quantitativo" || type === "qualitativo_pct" || type === "progetto");
   return (
     <div className="space-y-3.5">
-      <Block label="Tipo di obiettivo">
-        <ChoiceButtons label="Tipo di obiettivo" options={TYPE_OPTIONS} value={type} onChange={(t) => t !== type && onChange(typePatch(def, t))} />
+      <Block label={tr("Tipo di obiettivo")}>
+        <ChoiceButtons label={tr("Tipo di obiettivo")} options={TYPE_OPTIONS} value={type} onChange={(t) => t !== type && onChange(typePatch(def, t))} />
       </Block>
       <div className="grid gap-4 sm:grid-cols-[1fr_220px]">
         <div className="space-y-3.5">
           {(showName || type === "quantitativo") && (
             <div className={`grid gap-3 ${showName && type === "quantitativo" ? "sm:grid-cols-[1fr_110px]" : showName ? "" : "sm:grid-cols-[110px]"}`}>
               {showName && (
-                <Block label="Descrizione obiettivo">
+                <Block label={tr("Descrizione obiettivo")}>
                   <input
                     autoFocus
                     className={inputCls}
                     value={def.name}
                     onChange={(e) => onChange({ name: e.target.value })}
-                    placeholder="es. Lancio nuova linea prodotto"
+                    placeholder={tr("es. Lancio nuova linea prodotto")}
                   />
                 </Block>
               )}
               {type === "quantitativo" && (
-                <Block label="Unità di misura">
+                <Block label={tr("Unità di misura")}>
                   <input className={inputCls} value={def.unit} onChange={(e) => onChange({ unit: e.target.value })} placeholder="%, €, n." />
                 </Block>
               )}
@@ -776,7 +759,7 @@ export function CustomObjectiveEditor({
           {!perActivity && <LevelsEditor unit={def.unit} type={type} levels={def.levels} onChange={(levels) => onChange({ levels })} />}
           {error && (
             <p className="flex items-center gap-1.5 text-[12px] font-semibold text-red-600">
-              <TriangleAlert className="h-3.5 w-3.5" /> {error}
+              <TriangleAlert className="h-3.5 w-3.5" /> {tr(error)}
             </p>
           )}
         </div>
@@ -794,7 +777,7 @@ export function CustomObjectiveEditor({
             />
           )}
           {type !== "onoff" && (
-            <Block label="Modalità di calcolo">
+            <Block label={tr("Modalità di calcolo")}>
               <div className="inline-flex rounded-lg bg-canvas p-1">
                 {(["lineare", "scaglioni"] as CalcMode[]).map((m) => (
                   <button
@@ -805,7 +788,7 @@ export function CustomObjectiveEditor({
                       def.calc === m ? "bg-white text-ink shadow-sm" : "text-muted hover:text-ink"
                     }`}
                   >
-                    {m === "lineare" ? "Lineare" : "A scaglioni"}
+                    {m === "lineare" ? tr("Lineare") : tr("A scaglioni")}
                   </button>
                 ))}
               </div>
@@ -833,7 +816,7 @@ export function LevelsEditor({
   const r = typeRange(type);
   if (type === "onoff")
     return (
-      <Block label="Payout se raggiunto">
+      <Block label={tr("Payout se raggiunto")}>
         <span className="relative block w-[110px]">
           <input
             type="number"
@@ -847,20 +830,20 @@ export function LevelsEditor({
       </Block>
     );
   const targetHead =
-    type === "qualitativo_5" ? "Voto (1-5)" : type === "progetto" ? "Attività completate %" : type === "data" ? "Entro il" : `Target (${unit || "valore"})`;
+    type === "qualitativo_5" ? tr("Voto (1-5)") : type === "progetto" ? tr("Attività completate %") : type === "data" ? tr("Entro il") : tr("Target ({0})", [unit || tr("valore")]);
   return (
     <div>
       <div className="mb-1.5 grid grid-cols-[64px_1fr_1fr_28px] gap-2 text-[11px] font-bold uppercase tracking-wide text-muted">
-        <span>Livello</span>
+        <span>{tr("Livello")}</span>
         <span>{targetHead}</span>
-        <span>Payout %</span>
+        <span>{tr("Payout %")}</span>
         <span />
       </div>
       <div className="space-y-1.5">
         {levels.map((l, i) => (
           <div key={i} className="grid grid-cols-[64px_1fr_1fr_28px] items-center gap-2">
             <span className="text-[12.5px] font-semibold text-muted">
-              {i === 0 ? "Minimo" : i === levels.length - 1 && levels.length > 1 ? "Massimo" : `Livello ${i + 1}`}
+              {i === 0 ? tr("Minimo") : i === levels.length - 1 && levels.length > 1 ? tr("Massimo") : tr("Livello {0}", [i + 1])}
             </span>
             {type === "data" ? (
               <input
@@ -887,7 +870,7 @@ export function LevelsEditor({
             <input type="number" min={0} className={inputCls} value={l.payout} onChange={(e) => setLevel(i, { payout: Number(e.target.value) })} />
             <button
               type="button"
-              aria-label="Rimuovi livello"
+              aria-label={tr("Rimuovi livello")}
               disabled={levels.length === 1}
               onClick={() => onChange(levels.filter((_, k) => k !== i))}
               className="grid h-7 w-7 place-items-center rounded-md text-muted hover:bg-red-50 hover:text-red-600 disabled:opacity-30 disabled:hover:bg-transparent"
@@ -914,8 +897,7 @@ export function LevelsEditor({
         }}
         className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline"
       >
-        <Plus className="h-3.5 w-3.5" /> Aggiungi livello
-      </button>
+        <Plus className="h-3.5 w-3.5" />{" "}{tr("Aggiungi livello")}</button>
     </div>
   );
 }
@@ -944,16 +926,14 @@ export function PresetPicker({
             if (pr) onApply(pr);
           }}
         >
-          <option value="">{presets.length ? "Scegli un preset…" : "Nessun preset definito"}</option>
+          <option value="">{presets.length ? tr("Scegli un preset…") : tr("Nessun preset definito")}</option>
           {presets.map((pr) => (
             <option key={pr.id} value={pr.id}>
-              {pr.name} · {pr.calc === "lineare" ? "Lineare" : "A scaglioni"}
+              {pr.name} · {pr.calc === "lineare" ? tr("Lineare") : tr("A scaglioni")}
             </option>
           ))}
         </select>
-        <Link href="/impostazioni/mbo" className="shrink-0 text-[12px] font-semibold text-brand hover:underline">
-          Gestisci
-        </Link>
+        <Link href="/impostazioni/mbo" className="shrink-0 text-[12px] font-semibold text-brand hover:underline">{tr("Gestisci")}</Link>
       </div>
     </Block>
   );
@@ -965,15 +945,15 @@ export function LevelsReadOnly({ def }: { def: ObjectiveDef }) {
       <table className="w-full text-left text-[12.5px]">
         <thead>
           <tr className="text-[11px] font-bold uppercase tracking-wide text-muted">
-            <th className="pb-1.5">Attività</th>
-            <th className="pb-1.5">Peso</th>
-            <th className="pb-1.5">Target → payout</th>
+            <th className="pb-1.5">{tr("Attività")}</th>
+            <th className="pb-1.5">{tr("Peso")}</th>
+            <th className="pb-1.5">{tr("Target → payout")}</th>
           </tr>
         </thead>
         <tbody>
           {(def.activities ?? []).map((a) => (
             <tr key={a.id} className="border-t border-line align-top">
-              <td className="py-1.5 pr-2">{a.title}</td>
+              <td className="py-1.5 pr-2">{tr(a.title)}</td>
               <td className="py-1.5 pr-2 font-semibold tabular-nums">{Math.round(activityWeight(def, a) * 10) / 10}%</td>
               <td className="py-1.5 font-semibold tabular-nums">{levelsText(activityDef(def, a))}</td>
             </tr>
@@ -985,15 +965,15 @@ export function LevelsReadOnly({ def }: { def: ObjectiveDef }) {
     <table className="w-full text-left text-[12.5px]">
       <thead>
         <tr className="text-[11px] font-bold uppercase tracking-wide text-muted">
-          <th className="pb-1.5">Livello</th>
-          <th className="pb-1.5">Target</th>
-          <th className="pb-1.5">Payout</th>
+          <th className="pb-1.5">{tr("Livello")}</th>
+          <th className="pb-1.5">{tr("Target")}</th>
+          <th className="pb-1.5">{tr("Payout")}</th>
         </tr>
       </thead>
       <tbody>
         {def.levels.map((l, i) => (
           <tr key={i} className="border-t border-line">
-            <td className="py-1.5 text-muted">{i === 0 ? "Minimo" : i === def.levels.length - 1 ? "Massimo" : `Livello ${i + 1}`}</td>
+            <td className="py-1.5 text-muted">{i === 0 ? tr("Minimo") : i === def.levels.length - 1 ? tr("Massimo") : tr("Livello {0}", [i + 1])}</td>
             <td className="py-1.5 font-semibold tabular-nums">{formatValue(def, l.target)}</td>
             <td className="py-1.5 font-semibold tabular-nums">{l.payout}%</td>
           </tr>
@@ -1007,20 +987,18 @@ export function LevelsReadOnly({ def }: { def: ObjectiveDef }) {
 export function PayoutCurve({ def }: { def: ObjectiveDef }) {
   if (typeOf(def) === "progetto" && def.activityLevels)
     return (
-      <div className="rounded-xl bg-canvas p-3 text-[12px] text-muted">
-        Il payout è la somma dei payout delle attività, ciascuna secondo i suoi livelli e il suo peso.
-      </div>
+      <div className="rounded-xl bg-canvas p-3 text-[12px] text-muted">{tr("Il payout è la somma dei payout delle attività, ciascuna secondo i suoi livelli e il suo peso.")}</div>
     );
   if (typeOf(def) === "onoff")
     return (
       <div className="rounded-xl bg-canvas p-3">
-        <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted">Payout</p>
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Payout")}</p>
         <div className="space-y-1.5 text-[12.5px]">
           <p className="flex justify-between">
-            <span className="text-muted">Raggiunto</span> <span className="font-bold tabular-nums">{def.levels[0]?.payout ?? 100}%</span>
+            <span className="text-muted">{tr("Raggiunto")}</span> <span className="font-bold tabular-nums">{def.levels[0]?.payout ?? 100}%</span>
           </p>
           <p className="flex justify-between">
-            <span className="text-muted">Non raggiunto</span> <span className="font-bold tabular-nums">0%</span>
+            <span className="text-muted">{tr("Non raggiunto")}</span> <span className="font-bold tabular-nums">0%</span>
           </p>
         </div>
       </div>
@@ -1062,8 +1040,8 @@ function Curve({ def }: { def: ObjectiveDef }) {
 
   return (
     <div className="rounded-xl bg-canvas p-3">
-      <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted">Curva di payout</p>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={`Curva di payout ${def.calc}`}>
+      <p className="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Curva di payout")}</p>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={tr("Curva di payout {0}", [def.calc])}>
         {[0, 50, 100]
           .filter((p) => p <= maxP)
           .map((p) => (
@@ -1093,7 +1071,7 @@ function WeightMeter({ total }: { total: number }) {
   return (
     <div className="min-w-[180px]">
       <div className="flex items-baseline justify-between gap-3 text-[12px]">
-        <span className="font-semibold text-muted">Peso totale</span>
+        <span className="font-semibold text-muted">{tr("Peso totale")}</span>
         <span className={`font-bold tabular-nums ${ok ? "text-emerald-600" : total > 100 ? "text-red-600" : "text-amber-600"}`}>{total}% / 100%</span>
       </div>
       <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#eef1f5]">
@@ -1135,7 +1113,7 @@ export function Block({
         {hint && <span className="text-[11px] text-faint">{hint}</span>}
       </div>
       {children}
-      {error && <p className="mt-1 text-[11.5px] font-semibold text-red-600">{error}</p>}
+      {error && <p className="mt-1 text-[11.5px] font-semibold text-red-600">{tr(error)}</p>}
     </div>
   );
 }

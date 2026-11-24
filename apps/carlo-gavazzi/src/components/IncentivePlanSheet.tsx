@@ -28,12 +28,13 @@ import {
   type ObjectiveDef,
   type SchedaItem,
 } from "@spark/mbo";
+import { localeTag, tr } from "@spark/core";
 
 const NAVY = "bg-[#1f3864] text-white";
 const BAND = "bg-[#dbe5f1] font-bold";
 const BLUE = "text-[#1d1dd9]";
 
-const nf = (n: number, digits = 0) => n.toLocaleString("it-IT", { minimumFractionDigits: digits, maximumFractionDigits: digits });
+const nf = (n: number, digits = 0) => n.toLocaleString(localeTag(), { minimumFractionDigits: digits, maximumFractionDigits: digits });
 const pct = (n: number, digits = 0) => `${nf(n, digits)}%`;
 
 /** "2026" → "FY 2026/27" (their fiscal year runs April–March); other cycles keep their label. */
@@ -106,11 +107,7 @@ export function IncentivePlanSheet() {
   if (!hydrated) return <div className="card h-40 animate-pulse" />;
   if (!s)
     return (
-      <div className="card px-5 py-10 text-center text-[13px] text-muted">
-        Scheda non trovata.{" "}
-        <Link href="/mbo/schede" className="font-semibold text-brand hover:underline">
-          Torna alle schede
-        </Link>
+      <div className="card px-5 py-10 text-center text-[13px] text-muted">{tr("Scheda non trovata.")}{" "}<Link href="/mbo/schede" className="font-semibold text-brand hover:underline">{tr("Torna alle schede")}</Link>
       </div>
     );
 
@@ -199,13 +196,12 @@ export function IncentivePlanSheet() {
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
         <Link href="/mbo/schede" className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-muted hover:text-ink">
-          <ArrowLeft className="h-3.5 w-3.5" /> Schede obiettivo
-        </Link>
+          <ArrowLeft className="h-3.5 w-3.5" />{" "}{tr("Schede obiettivo")}</Link>
         <div className="flex items-center gap-1.5">
-          <Tooltip label="Stampa o salva in PDF">
+          <Tooltip label={tr("Stampa o salva in PDF")}>
             <button
               type="button"
-              aria-label="Stampa"
+              aria-label={tr("Stampa")}
               onClick={() => window.print()}
               className="grid h-8 w-8 place-items-center rounded-lg text-muted hover:bg-canvas hover:text-ink"
             >
@@ -214,13 +210,12 @@ export function IncentivePlanSheet() {
           </Tooltip>
           {canEditScheda(s) && s.status !== "archiviata" && (
             <GhostButton className="inline-flex items-center gap-1.5" onClick={() => router.push(`/mbo/schede/${s.id}`)}>
-              <Pencil className="h-3.5 w-3.5" /> Modifica scheda
-            </GhostButton>
+              <Pencil className="h-3.5 w-3.5" />{" "}{tr("Modifica scheda")}</GhostButton>
           )}
         </div>
       </div>
 
-      <style>{`@media print { @page { size: A4 landscape; margin: 8mm; } html, body { background: #fff !important; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }`}</style>
+      <style>{"@media print { @page { size: A4 landscape; margin: 8mm; } html, body { background: #fff !important; } * { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }"}</style>
       <div
         ref={sheetRef}
         className="card overflow-hidden p-5 text-[12.5px] text-black print:overflow-visible print:rounded-none print:border-0 print:p-0 print:!shadow-none"
@@ -228,9 +223,7 @@ export function IncentivePlanSheet() {
         {/* heading + individual performance */}
         <div className="flex flex-wrap items-start justify-between gap-5">
           <div className="min-w-0">
-            <h1 className="text-[20px] font-extrabold leading-tight">
-              {bu ? `${bu} ` : ""}Incentive Plan {fyLabel(s.cycle)} - Calculation
-            </h1>
+            <h1 className="text-[20px] font-extrabold leading-tight">{bu ? `${bu} ` : ""}Incentive Plan {fyLabel(s.cycle)} - Calculation</h1>
             <dl className="mt-3 grid grid-cols-[110px_1fr] gap-x-4 gap-y-1.5 text-[13.5px] font-bold">
               <dt>Company:</dt>
               <dd className={BLUE}>{first?.company ?? "—"}</dd>
@@ -242,7 +235,7 @@ export function IncentivePlanSheet() {
                       className="h-6 rounded border border-[#c9d3e3] bg-white px-1 text-[13px] font-bold outline-none focus:border-brand print:hidden"
                       value={first?.id}
                       onChange={(e) => setPersonId(e.target.value)}
-                      aria-label="Persona della scheda"
+                      aria-label={tr("Persona della scheda")}
                     >
                       {people.map((p) => (
                         <option key={p.id} value={p.id}>
@@ -262,7 +255,7 @@ export function IncentivePlanSheet() {
               <dd className={BLUE}>{currency} (for bonus)</dd>
               <dt>Target bonus:</dt>
               <dd className={BLUE}>
-                {amount != null ? `${nf(amount, 1)} ${currency} at 100%` : <span className="font-semibold text-muted">non impostato (Modifica utente)</span>}
+                {amount != null ? `${nf(amount, 1)} ${currency} at 100%` : <span className="font-semibold text-muted">{tr("non impostato (Modifica utente)")}</span>}
               </dd>
             </dl>
           </div>
@@ -295,17 +288,13 @@ export function IncentivePlanSheet() {
 
         {/* calculation grid */}
         {columns.length === 0 ? (
-          <p className="mt-6 text-center text-[12.5px] text-muted">La scheda non ha ancora obiettivi.</p>
+          <p className="mt-6 text-center text-[12.5px] text-muted">{tr("La scheda non ha ancora obiettivi.")}</p>
         ) : (
           <div className="thin-scroll mt-6 overflow-x-auto print:overflow-visible">
             <table className="w-full min-w-max border-collapse text-[12px]">
               <thead>
                 <tr className={NAVY}>
-                  <th className="w-[110px] px-2 py-2 text-center text-[13px] font-bold leading-tight">
-                    Individual
-                    <br />
-                    bonus
-                  </th>
+                  <th className="w-[110px] px-2 py-2 text-center text-[13px] font-bold leading-tight">Individual<br />bonus</th>
                   {columns.map((c) => (
                     <th key={c.item.id} colSpan={4} className={`${blockStart} border-white/40 px-3 py-1.5 text-center text-[13px] font-bold leading-tight`}>
                       {pct(c.item.weight, 1)}

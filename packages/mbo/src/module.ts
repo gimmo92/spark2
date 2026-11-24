@@ -1,6 +1,7 @@
 import { OTHERS_SCOPES, SCOPES, type Doc, type PermissionDef, type SparkModule } from "@spark/core";
 import { mboLetters } from "./lib/letters";
 import type { MboOptions } from "./lib/mbo";
+import { EN } from "./i18n/en";
 
 const G = "MBO";
 
@@ -70,6 +71,7 @@ const baseModule: SparkModule = {
   id: "mbo",
   collections: ["schede", "objectives", "presets", "workflows"],
   permissions: MBO_PERMISSIONS,
+  messages: { en: EN },
   // enforced by /api/data on the server
   access: {
     schede: {

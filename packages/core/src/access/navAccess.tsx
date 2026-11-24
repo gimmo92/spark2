@@ -8,6 +8,7 @@ import type { NavItem, SparkConfig, Tab } from "../config";
 import { useData } from "../data/DataProvider";
 import { useSparkConfig } from "../shell/SparkProvider";
 import { useAccess } from "./useAccess";
+import { tr } from "../i18n/i18n";
 
 type Route = { href: string; permission?: string; exact?: boolean };
 
@@ -85,12 +86,10 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
   return (
     <div className="card mx-auto mt-6 max-w-md p-8 text-center">
       <Lock className="mx-auto h-6 w-6 text-faint" />
-      <p className="mt-3 text-[14px] font-semibold">Non hai accesso a questa pagina</p>
-      <p className="mt-1 text-[12.5px] text-muted">Il tuo livello di accesso non la prevede. Se ti serve, chiedi a un amministratore.</p>
+      <p className="mt-3 text-[14px] font-semibold">{tr("Non hai accesso a questa pagina")}</p>
+      <p className="mt-1 text-[12.5px] text-muted">{tr("Il tuo livello di accesso non la prevede. Se ti serve, chiedi a un amministratore.")}</p>
       {next && (
-        <Link href={next} className="mt-4 inline-block text-[12.5px] font-semibold text-brand hover:underline">
-          Vai a una pagina disponibile
-        </Link>
+        <Link href={next} className="mt-4 inline-block text-[12.5px] font-semibold text-brand hover:underline">{tr("Vai a una pagina disponibile")}</Link>
       )}
     </div>
   );

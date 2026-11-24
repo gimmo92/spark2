@@ -6,6 +6,7 @@ import { useCollection, useData, useSettings } from "../data/DataProvider";
 import type { User } from "../people/data";
 import { useSparkConfig } from "../shell/SparkProvider";
 import { ADMIN_LEVEL, makeChecker, resolveAccess, type AccessConfig, type AccessLevelDef, type ScopedPerson } from "./permissions";
+import { tr } from "../i18n/i18n";
 
 const EMPTY: AccessConfig = { levels: [] };
 
@@ -27,7 +28,7 @@ export function useAccess() {
   const can = useMemo(() => makeChecker(levels, users, buOfTeam(config.org)), [levels, users, config.org]);
 
   const setLevels = useCallback((next: AccessLevelDef[]) => patch({ levels: next }), [patch]);
-  const levelName = useCallback((id: string) => levels.find((l) => l.id === id)?.name ?? id, [levels]);
+  const levelName = useCallback((id: string) => tr(levels.find((l) => l.id === id)?.name ?? id), [levels]);
 
   /** The logged-in user's record (undefined for admins listed only in ADMIN_EMAILS). */
   const me = useMemo(() => (viewer?.userId ? users.find((u) => u.id === viewer.userId) : undefined), [viewer, users]);

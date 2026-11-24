@@ -5,6 +5,7 @@ import Link from "next/link";
 
 import { useCore } from "../shell/SparkProvider";
 import { Badge } from "../ui/ui";
+import { tr } from "../i18n/i18n";
 
 export function TeamsGrid() {
   const { teamNames: TEAMS, companyForTeam, buForTeam } = useOrg();
@@ -14,11 +15,11 @@ export function TeamsGrid() {
   return (
     <div className="space-y-4">
       <div className="card px-5 py-4">
-        <h1 className="text-[14px] font-semibold">Team Registrati Alla Piattaforma</h1>
-        <p className="mt-0.5 text-[12.5px] text-muted">{TEAMS.length} team · {active.length} utenti attivi</p>
+        <h1 className="text-[14px] font-semibold">{tr("Team Registrati Alla Piattaforma")}</h1>
+        <p className="mt-0.5 text-[12.5px] text-muted">{tr("{0} team · {1} utenti attivi", [TEAMS.length, active.length])}</p>
       </div>
       {TEAMS.length === 0 && (
-        <div className="card px-5 py-10 text-center text-[12.5px] text-muted">Nessun team configurato per questa azienda.</div>
+        <div className="card px-5 py-10 text-center text-[12.5px] text-muted">{tr("Nessun team configurato per questa azienda.")}</div>
       )}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {TEAMS.map((t) => {
@@ -30,11 +31,11 @@ export function TeamsGrid() {
                 <Badge>{t}</Badge>
                 <span className="text-right text-[12px] text-muted">
                   {companyForTeam(t)}
-                  {buForTeam(t) && <span className="block">BU {buForTeam(t)}</span>}
+                  {buForTeam(t) && <span className="block">{tr("BU {0}", [buForTeam(t)])}</span>}
                 </span>
               </div>
               <p className="mt-4 text-[26px] font-extrabold leading-none tabular-nums">{members.length}</p>
-              <p className="mt-1 text-[12.5px] text-muted">membri attivi · {managers.length} manager</p>
+              <p className="mt-1 text-[12.5px] text-muted">{tr("membri attivi · {0} manager", [managers.length])}</p>
               <div className="mt-4 flex -space-x-2">
                 {members.slice(0, 7).map((m) => (
                   <Link

@@ -22,7 +22,7 @@ apps/<client>   one Next.js app per client (own Vercel project, own Supabase pro
 ## Working rules (from the owner)
 
 - **Always commit and push to `main` after every finished change**, without asking. Verify first from the repo root: `npm run lint`, `npm run typecheck`, `npm run build` (builds every app).
-- UI copy is **Italian**. Code, comments and commit messages in English.
+- UI copy is written in **Italian** and translated (IT / EN, see "Languages"). Code, comments and commit messages in English.
 - **Compact UI**: the owner works on a high-DPI screen at ~1260 CSS px. Small type (13–14px body, 11px uppercase labels), tight paddings.
 - Demo data must be **invented**: Italian names, `nome.cognome@tryspark.co` emails, Valmec companies. Never copy real people from reference screenshots (`../references/`).
 - Every icon-only action has a `Tooltip` (core `ui.tsx`), not a native `title`.
@@ -50,6 +50,14 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 - "Progetto" objectives: activities each measured On/Off, 0-100 % or KPI (unit + target = 100 %), optionally with the objective's weight distributed over them (`weightedActivities`, weights sum to 100). Measures store `done` (on/off ids) + `values` (per activity); `projectActual` = weighted completion %. Option `createMboModule({ activityLevels: true })` (on in Carlo Gavazzi): a project may give each activity its own target → payout levels (`ObjectiveDef.activityLevels`); then `actual` = weighted sum of activity payouts and `payoutFor` returns it as is (no objective-level or per-scheda levels). Module options reach components via `SparkModule.options` / `useMboOptions()`.
 - Objectives created inside a scheda are catalog objectives like any other: saving the scheda moves `item.custom` to the catalog (`catalogItems`, id `ob-<custom id>`), and `useCatalogCustomObjectives()` (Obiettivi / Schede lists) upgrades schede saved before. Users without `mbo.catalog.manage` keep them one-off.
 - SQL migrations: `packages/core/supabase/migrations/*.sql` (run in order on every client database; each grants `service_role`). Client-only tables go in `apps/<client>/supabase/migrations/`.
+
+## Languages (core i18n)
+
+- Every UI string goes through `tr("Testo italiano")` (`@spark/core`, `packages/core/src/i18n/i18n.ts`): the Italian text is the key, missing translations fall back to Italian. Placeholders: `tr("{0} utenti attivi", [n])`. Constants (labels in arrays, permission catalog, statuses) stay Italian in code and are translated where rendered (`tr(x.label)`); core UI kit components (Field, Tooltip, Modal, FilterMenu, Switch, MultiSelect, nav, tabs) translate their string props themselves.
+- Dictionaries (`EN`, keyed by Italian): core `packages/core/src/i18n/en.ts`, MBO `packages/mbo/src/i18n/en.ts` (via `SparkModule.messages`), client `apps/<app>/src/i18n/en.ts` (via `SparkConfig.messages`; may also reword core copy). The module dictionary is merged over the core one: never give a shared key a different translation.
+- **When adding UI text**: wrap it in `tr()`, add the English to the right dictionary, run `npm run i18n:check` (missing keys / conflicts).
+- Language: `IT | EN` switch in the sidebar footer and on login screens, saved per browser (`localStorage spark.locale`); default `SparkConfig.locale` ("it"). `LocaleProvider` (inside the data store) remounts the UI on switch. Dates/numbers use `localeTag()`.
+- Stay Italian: letter templates and generated letters (content), emails sent by the server, page `<title>` metadata, user data (objective names, roles, teams). The Gavazzi Incentive Plan sheet keeps its Excel labels in English in both languages.
 
 ## Authentication (core)
 
@@ -103,7 +111,7 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 
 ## Next steps / open points
 
-- **Multilingual core** (it / fr / en / de / es): UI strings in packages through a dictionary + `locale` in `SparkConfig` (per app, later per user). Requested by the owner 2026-11-23, not started.
+- More languages (fr / de / es): add the locale to `LOCALES` and a dictionary per package; later save the language on the user record; translate emails and page titles. (IT / EN done 2026-11-24.)
 - Scheda editor: split editing by permission (goals / results / status-approval), not only all-or-nothing.
 - Extension points in modules (e.g. client-defined workflow task types), a `new-client` script, link workflows to schede.
 - Link the user list to real accounts; move `app_data` to relational tables per module when a client needs it.

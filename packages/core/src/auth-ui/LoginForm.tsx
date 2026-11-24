@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, CheckCircle2, Loader2, Mail, TriangleAlert } from "lucide-react";
 import { authConfigured, safeNext } from "../supabase/env";
 import { SparkLogo } from "../shell/Sidebar";
+import { tr } from "../i18n/i18n";
+import { LocaleProvider, LocaleSwitch } from "../i18n/LocaleProvider";
 
 /** Errors from ?error= (email links) and from the /api/auth routes. */
 const ERRORS: Record<string, string> = {
@@ -42,14 +44,13 @@ export function AuthCard({ title, subtitle, children }: { title: string; subtitl
       <div className="flex items-center gap-2.5">
         <SparkLogo className="h-7 w-5" />
         <span className="text-[16px] font-semibold">Spark</span>
+        <LocaleSwitch className="ml-auto" />
       </div>
       <h1 className="mt-6 text-[20px] font-bold leading-tight">{title}</h1>
       {subtitle && <p className="mt-1 text-[13px] text-muted">{subtitle}</p>}
       {!authConfigured && (
         <p className="mt-5 flex gap-2 rounded-lg bg-amber-50 px-3 py-2.5 text-[12.5px] text-amber-800">
-          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
-          Autenticazione non configurata: mancano le variabili NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY.
-        </p>
+          <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />{tr("Autenticazione non configurata: mancano le variabili NEXT_PUBLIC_SUPABASE_URL e NEXT_PUBLIC_SUPABASE_ANON_KEY.")}</p>
       )}
       {children}
     </div>
@@ -67,7 +68,16 @@ export function Notice({ kind, children }: { kind: "error" | "info" | "success";
   );
 }
 
+/** Login screen (outside the app shell: has its own language switch). */
 export function LoginForm() {
+  return (
+    <LocaleProvider>
+      <LoginSteps />
+    </LocaleProvider>
+  );
+}
+
+function LoginSteps() {
   const params = useSearchParams();
   const next = safeNext(params.get("next"));
 
@@ -104,12 +114,12 @@ export function LoginForm() {
     setBusy(null);
     if (!r.ok)
       return setError(
-        r.error === "config" && r.missing?.length ? `${ERRORS.config} Manca: ${r.missing.join(", ")}.` : (ERRORS[r.error] ?? ERRORS.credentials),
+        r.error === "config" && r.missing?.length ? tr("{0} Manca: {1}.", [tr(ERRORS.config), r.missing.join(", ")]) : (ERRORS[r.error] ?? ERRORS.credentials),
       );
     setStep("code");
     setCode("");
     setCooldown(60);
-    setInfo(`Abbiamo inviato un codice a ${email.trim().toLowerCase()}.`);
+    setInfo(tr("Abbiamo inviato un codice a {0}.", [email.trim().toLowerCase()]));
   };
 
   /** Step 2: code check on the server, which opens the session. */
@@ -133,22 +143,20 @@ export function LoginForm() {
     const r = await post("/api/auth/reset", { email });
     setBusy(null);
     if (!r.ok) return setError(ERRORS[r.error] ?? ERRORS.config);
-    setInfo(`Se ${email.trim()} è registrato, riceverai un link per reimpostare la password.`);
+    setInfo(tr("Se {0} è registrato, riceverai un link per reimpostare la password.", [email.trim()]));
   };
 
   const disabled = !authConfigured || !!busy;
 
   if (step === "reset")
     return (
-      <AuthCard title="Reimposta password" subtitle="Ti invieremo un link per scegliere una nuova password.">
-        {error && <Notice kind="error">{error}</Notice>}
-        {info && <Notice kind="info">{info}</Notice>}
+      <AuthCard title={tr("Reimposta password")} subtitle={tr("Ti invieremo un link per scegliere una nuova password.")}>
+        {error && <Notice kind="error">{tr(error)}</Notice>}
+        {info && <Notice kind="info">{tr(info)}</Notice>}
         <form onSubmit={sendReset} className="mt-5 space-y-3">
           <EmailField value={email} onChange={setEmail} />
           <button type="submit" disabled={disabled} className={authPrimaryCls}>
-            {busy === "reset" && <Loader2 className="h-4 w-4 animate-spin" />}
-            Invia link
-          </button>
+            {busy === "reset" && <Loader2 className="h-4 w-4 animate-spin" />}{tr("Invia link")}</button>
           <BackButton
             onClick={() => {
               clear();
@@ -161,12 +169,12 @@ export function LoginForm() {
 
   if (step === "code")
     return (
-      <AuthCard title="Verifica il codice" subtitle="Per sicurezza, ogni accesso richiede anche un codice via email.">
-        {error && <Notice kind="error">{error}</Notice>}
-        {info && <Notice kind="info">{info}</Notice>}
+      <AuthCard title={tr("Verifica il codice")} subtitle={tr("Per sicurezza, ogni accesso richiede anche un codice via email.")}>
+        {error && <Notice kind="error">{tr(error)}</Notice>}
+        {info && <Notice kind="info">{tr(info)}</Notice>}
         <form onSubmit={verify} className="mt-5 space-y-3">
           <label className="block">
-            <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">Codice</span>
+            <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Codice")}</span>
             <input
               inputMode="numeric"
               autoComplete="one-time-code"
@@ -180,12 +188,10 @@ export function LoginForm() {
             />
           </label>
           <button type="submit" disabled={disabled || code.length < 6} className={authPrimaryCls}>
-            {busy === "code" && <Loader2 className="h-4 w-4 animate-spin" />}
-            Accedi
-          </button>
+            {busy === "code" && <Loader2 className="h-4 w-4 animate-spin" />}{tr("Accedi")}</button>
           <div className="flex items-center justify-between text-[12px]">
             <BackButton
-              label="Cambia account"
+              label={tr("Cambia account")}
               onClick={() => {
                 clear();
                 setStep("credentials");
@@ -197,7 +203,7 @@ export function LoginForm() {
               onClick={() => sendCredentials()}
               className="font-semibold text-brand hover:underline disabled:text-faint disabled:no-underline"
             >
-              {cooldown > 0 ? `Invia di nuovo tra ${cooldown}s` : "Invia di nuovo"}
+              {cooldown > 0 ? tr("Invia di nuovo tra {0}s", [cooldown]) : tr("Invia di nuovo")}
             </button>
           </div>
         </form>
@@ -205,14 +211,14 @@ export function LoginForm() {
     );
 
   return (
-    <AuthCard title="Accedi" subtitle="Accesso riservato agli utenti abilitati sulla piattaforma.">
+    <AuthCard title={tr("Accedi")} subtitle={tr("Accesso riservato agli utenti abilitati sulla piattaforma.")}>
       {success && <Notice kind="success">{success}</Notice>}
-      {error && <Notice kind="error">{error}</Notice>}
+      {error && <Notice kind="error">{tr(error)}</Notice>}
       <form onSubmit={sendCredentials} className="mt-5 space-y-3">
         <EmailField value={email} onChange={setEmail} />
         <label className="block">
           <span className="mb-1.5 flex items-baseline justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-muted">Password</span>
+            <span className="text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Password")}</span>
             <button
               type="button"
               onClick={() => {
@@ -220,9 +226,7 @@ export function LoginForm() {
                 setStep("reset");
               }}
               className="text-[11.5px] font-semibold text-brand hover:underline"
-            >
-              Password dimenticata?
-            </button>
+            >{tr("Password dimenticata?")}</button>
           </span>
           <input
             type="password"
@@ -234,15 +238,9 @@ export function LoginForm() {
           />
         </label>
         <button type="submit" disabled={disabled} className={authPrimaryCls}>
-          {busy === "credentials" && <Loader2 className="h-4 w-4 animate-spin" />}
-          Continua
-        </button>
+          {busy === "credentials" && <Loader2 className="h-4 w-4 animate-spin" />}{tr("Continua")}</button>
       </form>
-      <p className="mt-5 text-center text-[12.5px] text-muted">
-        Hai ricevuto un codice di invito?{" "}
-        <Link href="/registrazione" className="font-semibold text-brand hover:underline">
-          Registrati
-        </Link>
+      <p className="mt-5 text-center text-[12.5px] text-muted">{tr("Hai ricevuto un codice di invito?")}{" "}<Link href="/registrazione" className="font-semibold text-brand hover:underline">{tr("Registrati")}</Link>
       </p>
     </AuthCard>
   );
@@ -251,7 +249,7 @@ export function LoginForm() {
 export function EmailField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">Email</span>
+      <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Email")}</span>
       <input
         type="email"
         autoComplete="email"
@@ -259,7 +257,7 @@ export function EmailField({ value, onChange }: { value: string; onChange: (v: s
         autoFocus
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder="nome.cognome@azienda.it"
+        placeholder={tr("nome.cognome@azienda.it")}
         className={authInputCls}
       />
     </label>
@@ -269,7 +267,7 @@ export function EmailField({ value, onChange }: { value: string; onChange: (v: s
 function BackButton({ onClick, label = "Torna all'accesso" }: { onClick: () => void; label?: string }) {
   return (
     <button type="button" onClick={onClick} className="flex items-center gap-1.5 text-[12px] font-semibold text-muted hover:text-ink">
-      <ArrowLeft className="h-3.5 w-3.5" /> {label}
+      <ArrowLeft className="h-3.5 w-3.5" /> {tr(label)}
     </button>
   );
 }

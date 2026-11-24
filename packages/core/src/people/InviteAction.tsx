@@ -6,8 +6,9 @@ import { fullName, type User } from "./data";
 import type { InviteDTO } from "./invites";
 import { useCore } from "../shell/SparkProvider";
 import { GhostButton, Modal, PrimaryButton, Tooltip } from "../ui/ui";
+import { localeTag, tr } from "../i18n/i18n";
 
-const fmtDate = (iso: string) => new Date(iso).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "numeric" });
+const fmtDate = (iso: string) => new Date(iso).toLocaleDateString(localeTag(), { day: "2-digit", month: "short", year: "numeric" });
 
 export function useInviteFor(user: User): InviteDTO | undefined {
   const { invites } = useCore();
@@ -25,32 +26,30 @@ function InviteDialog({ user, invite, onClose }: { user: User; invite?: InviteDT
     setError(null);
     const r = await sendInvite(user.email, fullName(user));
     setBusy(false);
-    if (!r.ok) return setError(r.message ?? "Invio non riuscito.");
-    notify(`Invito inviato a ${user.email}`);
+    if (!r.ok) return setError(tr(r.message ?? "Invio non riuscito."));
+    notify(tr("Invito inviato a {0}", [user.email]));
     onClose();
   };
 
   return (
     <Modal
-      title={invite ? "Reinviare l'invito?" : "Inviare l'invito di registrazione?"}
+      title={invite ? tr("Reinviare l'invito?") : tr("Inviare l'invito di registrazione?")}
       onClose={onClose}
       width="max-w-md"
       footer={
         <>
-          <GhostButton onClick={onClose}>Annulla</GhostButton>
+          <GhostButton onClick={onClose}>{tr("Annulla")}</GhostButton>
           <PrimaryButton onClick={send} disabled={busy} className="flex items-center gap-1.5">
             {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-            {invite ? "Reinvia" : "Invia invito"}
+            {invite ? tr("Reinvia") : tr("Invia invito")}
           </PrimaryButton>
         </>
       }
     >
       <p className="text-[13px] leading-relaxed text-muted">
-        <span className="font-semibold text-ink">{fullName(user)}</span> riceverà a <span className="font-semibold text-ink">{user.email}</span>{" "}
-        un&apos;email con il codice di registrazione e il link per scegliere la password.
-        {invite && <> Il codice resta lo stesso ({invite.code}), già inviato il {fmtDate(invite.sent_at)}.</>}
+        <span className="font-semibold text-ink">{fullName(user)}</span>{" "}{tr("riceverà a")}{" "}<span className="font-semibold text-ink">{user.email}</span>{" "}{tr("un'email con il codice di registrazione e il link per scegliere la password.")}{invite && <>{" "}{tr("Il codice resta lo stesso ({0}), già inviato il {1}.", [invite.code, fmtDate(invite.sent_at)])}</>}
       </p>
-      {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[12.5px] font-semibold text-red-700">{error}</p>}
+      {error && <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-[12.5px] font-semibold text-red-700">{tr(error)}</p>}
     </Modal>
   );
 }
@@ -63,14 +62,14 @@ export function InviteIconButton({ user }: { user: User }) {
 
   if (invite?.registered_at) return <span className="h-7 w-7" aria-hidden />; // keep column alignment
 
-  const label = invite ? `Reinvia invito (inviato il ${fmtDate(invite.sent_at)})` : "Invia invito di registrazione";
+  const label = invite ? tr("Reinvia invito (inviato il {0})", [fmtDate(invite.sent_at)]) : tr("Invia invito di registrazione");
   return (
     <>
       <Tooltip label={label}>
         <button
           type="button"
           aria-label={label}
-          onClick={() => (invitesStatus === "unavailable" ? notify(invitesMessage ?? "Inviti non disponibili") : setOpen(true))}
+          onClick={() => (invitesStatus === "unavailable" ? notify(tr(invitesMessage ?? "Inviti non disponibili")) : setOpen(true))}
           className={`relative grid h-7 w-7 place-items-center rounded-md transition-colors hover:bg-brand-soft hover:text-brand ${
             invite ? "text-brand" : "text-[#6c7486]"
           }`}
@@ -91,33 +90,33 @@ export function RegistrationCard({ user }: { user: User }) {
   const [copied, setCopied] = useState(false);
 
   const status = invite?.registered_at
-    ? { label: "Registrato", cls: "bg-emerald-50 text-emerald-700", detail: `il ${fmtDate(invite.registered_at)}` }
+    ? { label: "Registrato", cls: "bg-emerald-50 text-emerald-700", detail: tr("il {0}", [fmtDate(invite.registered_at)]) }
     : invite
-      ? { label: "Invitato", cls: "bg-brand-soft text-brand", detail: `invito inviato il ${fmtDate(invite.sent_at)}` }
+      ? { label: "Invitato", cls: "bg-brand-soft text-brand", detail: tr("invito inviato il {0}", [fmtDate(invite.sent_at)]) }
       : { label: "Non invitato", cls: "bg-[#eef1f5] text-[#5b6476]", detail: "nessun invito inviato" };
 
   return (
     <div className="card p-5">
-      <h2 className="mb-4 text-[12px] font-bold uppercase tracking-wide text-muted">Accesso alla piattaforma</h2>
+      <h2 className="mb-4 text-[12px] font-bold uppercase tracking-wide text-muted">{tr("Accesso alla piattaforma")}</h2>
       {invitesStatus === "loading" ? (
         <div className="h-20 animate-pulse rounded-lg bg-canvas" />
       ) : invitesStatus === "unavailable" ? (
-        <p className="text-[12.5px] text-muted">{invitesMessage}</p>
+        <p className="text-[12.5px] text-muted">{tr(invitesMessage)}</p>
       ) : (
         <div className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <span className={`rounded-full px-2 py-[3px] text-[11px] font-bold ${status.cls}`}>{status.label}</span>
-            <span className="text-[12px] text-muted">{status.detail}</span>
+            <span className={`rounded-full px-2 py-[3px] text-[11px] font-bold ${status.cls}`}>{tr(status.label)}</span>
+            <span className="text-[12px] text-muted">{tr(status.detail)}</span>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-faint">Codice di registrazione</p>
+            <p className="text-[11px] font-semibold text-faint">{tr("Codice di registrazione")}</p>
             {invite ? (
               <div className="mt-1 flex items-center gap-2">
                 <code className="rounded-md bg-canvas px-2.5 py-1 font-mono text-[15px] font-bold tracking-[0.15em]">{invite.code}</code>
-                <Tooltip label={copied ? "Copiato" : "Copia codice"}>
+                <Tooltip label={copied ? tr("Copiato") : tr("Copia codice")}>
                   <button
                     type="button"
-                    aria-label="Copia codice"
+                    aria-label={tr("Copia codice")}
                     onClick={() => {
                       navigator.clipboard?.writeText(invite.code).then(() => {
                         setCopied(true);
@@ -140,7 +139,7 @@ export function RegistrationCard({ user }: { user: User }) {
               onClick={() => setOpen(true)}
               className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-brand hover:underline"
             >
-              <Mail className="h-3.5 w-3.5" /> {invite ? "Reinvia invito" : "Invia invito di registrazione"}
+              <Mail className="h-3.5 w-3.5" /> {invite ? tr("Reinvia invito") : tr("Invia invito di registrazione")}
             </button>
           )}
         </div>

@@ -1,6 +1,5 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Construction } from "lucide-react";
+import { PlaceholderPage } from "@/components/PlaceholderPage";
 
 const PAGES: Record<string, { title: string; module?: boolean }> = {
   "azienda/modifica": { title: "Modifica azienda" },
@@ -28,25 +27,5 @@ export default async function Placeholder(props: PageProps<"/[...slug]">) {
   const page = PAGES[slug.join("/")];
   if (!page) notFound();
 
-  return (
-    <div className="space-y-4">
-      <h1 className="text-[17px] font-bold">{page.title}</h1>
-      <div className="card grid place-items-center px-6 py-20 text-center">
-        <div className="grid h-14 w-14 place-items-center rounded-2xl bg-brand-soft text-brand">
-          <Construction className="h-6 w-6" />
-        </div>
-        <p className="mt-4 text-[14px] font-semibold">
-          {page.module ? "Modulo non attivo per la tua azienda" : "Sezione in costruzione"}
-        </p>
-        <p className="mt-1 max-w-sm text-[12.5px] text-muted">
-          {page.module
-            ? "Contatta il tuo referente Spark per attivare questo modulo."
-            : "Questa pagina sarà disponibile a breve."}
-        </p>
-        <Link href="/azienda/utenti" className="mt-4 text-[12.5px] font-semibold text-brand hover:underline">
-          Vai alla Lista Utenti
-        </Link>
-      </div>
-    </div>
-  );
+  return <PlaceholderPage title={page.title} module={page.module} />;
 }

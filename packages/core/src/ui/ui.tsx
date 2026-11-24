@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, X } from "lucide-react";
+import { tr } from "../i18n/i18n";
 
 export function Badge({ children, tone = "blue" }: { children: React.ReactNode; tone?: "blue" | "navy" | "grey" }) {
   const tones = {
@@ -76,10 +77,10 @@ export function FilterMenu({
         <span>
           {isActive ? (
             <>
-              {activeLabel ?? label}: <span className="font-semibold">{selected?.label}</span>
+              {tr(activeLabel ?? label)}: <span className="font-semibold">{tr(selected?.label)}</span>
             </>
           ) : (
-            label
+            tr(label)
           )}
         </span>
         <ChevronDown className={`h-3 w-3 opacity-60 transition-transform ${open ? "rotate-180" : ""}`} />
@@ -93,9 +94,7 @@ export function FilterMenu({
               setOpen(false);
             }}
             className="flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left text-[12.5px] text-muted hover:bg-canvas"
-          >
-            Tutti
-            {value === "" && <Check className="h-4 w-4 text-brand" />}
+          >{tr("Tutti")}{value === "" && <Check className="h-4 w-4 text-brand" />}
           </button>
           {options.map((o) => (
             <button
@@ -107,7 +106,7 @@ export function FilterMenu({
               }}
               className="flex w-full items-center justify-between gap-3 rounded-md px-2.5 py-1.5 text-left text-[12.5px] hover:bg-canvas"
             >
-              {o.label}
+              {tr(o.label)}
               {value === o.value && <Check className="h-4 w-4 text-brand" />}
             </button>
           ))}
@@ -175,15 +174,15 @@ export function Modal({
       <div
         role="dialog"
         aria-modal="true"
-        aria-label={title}
+        aria-label={tr(title)}
         className={`animate-dialog relative flex max-h-[90vh] w-full ${width} flex-col overflow-hidden rounded-2xl bg-white shadow-2xl`}
       >
         <div className="flex items-center justify-between border-b border-line px-5 py-3">
-          <h2 className="text-[14px] font-bold">{title}</h2>
+          <h2 className="text-[14px] font-bold">{tr(title)}</h2>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Chiudi"
+            aria-label={tr("Chiudi")}
             className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-canvas hover:text-ink"
           >
             <X className="h-4 w-4" />
@@ -199,9 +198,9 @@ export function Modal({
 export function Field({ label, children, error }: { label: string; children: React.ReactNode; error?: string }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">{label}</span>
+      <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">{tr(label)}</span>
       {children}
-      {error && <span className="mt-1 block text-[11px] font-semibold text-red-600">{error}</span>}
+      {error && <span className="mt-1 block text-[11px] font-semibold text-red-600">{tr(error)}</span>}
     </label>
   );
 }
@@ -272,7 +271,7 @@ export function Tooltip({ label, children, className = "inline-flex" }: { label:
               transform: "translate(-50%, -100%)",
             }}
           >
-            {label}
+            {tr(label)}
           </span>,
           document.body,
         )}
@@ -296,7 +295,7 @@ export function Switch({
       type="button"
       role="switch"
       aria-checked={checked}
-      aria-label={label}
+      aria-label={tr(label)}
       disabled={disabled}
       onClick={() => onChange(!checked)}
       className={`relative mt-0.5 h-5 w-9 shrink-0 rounded-full transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${checked ? "bg-brand" : "bg-[#d5dae2]"}`}

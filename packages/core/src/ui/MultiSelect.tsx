@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Search, X } from "lucide-react";
+import { tr } from "../i18n/i18n";
 
 export interface MultiOption {
   value: string;
@@ -102,14 +103,14 @@ export function MultiSelect({
           open ? "border-brand ring-3 ring-brand/15" : invalid ? "border-red-300" : "border-[#dfe3ea]"
         }`}
       >
-        {value.length === 0 && <span className="px-0.5 text-faint">{placeholder}</span>}
+        {value.length === 0 && <span className="px-0.5 text-faint">{tr(placeholder)}</span>}
         {multiple
           ? shown.map((v) => (
               <span key={v} className="inline-flex items-center gap-1 rounded-md bg-brand-soft py-0.5 pl-2 pr-1 text-[12px] font-semibold text-brand">
-                {byValue.get(v)?.label ?? v}
+                {tr(byValue.get(v)?.label) ?? v}
                 <button
                   type="button"
-                  aria-label={`Rimuovi ${byValue.get(v)?.label ?? v}`}
+                  aria-label={tr("Rimuovi {0}", [byValue.get(v)?.label ?? v])}
                   onClick={(e) => {
                     e.stopPropagation();
                     toggle(v);
@@ -120,9 +121,9 @@ export function MultiSelect({
                 </button>
               </span>
             ))
-          : value[0] && <span className="px-0.5 font-semibold">{byValue.get(value[0])?.label ?? value[0]}</span>}
+          : value[0] && <span className="px-0.5 font-semibold">{tr(byValue.get(value[0])?.label) ?? value[0]}</span>}
         {multiple && value.length > maxChips && (
-          <span className="text-[12px] font-semibold text-muted">+{value.length - maxChips} altri</span>
+          <span className="text-[12px] font-semibold text-muted">{tr("+{0} altri", [value.length - maxChips])}</span>
         )}
         <ChevronDown className={`absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted transition-transform ${open ? "rotate-180" : ""}`} />
       </div>
@@ -139,13 +140,13 @@ export function MultiSelect({
                 setActive(0);
               }}
               onKeyDown={onKey}
-              placeholder={searchPlaceholder}
+              placeholder={tr(searchPlaceholder)}
               className="w-full py-2.5 pl-9 pr-3 text-[13px] outline-none placeholder:text-faint"
             />
           </div>
           {multiple && (
             <div className="flex items-center justify-between border-b border-line px-3 py-1.5 text-[11.5px]">
-              <span className="text-muted">{value.length} selezionati</span>
+              <span className="text-muted">{tr("{0} selezionati", [value.length])}</span>
               <span className="flex items-center gap-3">
                 {filtered.some((o) => !value.includes(o.value)) && (
                   // with a search, only the matching options are added
@@ -154,19 +155,17 @@ export function MultiSelect({
                     onClick={() => onChange([...value, ...filtered.map((o) => o.value).filter((v) => !value.includes(v))])}
                     className="font-semibold text-brand hover:underline"
                   >
-                    {q.trim() ? `${allLabel} (${filtered.length})` : allLabel}
+                    {q.trim() ? `${tr(allLabel)} (${filtered.length})` : tr(allLabel)}
                   </button>
                 )}
                 {value.length > 0 && (
-                  <button type="button" onClick={() => onChange([])} className="font-semibold text-brand hover:underline">
-                    Deseleziona tutti
-                  </button>
+                  <button type="button" onClick={() => onChange([])} className="font-semibold text-brand hover:underline">{tr("Deseleziona tutti")}</button>
                 )}
               </span>
             </div>
           )}
           <ul ref={listRef} id={listId} role="listbox" aria-multiselectable={multiple} className="max-h-64 overflow-y-auto p-1">
-            {filtered.length === 0 && <li className="px-3 py-3 text-[12.5px] text-muted">Nessun risultato</li>}
+            {filtered.length === 0 && <li className="px-3 py-3 text-[12.5px] text-muted">{tr("Nessun risultato")}</li>}
             {filtered.map((o, i) => {
               const sel = value.includes(o.value);
               return (
@@ -188,8 +187,8 @@ export function MultiSelect({
                     </span>
                   )}
                   <span className="min-w-0 flex-1">
-                    <span className={`block truncate text-[13px] ${sel ? "font-semibold" : ""}`}>{o.label}</span>
-                    {o.hint && <span className="block truncate text-[11.5px] text-muted">{o.hint}</span>}
+                    <span className={`block truncate text-[13px] ${sel ? "font-semibold" : ""}`}>{tr(o.label)}</span>
+                    {o.hint && <span className="block truncate text-[11.5px] text-muted">{tr(o.hint)}</span>}
                   </span>
                   {!multiple && sel && <Check className="h-4 w-4 text-brand" />}
                 </li>

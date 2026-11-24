@@ -25,6 +25,7 @@ import { useCore } from "../shell/SparkProvider";
 import { Badge, FilterMenu, GhostButton, Modal, Popover, PrimaryButton, Tooltip } from "../ui/ui";
 import { UserFormModal } from "./UserForm";
 import { InviteIconButton } from "./InviteAction";
+import { tr } from "../i18n/i18n";
 
 type SortKey = "name" | "level" | "email" | "team" | "role";
 type ColKey = SortKey | "company" | "status";
@@ -45,7 +46,7 @@ const sortValue = (u: User, k: SortKey, levelOrder: string[]) =>
   k === "name" ? `${u.lastName} ${u.firstName}` : k === "level" ? String(levelOrder.indexOf(u.level)).padStart(3, "0") : u[k];
 
 function downloadCsv(rows: User[], levelName: (id: string) => string) {
-  const header = ["Nome", "Cognome", "Email", "Livello di accesso", "Team", "Società", "Ruolo", "Stato", "Data creazione"];
+  const header = ["Nome", "Cognome", "Email", "Livello di accesso", "Team", "Società", "Ruolo", "Stato", "Data creazione"].map((h) => tr(h));
   const esc = (v: string) => (/[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
   const lines = rows.map((u) =>
     [u.firstName, u.lastName, u.email, levelName(u.level), u.team, u.company, u.role, u.status, u.createdAt].map(esc).join(";"),
@@ -136,27 +137,23 @@ export function UsersTable() {
       {/* actions */}
       <div className="flex items-center gap-3 sm:gap-4">
         {canCreate && (
-          <button type="button" onClick={() => setEditing("new")} className="btn-gradient rounded-lg px-4 py-2.5 text-[11.5px] sm:px-5 font-extrabold uppercase tracking-[-0.02em] text-white">
-            Nuovo utente
-          </button>
+          <button type="button" onClick={() => setEditing("new")} className="btn-gradient rounded-lg px-4 py-2.5 text-[11.5px] sm:px-5 font-extrabold uppercase tracking-[-0.02em] text-white">{tr("Nuovo utente")}</button>
         )}
         <button
           type="button"
           onClick={() => {
             downloadCsv(filtered, levelName);
-            notify(`Esportati ${filtered.length} utenti`);
+            notify(tr("Esportati {0} utenti", [filtered.length]));
           }}
           className="btn-gradient rounded-lg px-4 py-2.5 text-[11.5px] sm:px-5 font-extrabold uppercase tracking-[-0.02em] text-white"
-        >
-          Esporta utenti
-        </button>
+        >{tr("Esporta utenti")}</button>
         <div className="ml-auto">
           <Popover
             trigger={(toggle, open) => (
               <button
                 type="button"
                 onClick={toggle}
-                aria-label="Impostazioni tabella"
+                aria-label={tr("Impostazioni tabella")}
                 aria-expanded={open}
                 className="card grid h-9 w-9 place-items-center !rounded-xl text-brand transition-transform active:scale-95"
               >
@@ -164,7 +161,7 @@ export function UsersTable() {
               </button>
             )}
           >
-            <p className="px-2 pb-1.5 pt-1 text-[11px] font-bold uppercase tracking-wide text-muted">Colonne visibili</p>
+            <p className="px-2 pb-1.5 pt-1 text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Colonne visibili")}</p>
             {[...COLS.slice(1), { key: "status" as ColKey, label: "Stato" }].map((c) => (
               <label key={c.key} className="flex cursor-pointer items-center gap-2.5 rounded-lg px-2 py-1.5 text-[12.5px] hover:bg-canvas">
                 <input
@@ -180,7 +177,7 @@ export function UsersTable() {
                     })
                   }
                 />
-                {c.label}
+                {tr(c.label)}
               </label>
             ))}
             <div className="my-1.5 border-t border-line" />
@@ -188,12 +185,11 @@ export function UsersTable() {
               type="button"
               onClick={() => {
                 resetData();
-                notify("Dati demo ripristinati");
+                notify(tr("Dati demo ripristinati"));
               }}
               className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left text-[12.5px] text-muted hover:bg-canvas hover:text-ink"
             >
-              <RotateCcw className="h-4 w-4" /> Ripristina dati demo
-            </button>
+              <RotateCcw className="h-4 w-4" />{" "}{tr("Ripristina dati demo")}</button>
           </Popover>
         </div>
       </div>
@@ -201,7 +197,7 @@ export function UsersTable() {
       {/* title card */}
       <div className="card overflow-hidden px-4 pb-3 pt-2.5">
         <div className="flex items-baseline justify-between gap-4">
-          <h1 className="text-[14px] font-semibold text-ink">{title}</h1>
+          <h1 className="text-[14px] font-semibold text-ink">{tr(title)}</h1>
           <span className="text-[13px] font-semibold tabular-nums text-ink">
             {rows.length}/{filtered.length}
           </span>
@@ -218,8 +214,8 @@ export function UsersTable() {
       <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
         <FilterMenu
           icon={<Users className="h-4 w-4 text-[#7d8698]" />}
-          label="Filtra utenti"
-          activeLabel="Utenti"
+          label={tr("Filtra utenti")}
+          activeLabel={tr("Utenti")}
           value={quick}
           onChange={setQuick}
           options={[
@@ -229,7 +225,7 @@ export function UsersTable() {
         />
         <FilterMenu
           icon={<span className="h-1.5 w-1.5 rounded-full bg-faint" />}
-          label="Stato account"
+          label={tr("Stato account")}
           value={status}
           onChange={setStatus}
           options={[
@@ -239,24 +235,24 @@ export function UsersTable() {
         />
         <FilterMenu
           icon={<Diamond className="h-3 w-3 text-[#7d8698]" />}
-          label="Filtra per livello di accesso"
-          activeLabel="Livello"
+          label={tr("Filtra per livello di accesso")}
+          activeLabel={tr("Livello")}
           value={level}
           onChange={setLevel}
           options={levels.map((l) => ({ value: l.id, label: l.name }))}
         />
         <FilterMenu
           icon={<UserRound className="h-4 w-4 fill-[#7d8698] text-[#7d8698]" />}
-          label="Filtra per team"
-          activeLabel="Team"
+          label={tr("Filtra per team")}
+          activeLabel={tr("Team")}
           value={team}
           onChange={setTeam}
           options={TEAMS.map((t) => ({ value: t, label: t }))}
         />
         <FilterMenu
           icon={<Building2 className="h-4 w-4 text-[#7d8698]" />}
-          label="Filtra per società"
-          activeLabel="Società"
+          label={tr("Filtra per società")}
+          activeLabel={tr("Società")}
           value={company}
           onChange={setCompany}
           options={COMPANIES.map((c) => ({ value: c, label: c }))}
@@ -273,16 +269,14 @@ export function UsersTable() {
               setQ("");
             }}
             className="px-2 py-2 text-[12.5px] font-semibold text-brand hover:underline"
-          >
-            Azzera
-          </button>
+          >{tr("Azzera")}</button>
         )}
         <div className="relative ml-auto w-full sm:w-[240px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Cerca per email, nome o cognome..."
+            placeholder={tr("Cerca per email, nome o cognome...")}
             className="w-full rounded-lg border border-[#e3e7ee] bg-white py-1.5 pl-9 pr-3 text-[13px] outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-brand focus:ring-3 focus:ring-brand/15"
           />
         </div>
@@ -305,7 +299,7 @@ export function UsersTable() {
                           active ? "text-[#5c6577]" : "text-[#9aa2b1] hover:text-[#5c6577]"
                         }`}
                       >
-                        {c.label}
+                        {tr(c.label)}
                         {active ? (
                           sort.dir === 1 ? (
                             <ChevronUp className="h-3 w-3 fill-current" strokeWidth={3} />
@@ -317,15 +311,13 @@ export function UsersTable() {
                         )}
                       </button>
                     ) : (
-                      <span className="text-[11px] font-bold uppercase text-[#9aa2b1]">{c.label}</span>
+                      <span className="text-[11px] font-bold uppercase text-[#9aa2b1]">{tr(c.label)}</span>
                     )}
                   </th>
                 );
               })}
-              <th className="sticky right-0 w-[136px] border-l border-line bg-white px-3 py-2.5 text-[11px] font-bold uppercase text-[#9aa2b1]">
-                Azioni
-              </th>
-              {showStatus && <th className="px-3 py-2.5 text-[11px] font-bold uppercase text-[#c3c8d1]">Stato</th>}
+              <th className="sticky right-0 w-[136px] border-l border-line bg-white px-3 py-2.5 text-[11px] font-bold uppercase text-[#9aa2b1]">{tr("Azioni")}</th>
+              {showStatus && <th className="px-3 py-2.5 text-[11px] font-bold uppercase text-[#c3c8d1]">{tr("Stato")}</th>}
             </tr>
           </thead>
           <tbody>
@@ -343,32 +335,32 @@ export function UsersTable() {
                     )}
                     {c.key === "level" && <Badge tone={u.level === "ADMIN" ? "navy" : "blue"}>{levelName(u.level)}</Badge>}
                     {c.key === "email" && <span className="text-[13px] text-[#5b6476]">{u.email}</span>}
-                    {c.key === "team" && (u.team ? <Badge>{u.team}</Badge> : <Badge tone="grey">Nessun team</Badge>)}
+                    {c.key === "team" && (u.team ? <Badge>{u.team}</Badge> : <Badge tone="grey">{tr("Nessun team")}</Badge>)}
                     {c.key === "role" && <span title={u.role} className="block min-w-[170px] max-w-[280px] truncate text-[13px] text-[#5b6476]">{u.role}</span>}
                     {c.key === "company" && <span className="whitespace-nowrap text-[13px] text-[#5b6476]">{u.company}</span>}
                   </td>
                 ))}
                 <td className="sticky right-0 border-l border-line bg-white px-3 py-1 group-hover:bg-[#f8fafd]">
                   <div className="flex items-center gap-0.5">
-                    <IconBtn label="Visualizza" href={`/azienda/utenti/${u.id}`}>
+                    <IconBtn label={tr("Visualizza")} href={`/azienda/utenti/${u.id}`}>
                       <Eye className="h-4 w-4 fill-current stroke-white" strokeWidth={2} />
                     </IconBtn>
                     {canEditUser(u) && (
-                      <IconBtn label="Modifica" onClick={() => setEditing(u)}>
+                      <IconBtn label={tr("Modifica")} onClick={() => setEditing(u)}>
                         <UserPen className="h-4 w-4" strokeWidth={2.2} />
                       </IconBtn>
                     )}
                     {canCreate && <InviteIconButton user={u} />}
                     {!canEditUser(u) ? null : u.status === "attivo" ? (
-                      <IconBtn label="Disattiva account" onClick={() => setConfirm(u)} danger>
+                      <IconBtn label={tr("Disattiva account")} onClick={() => setConfirm(u)} danger>
                         <UserX className="h-4 w-4" strokeWidth={2.2} />
                       </IconBtn>
                     ) : (
                       <IconBtn
-                        label="Riattiva account"
+                        label={tr("Riattiva account")}
                         onClick={() => {
                           updateUser(u.id, { status: "attivo" });
-                          notify(`${fullName(u)} riattivato`);
+                          notify(tr("{0} riattivato", [fullName(u)]));
                         }}
                       >
                         <UserCheck className="h-4 w-4" strokeWidth={2.2} />
@@ -384,7 +376,7 @@ export function UsersTable() {
                       }`}
                     >
                       <span className={`h-2 w-2 rounded-full ${u.status === "attivo" ? "bg-emerald-500" : "bg-faint"}`} />
-                      {u.status === "attivo" ? "Attivo" : "Disattivato"}
+                      {u.status === "attivo" ? tr("Attivo") : tr("Disattivato")}
                     </span>
                   </td>
                 )}
@@ -393,17 +385,15 @@ export function UsersTable() {
             {filtered.length === 0 && (
               <tr>
                 <td colSpan={cols.length + 2} className="px-4 py-12 text-center">
-                  <p className="text-[13px] font-semibold">Nessun utente trovato</p>
-                  <p className="mt-1 text-[12.5px] text-muted">Prova a modificare i filtri o la ricerca.</p>
+                  <p className="text-[13px] font-semibold">{tr("Nessun utente trovato")}</p>
+                  <p className="mt-1 text-[12.5px] text-muted">{tr("Prova a modificare i filtri o la ricerca.")}</p>
                 </td>
               </tr>
             )}
           </tbody>
         </table>
         {rows.length < filtered.length && (
-          <div ref={sentinel} className="py-5 text-center text-[12px] text-muted">
-            Caricamento…
-          </div>
+          <div ref={sentinel} className="py-5 text-center text-[12px] text-muted">{tr("Caricamento…")}</div>
         )}
       </div>
 
@@ -411,28 +401,25 @@ export function UsersTable() {
 
       {confirm && (
         <Modal
-          title="Disattivare l'account?"
+          title={tr("Disattivare l'account?")}
           onClose={() => setConfirm(null)}
           width="max-w-md"
           footer={
             <>
-              <GhostButton onClick={() => setConfirm(null)}>Annulla</GhostButton>
+              <GhostButton onClick={() => setConfirm(null)}>{tr("Annulla")}</GhostButton>
               <PrimaryButton
                 className="!bg-none !bg-red-600 !shadow-none"
                 onClick={() => {
                   updateUser(confirm.id, { status: "disattivato" });
-                  notify(`${fullName(confirm)} disattivato`);
+                  notify(tr("{0} disattivato", [fullName(confirm)]));
                   setConfirm(null);
                 }}
-              >
-                Disattiva
-              </PrimaryButton>
+              >{tr("Disattiva")}</PrimaryButton>
             </>
           }
         >
           <p className="text-[13px] leading-relaxed text-muted">
-            <span className="font-semibold text-ink">{fullName(confirm)}</span> non potrà più accedere alla piattaforma.
-            Potrai riattivare l&apos;account in qualsiasi momento dal filtro <em>Stato account: Disattivato</em>.
+            <span className="font-semibold text-ink">{fullName(confirm)}</span>{" "}{tr("non potrà più accedere alla piattaforma. Potrai riattivare l'account in qualsiasi momento dal filtro")}{" "}<em>{tr("Stato account: Disattivato")}</em>.
           </p>
         </Modal>
       )}

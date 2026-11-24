@@ -1,0 +1,15 @@
+/** English copy specific to the demo app (menu entries without a screen yet), keyed by the Italian text. */
+export const EN: Record<string, string> = {
+  "Modifica azienda": "Edit company",
+  "Gestione Società": "Company management",
+  "Gestione Ruoli": "Role management",
+  Organigramma: "Org chart",
+  Competenze: "Skills",
+  Valutazioni: "Reviews",
+  OKR: "OKR",
+  "Modulo non attivo per la tua azienda": "Module not active for your company",
+  "Sezione in costruzione": "Section under construction",
+  "Contatta il tuo referente Spark per attivare questo modulo.": "Contact your Spark representative to activate this module.",
+  "Questa pagina sarà disponibile a breve.": "This page will be available soon.",
+  "Vai alla Lista Utenti": "Go to the User list",
+};

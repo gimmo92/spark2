@@ -2,6 +2,7 @@ import type { LucideIcon } from "lucide-react";
 import { CORE_PERMISSIONS, type PermissionDef } from "./access/permissions";
 import type { CollectionAccess, SettingsAccess } from "./access/rules";
 import type { LetterSource } from "./letters/data";
+import type { Locale, Messages } from "./i18n/i18n";
 
 /** Every stored record has a string id. */
 export type Doc = { id: string };
@@ -36,6 +37,8 @@ export interface SparkModule {
   letters?: LetterSource;
   /** Per-client switches of the module, set by the client app (e.g. `createMboModule({ ... })`). */
   options?: Record<string, unknown>;
+  /** Translations of the module's UI copy (keyed by the Italian text). */
+  messages?: Messages;
 }
 
 export interface OrgConfig {
@@ -90,6 +93,10 @@ export interface SparkConfig {
   letters?: LetterSource;
   /** Client-specific fields of the user form (stored in `User.extra`), e.g. a target bonus. */
   userFields?: UserField[];
+  /** Language of the UI until the user picks one (default "it"). */
+  locale?: Locale;
+  /** Client-specific translations (keyed by the Italian text); may also reword core/module copy. */
+  messages?: Messages;
   /** localStorage key prefix for the browser-only fallback. */
   storagePrefix?: string;
 }

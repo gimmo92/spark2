@@ -7,8 +7,9 @@ import { cycleLabel, hasActuals, type Scheda, type SchedaStatus } from "../lib/m
 import { roleLabel, taskType, type TaskType, type Workflow } from "../lib/workflow";
 import { useMbo } from "../store";
 import { Block } from "./SchedaEditor";
+import { localeTag, tr } from "@spark/core";
 
-const date = (d?: string) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString("it-IT", { timeZone: "UTC" }) : null);
+const date = (d?: string) => (d ? new Date(`${d}T00:00:00Z`).toLocaleDateString(localeTag(), { timeZone: "UTC" }) : null);
 
 /** Step that fits a scheda's status, used as the default when sending it to a workflow. */
 const STEP_FOR: Record<SchedaStatus, TaskType> = {
@@ -30,11 +31,11 @@ export function WorkflowBadge({ scheda }: { scheda: Scheda }) {
   return (
     <span
       className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full bg-[#eef1f5] px-2 py-[2px] text-[11px] font-semibold text-[#5b6476]"
-      title={`Inviata il ${date(sent!.sentAt)}`}
+      title={tr("Inviata il {0}", [date(sent!.sentAt)])}
     >
       <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: tt.color }} />
       <span className="truncate">
-        {w.name} · {t.title}
+        {w.name} · {tr(t.title)}
       </span>
     </span>
   );
@@ -79,47 +80,43 @@ export function InviaWorkflowModal({ schede, onClose }: { schede: Scheda[]; onCl
     const sentAt = new Date().toISOString().slice(0, 10);
     for (const s of schede) updateScheda(s.id, { workflow: { workflowId: wf.id, taskId, sentAt } });
     const step = wf.tasks.find((t) => t.id === taskId)?.title;
-    notify(`${schede.length === 1 ? "Scheda inviata" : `${schede.length} schede inviate`} a "${wf.name}" · ${step}`);
+    notify(schede.length === 1 ? tr("Scheda inviata a \"{0}\" · {1}", [wf.name, step]) : tr("{0} schede inviate a \"{1}\" · {2}", [schede.length, wf.name, step]));
     onClose(true);
   };
 
   return (
     <Modal
-      title={`Invia a workflow · ${schede.length === 1 ? scheda.name : `${schede.length} schede`}`}
+      title={tr("Invia a workflow · {0}", [schede.length === 1 ? scheda.name : tr("{0} schede", [schede.length])])}
       onClose={() => onClose()}
       width="max-w-xl"
       footer={
         <>
-          <GhostButton onClick={() => onClose()}>Annulla</GhostButton>
-          <PrimaryButton onClick={send} disabled={!wf || !taskId}>
-            Invia
-          </PrimaryButton>
+          <GhostButton onClick={() => onClose()}>{tr("Annulla")}</GhostButton>
+          <PrimaryButton onClick={send} disabled={!wf || !taskId}>{tr("Invia")}</PrimaryButton>
         </>
       }
     >
       {options.length === 0 ? (
         <div className="py-6 text-center">
-          <p className="text-[13px] font-semibold">Nessun workflow disponibile</p>
-          <Link href="/mbo/workflow" className="mt-1 inline-block text-[12.5px] font-semibold text-brand hover:underline">
-            Crea un workflow
-          </Link>
+          <p className="text-[13px] font-semibold">{tr("Nessun workflow disponibile")}</p>
+          <Link href="/mbo/workflow" className="mt-1 inline-block text-[12.5px] font-semibold text-brand hover:underline">{tr("Crea un workflow")}</Link>
         </div>
       ) : (
         <div className="space-y-4">
-          <Block label="Workflow">
+          <Block label={tr("Workflow")}>
             <select className={inputCls} value={workflowId} onChange={(e) => pickWorkflow(e.target.value)}>
               {options.map((w) => (
                 <option key={w.id} value={w.id}>
-                  {w.name} · {cycleLabel(w.cycle)}
-                  {w.status === "bozza" ? " (bozza)" : ""}
+                  {w.name} · {tr(cycleLabel(w.cycle))}
+                  {w.status === "bozza" ? tr(" (bozza)") : ""}
                 </option>
               ))}
             </select>
           </Block>
 
           {wf && (
-            <Block label="Fase">
-              <div role="radiogroup" aria-label="Fase" className="space-y-1.5">
+            <Block label={tr("Fase")}>
+              <div role="radiogroup" aria-label={tr("Fase")} className="space-y-1.5">
                 {wf.tasks.map((t, i) => {
                   const on = taskId === t.id;
                   const tt = taskType(t.type);
@@ -141,10 +138,10 @@ export function InviaWorkflowModal({ schede, onClose }: { schede: Scheda[]; onCl
                         {i + 1}
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className={`block truncate text-[13px] font-semibold ${on ? "text-brand" : ""}`}>{t.title}</span>
+                        <span className={`block truncate text-[13px] font-semibold ${on ? "text-brand" : ""}`}>{tr(t.title)}</span>
                         <span className="block truncate text-[11.5px] text-muted">
-                          {roleLabel(t.owner)}
-                          {t.dueDate && ` · entro il ${date(t.dueDate)}`}
+                          {tr(roleLabel(t.owner))}
+                          {t.dueDate && tr(" · entro il {0}", [date(t.dueDate)])}
                         </span>
                       </span>
                     </button>

@@ -31,6 +31,7 @@ import { LevelsReadOnly, PayoutCurve } from "./SchedaEditor";
 import { MisuraModal } from "./Misura";
 import { StatusPill } from "./SchedeTable";
 import { FilterMenu, GhostButton, Modal, PrimaryButton, Tooltip, useAccess } from "@spark/core";
+import { tr } from "@spark/core";
 
 type SortKey = "name" | "category" | "usage" | "cycle";
 const collator = new Intl.Collator("it", { sensitivity: "base" });
@@ -151,20 +152,19 @@ export function ObiettiviTable() {
   return (
     <div className="space-y-3.5">
       <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-        <h1 className="sr-only">Obiettivi</h1>
+        <h1 className="sr-only">{tr("Obiettivi")}</h1>
         <Link
           href="/mbo/obiettivi/nuovo"
           className="btn-gradient flex items-center gap-1.5 rounded-lg px-4 py-2.5 text-[11.5px] font-extrabold uppercase tracking-[-0.02em] text-white sm:px-5"
         >
-          <Plus className="h-3.5 w-3.5" strokeWidth={3} /> Nuovo obiettivo
-        </Link>
+          <Plus className="h-3.5 w-3.5" strokeWidth={3} />{" "}{tr("Nuovo obiettivo")}</Link>
         <div className="relative ml-auto w-full sm:w-[280px]">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-faint" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Cerca obiettivo..."
-            aria-label="Cerca obiettivo"
+            placeholder={tr("Cerca obiettivo...")}
+            aria-label={tr("Cerca obiettivo")}
             className="w-full rounded-lg border border-[#e3e7ee] bg-white py-2 pl-9 pr-3 text-[13px] outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-brand focus:ring-3 focus:ring-brand/15"
           />
         </div>
@@ -173,16 +173,16 @@ export function ObiettiviTable() {
       <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
         <FilterMenu
           icon={<Tag className="h-3.5 w-3.5 text-[#7d8698]" />}
-          label="Livello"
-          activeLabel="Livello"
+          label={tr("Livello")}
+          activeLabel={tr("Livello")}
           value={category}
           onChange={setCategory}
           options={CATEGORIES.map((c) => ({ value: c, label: c }))}
         />
         <FilterMenu
           icon={<Building2 className="h-3.5 w-3.5 text-[#7d8698]" />}
-          label="Filtra per società"
-          activeLabel="Società"
+          label={tr("Filtra per società")}
+          activeLabel={tr("Società")}
           value={company}
           onChange={setCompany}
           options={COMPANIES.map((c) => ({ value: c, label: c }))}
@@ -193,8 +193,8 @@ export function ObiettiviTable() {
             value={person}
             onChange={(e) => setPerson(e.target.value)}
             list="obiettivi-utenti"
-            placeholder="Cerca per utente"
-            aria-label="Cerca obiettivi assegnati a un utente"
+            placeholder={tr("Cerca per utente")}
+            aria-label={tr("Cerca obiettivi assegnati a un utente")}
             className="w-[150px] bg-transparent outline-none placeholder:text-[#3f4757]"
           />
           <datalist id="obiettivi-utenti">
@@ -207,7 +207,7 @@ export function ObiettiviTable() {
         </label>
         <FilterMenu
           icon={<Archive className="h-3.5 w-3.5 text-[#7d8698]" />}
-          label="Archiviati"
+          label={tr("Archiviati")}
           value={showArchived}
           onChange={setShowArchived}
           options={[{ value: "si", label: "Mostra solo archiviati" }]}
@@ -223,9 +223,7 @@ export function ObiettiviTable() {
               setPerson("");
             }}
             className="px-2 py-1.5 text-[12.5px] font-semibold text-brand hover:underline"
-          >
-            Azzera
-          </button>
+          >{tr("Azzera")}</button>
         )}
       </div>
 
@@ -245,7 +243,7 @@ export function ObiettiviTable() {
                           active ? "text-[#5c6577]" : "text-[#9aa2b1] hover:text-[#5c6577]"
                         }`}
                       >
-                        {c.label}
+                        {tr(c.label)}
                         {active ? (
                           sort.dir === 1 ? (
                             <ChevronUp className="h-3 w-3 fill-current" strokeWidth={3} />
@@ -257,12 +255,12 @@ export function ObiettiviTable() {
                         )}
                       </button>
                     ) : (
-                      <span className="whitespace-nowrap text-[11px] font-bold uppercase text-[#9aa2b1]">{c.label}</span>
+                      <span className="whitespace-nowrap text-[11px] font-bold uppercase text-[#9aa2b1]">{tr(c.label)}</span>
                     )}
                   </th>
                 );
               })}
-              <th className="sticky right-0 w-[140px] border-l border-line bg-white px-3 py-2.5 text-[11px] font-bold uppercase text-[#9aa2b1]">Azioni</th>
+              <th className="sticky right-0 w-[140px] border-l border-line bg-white px-3 py-2.5 text-[11px] font-bold uppercase text-[#9aa2b1]">{tr("Azioni")}</th>
             </tr>
           </thead>
           <tbody>
@@ -273,8 +271,8 @@ export function ObiettiviTable() {
                   <td className="px-3 py-[9px] pl-4">
                     <button type="button" onClick={() => setViewing(o.id)} className="block text-left">
                       <span className="block max-w-[520px] truncate text-[13.5px] font-semibold text-brand hover:underline">{o.name}</span>
-                      <span className="block max-w-[520px] truncate text-[11.5px] text-muted" title={o.description}>
-                        {o.description || "Nessuna descrizione"}
+                      <span className="block max-w-[520px] truncate text-[11.5px] text-muted" title={tr(o.description)}>
+                        {tr(o.description) || tr("Nessuna descrizione")}
                       </span>
                     </button>
                   </td>
@@ -286,30 +284,30 @@ export function ObiettiviTable() {
                       {u.total || <span className="text-faint">0</span>}
                     </span>
                   </td>
-                  <td className="whitespace-nowrap px-3 text-[12.5px] text-[#5b6476]">{o.cycle ? cycleLabel(o.cycle) : "—"}</td>
+                  <td className="whitespace-nowrap px-3 text-[12.5px] text-[#5b6476]">{o.cycle ? tr(cycleLabel(o.cycle)) : "—"}</td>
                   <td className="sticky right-0 border-l border-line bg-white px-3 py-1 group-hover:bg-[#f8fafd]">
                     <div className="flex items-center gap-0.5">
-                      <IconBtn label="Visualizza" onClick={() => setViewing(o.id)}>
+                      <IconBtn label={tr("Visualizza")} onClick={() => setViewing(o.id)}>
                         <Eye className="h-4 w-4" strokeWidth={2.2} />
                       </IconBtn>
-                      <IconBtn label="Misura" onClick={() => setMeasuring(o)} disabled={o.archived || !canMeasure(o)}>
+                      <IconBtn label={tr("Misura")} onClick={() => setMeasuring(o)} disabled={o.archived || !canMeasure(o)}>
                         <Gauge className="h-4 w-4" strokeWidth={2.2} />
                       </IconBtn>
-                      <IconBtn label="Modifica" onClick={() => router.push(`/mbo/obiettivi/${o.id}`)} disabled={o.archived}>
+                      <IconBtn label={tr("Modifica")} onClick={() => router.push(`/mbo/obiettivi/${o.id}`)} disabled={o.archived}>
                         <Pencil className="h-4 w-4" strokeWidth={2.2} />
                       </IconBtn>
                       {o.archived ? (
                         <IconBtn
-                          label="Ripristina"
+                          label={tr("Ripristina")}
                           onClick={() => {
                             updateObjective(o.id, { archived: false });
-                            notify("Obiettivo ripristinato");
+                            notify(tr("Obiettivo ripristinato"));
                           }}
                         >
                           <ArchiveRestore className="h-4 w-4" strokeWidth={2.2} />
                         </IconBtn>
                       ) : (
-                        <IconBtn label="Archivia" onClick={() => setArchiving(o)} danger>
+                        <IconBtn label={tr("Archivia")} onClick={() => setArchiving(o)} danger>
                           <Archive className="h-4 w-4" strokeWidth={2.2} />
                         </IconBtn>
                       )}
@@ -321,8 +319,8 @@ export function ObiettiviTable() {
             {rows.length === 0 && (
               <tr>
                 <td colSpan={cols.length + 1} className="px-4 py-12 text-center">
-                  <p className="text-[14px] font-semibold">Nessun obiettivo trovato</p>
-                  <p className="mt-1 text-[12.5px] text-muted">Prova a modificare i filtri o la ricerca.</p>
+                  <p className="text-[14px] font-semibold">{tr("Nessun obiettivo trovato")}</p>
+                  <p className="mt-1 text-[12.5px] text-muted">{tr("Prova a modificare i filtri o la ricerca.")}</p>
                 </td>
               </tr>
             )}
@@ -335,31 +333,26 @@ export function ObiettiviTable() {
 
       {archiving && (
         <Modal
-          title="Archiviare l'obiettivo?"
+          title={tr("Archiviare l'obiettivo?")}
           onClose={() => setArchiving(null)}
           width="max-w-md"
           footer={
             <>
-              <GhostButton onClick={() => setArchiving(null)}>Annulla</GhostButton>
+              <GhostButton onClick={() => setArchiving(null)}>{tr("Annulla")}</GhostButton>
               <PrimaryButton
                 onClick={() => {
                   updateObjective(archiving.id, { archived: true });
-                  notify("Obiettivo archiviato");
+                  notify(tr("Obiettivo archiviato"));
                   setArchiving(null);
                 }}
-              >
-                Archivia
-              </PrimaryButton>
+              >{tr("Archivia")}</PrimaryButton>
             </>
           }
         >
           <p className="text-[13px] leading-relaxed text-muted">
-            <span className="font-semibold text-ink">{archiving.name}</span> non sarà più selezionabile nelle nuove schede.
-          </p>
+            <span className="font-semibold text-ink">{archiving.name}</span>{" "}{tr("non sarà più selezionabile nelle nuove schede.")}</p>
           {(usageMap.get(archiving.id)?.total ?? 0) > 0 && (
-            <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800">
-              È usato in {usageMap.get(archiving.id)?.total} schede: continueranno a usarlo con gli stessi livelli e payout.
-            </p>
+            <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800">{tr("È usato in {0} schede: continueranno a usarlo con gli stessi livelli e payout.", [usageMap.get(archiving.id)?.total])}</p>
           )}
         </Modal>
       )}
@@ -378,31 +371,31 @@ function ObiettivoView({ def, onClose, onEdit }: { def: ObjectiveDef; onClose: (
       width="max-w-2xl"
       footer={
         <>
-          <GhostButton onClick={onClose}>Chiudi</GhostButton>
-          {!def.archived && <PrimaryButton onClick={onEdit}>Modifica</PrimaryButton>}
+          <GhostButton onClick={onClose}>{tr("Chiudi")}</GhostButton>
+          {!def.archived && <PrimaryButton onClick={onEdit}>{tr("Modifica")}</PrimaryButton>}
         </>
       }
     >
       <div className="flex flex-wrap items-center gap-2">
         <CategoryPill category={def.category} />
-        <span className="rounded-full bg-[#eef1f5] px-2 py-[3px] text-[11px] font-bold text-[#5b6476]">{typeLabel(def)}</span>
+        <span className="rounded-full bg-[#eef1f5] px-2 py-[3px] text-[11px] font-bold text-[#5b6476]">{tr(typeLabel(def))}</span>
         {typeOf(def) !== "onoff" && (
           <span className="rounded-full bg-[#eef1f5] px-2 py-[3px] text-[11px] font-bold text-[#5b6476]">
-            {def.calc === "lineare" ? "Lineare" : "A scaglioni"}
+            {def.calc === "lineare" ? tr("Lineare") : tr("A scaglioni")}
           </span>
         )}
-        {typeOf(def) === "quantitativo" && def.unit && <span className="text-[12px] text-muted">Unità: {def.unit}</span>}
-        {def.archived && <span className="rounded-full bg-[#f1f2f4] px-2 py-[3px] text-[11px] font-bold text-faint">Archiviato</span>}
+        {typeOf(def) === "quantitativo" && def.unit && <span className="text-[12px] text-muted">{tr("Unità: {0}", [def.unit])}</span>}
+        {def.archived && <span className="rounded-full bg-[#f1f2f4] px-2 py-[3px] text-[11px] font-bold text-faint">{tr("Archiviato")}</span>}
       </div>
-      {def.description && <p className="mt-3 text-[13px] leading-relaxed text-[#3f4757]">{def.description}</p>}
+      {def.description && <p className="mt-3 text-[13px] leading-relaxed text-[#3f4757]">{tr(def.description)}</p>}
       {typeOf(def) === "progetto" && !!def.activities?.length && (
         <ol className="mt-3 list-decimal space-y-0.5 pl-5 text-[12.5px] text-[#3f4757]">
           {def.activities.map((a) => (
             <li key={a.id}>
-              {a.title}
+              {tr(a.title)}
               <span className="ml-1.5 text-muted">
-                · {a.kind === "kpi" ? `KPI ${a.target ?? "—"} ${a.unit ?? ""}`.trim() : a.kind === "pct" ? "0-100%" : "On/Off"}
-                {def.weightedActivities && <span className="tabular-nums"> · peso {a.weight ?? 0}%</span>}
+                · {a.kind === "kpi" ? `KPI ${a.target ?? "—"} ${a.unit ?? ""}`.trim() : a.kind === "pct" ? "0-100%" : tr("On/Off")}
+                {def.weightedActivities && <span className="tabular-nums">{" "}{tr("· peso {0}%", [a.weight ?? 0])}</span>}
               </span>
             </li>
           ))}
@@ -416,10 +409,9 @@ function ObiettivoView({ def, onClose, onEdit }: { def: ObjectiveDef; onClose: (
 
       <div className="mt-5">
         <p className="mb-2 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted">
-          <Layers className="h-3.5 w-3.5" /> Usato in {using.length} {using.length === 1 ? "scheda" : "schede"}
-        </p>
+          <Layers className="h-3.5 w-3.5" />{" "}{tr("Usato in {0} {1}", [using.length, using.length === 1 ? tr("scheda") : tr("schede")])}</p>
         {using.length === 0 ? (
-          <p className="text-[12.5px] text-muted">Non è ancora usato in nessuna scheda.</p>
+          <p className="text-[12.5px] text-muted">{tr("Non è ancora usato in nessuna scheda.")}</p>
         ) : (
           <ul className="max-h-48 divide-y divide-line overflow-y-auto rounded-lg border border-line">
             {using.map((s) => {
@@ -431,11 +423,11 @@ function ObiettivoView({ def, onClose, onEdit }: { def: ObjectiveDef; onClose: (
                       <span className="block truncate text-[12.5px] font-semibold">{s.name}</span>
                       <span className="block truncate text-[11.5px] text-muted">
                         {first ? fullName(first) : "—"}
-                        {s.assigneeIds.length > 1 && ` +${s.assigneeIds.length - 1}`} · {cycleLabel(s.cycle)}
+                        {s.assigneeIds.length > 1 && ` +${s.assigneeIds.length - 1}`} · {tr(cycleLabel(s.cycle))}
                       </span>
                     </span>
                     {s.threshold?.objectiveId === def.id && (
-                      <span className="rounded bg-amber-50 px-1.5 py-[1px] text-[10px] font-bold uppercase text-amber-700">Soglia</span>
+                      <span className="rounded bg-amber-50 px-1.5 py-[1px] text-[10px] font-bold uppercase text-amber-700">{tr("Soglia")}</span>
                     )}
                     <StatusPill status={s.status} />
                   </Link>

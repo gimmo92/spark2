@@ -6,6 +6,7 @@ import { useAccess } from "../access/useAccess";
 import { fullName, slugEmail, type User } from "./data";
 import { useCore } from "../shell/SparkProvider";
 import { Field, GhostButton, Modal, PrimaryButton, inputCls } from "../ui/ui";
+import { tr } from "../i18n/i18n";
 
 type Draft = Omit<User, "id" | "createdAt">;
 
@@ -54,22 +55,22 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
     if (Object.keys(errors).length) return;
     if (user) {
       updateUser(user.id, d);
-      notify("Utente aggiornato");
+      notify(tr("Utente aggiornato"));
     } else {
       addUser(d);
-      notify(`${d.firstName} ${d.lastName} aggiunto`);
+      notify(tr("{0} {1} aggiunto", [d.firstName, d.lastName]));
     }
     onClose();
   };
 
   return (
     <Modal
-      title={user ? "Modifica utente" : "Nuovo utente"}
+      title={user ? tr("Modifica utente") : tr("Nuovo utente")}
       onClose={onClose}
       footer={
         <>
-          <GhostButton onClick={onClose}>Annulla</GhostButton>
-          <PrimaryButton onClick={save}>{user ? "Salva modifiche" : "Crea utente"}</PrimaryButton>
+          <GhostButton onClick={onClose}>{tr("Annulla")}</GhostButton>
+          <PrimaryButton onClick={save}>{user ? tr("Salva modifiche") : tr("Crea utente")}</PrimaryButton>
         </>
       }
     >
@@ -80,14 +81,14 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
           save();
         }}
       >
-        <Field label="Nome" error={show("firstName")}>
+        <Field label={tr("Nome")} error={show("firstName")}>
           <input autoFocus className={inputCls} value={d.firstName} onChange={(e) => set("firstName", e.target.value)} />
         </Field>
-        <Field label="Cognome" error={show("lastName")}>
+        <Field label={tr("Cognome")} error={show("lastName")}>
           <input className={inputCls} value={d.lastName} onChange={(e) => set("lastName", e.target.value)} />
         </Field>
         <div className="sm:col-span-2">
-          <Field label="Email" error={show("email")}>
+          <Field label={tr("Email")} error={show("email")}>
             <input
               type="email"
               className={inputCls}
@@ -96,16 +97,16 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
                 setEmailTouched(true);
                 set("email", e.target.value);
               }}
-              placeholder="nome.cognome@tryspark.co"
+              placeholder={tr("nome.cognome@tryspark.co")}
             />
           </Field>
         </div>
-        <Field label="Livello di accesso">
+        <Field label={tr("Livello di accesso")}>
           <select
             className={`${inputCls} disabled:bg-canvas disabled:text-muted`}
             value={d.level}
             disabled={!canSetLevel}
-            title={canSetLevel ? undefined : "Il tuo livello di accesso non permette di cambiarlo"}
+            title={canSetLevel ? undefined : tr("Il tuo livello di accesso non permette di cambiarlo")}
             onChange={(e) => set("level", e.target.value as Draft["level"])}
           >
             {(canSetLevel ? levelOptions : levels).map((l) => (
@@ -115,9 +116,9 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
             ))}
           </select>
         </Field>
-        <Field label="Team">
+        <Field label={tr("Team")}>
           <select className={inputCls} value={d.team} onChange={(e) => set("team", e.target.value)}>
-            <option value="">Nessun team</option>
+            <option value="">{tr("Nessun team")}</option>
             {TEAMS.map((t) => (
               <option key={t} value={t}>
                 {t}
@@ -126,9 +127,9 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
           </select>
         </Field>
         <div className="sm:col-span-2">
-          <Field label="Responsabile">
+          <Field label={tr("Responsabile")}>
             <select className={inputCls} value={d.managerId ?? ""} onChange={(e) => set("managerId", e.target.value || undefined)}>
-              <option value="">Nessun responsabile</option>
+              <option value="">{tr("Nessun responsabile")}</option>
               {managers.map((m) => (
                 <option key={m.id} value={m.id}>
                   {fullName(m)} · {m.role}
@@ -138,13 +139,13 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
           </Field>
         </div>
         {userFields.map((f) => (
-          <Field key={f.key} label={f.label}>
+          <Field key={f.key} label={tr(f.label)}>
             <span className="relative block">
               <input
                 type={f.type === "number" ? "number" : "text"}
                 className={`${inputCls} ${f.type === "number" ? "text-right tabular-nums" : ""} ${f.suffix ? "pr-12" : ""}`}
                 value={d.extra?.[f.key] ?? ""}
-                placeholder={f.placeholder}
+                placeholder={tr(f.placeholder)}
                 maxLength={f.maxLength}
                 onChange={(e) => {
                   const raw = f.upper ? e.target.value.toUpperCase() : e.target.value;
@@ -159,15 +160,13 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
           </Field>
         ))}
         <div className="sm:col-span-2">
-          <Field label="Ruolo" error={show("role")}>
-            <input className={inputCls} value={d.role} onChange={(e) => set("role", e.target.value)} placeholder="es. Production Dept. Supervisor" />
+          <Field label={tr("Ruolo")} error={show("role")}>
+            <input className={inputCls} value={d.role} onChange={(e) => set("role", e.target.value)} placeholder={tr("es. Production Dept. Supervisor")} />
           </Field>
         </div>
-        <p className="text-[12px] text-muted sm:col-span-2">
-          Società: <span className="font-semibold text-ink">{d.company}</span>
+        <p className="text-[12px] text-muted sm:col-span-2">{tr("Società:")}{" "}<span className="font-semibold text-ink">{d.company}</span>
           {buForTeam(d.team) && (
-            <>
-              {" · "}BU: <span className="font-semibold text-ink">{buForTeam(d.team)}</span>
+            <>{" "}{tr("· BU:")}{" "}<span className="font-semibold text-ink">{buForTeam(d.team)}</span>
             </>
           )}
         </p>
