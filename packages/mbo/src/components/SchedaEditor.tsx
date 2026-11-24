@@ -101,6 +101,7 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
   const router = useRouter();
   const { users, addScheda, updateScheda, notify, objectives, mboSettings, catalogItems } = useMbo();
   const { allowed } = useAccess();
+  const options = useMboOptions();
   const globalDef = catalogById(objectives, mboSettings.globalThresholdId);
 
   const [name, setName] = useState(scheda?.name ?? "");
@@ -433,7 +434,7 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
 
                   {isOpen && (
                     <div className="space-y-3.5 border-t border-line px-3.5 py-3.5">
-                      {def.relative && typeOf(def) === "quantitativo" && needsBase(def.relative) && (
+                      {showBase(def, options.relativeLevels) && (
                         <BaseInput def={def} value={it.base} onChange={(base) => updateItem(it.id, { base })} />
                       )}
                       {it.custom ? (
@@ -586,13 +587,24 @@ export function baseError(def: ObjectiveDef | undefined, base?: number): string 
   return e === "I livelli target devono essere crescenti" ? "Con questo actual dell'anno precedente due livelli non sono in ordine crescente" : e;
 }
 
-/** Last year's actual of a relative objective in one scheda, with the target it gives. */
+/**
+ * Is "Actual anno precedente" asked in the scheda? Always with the `relativeLevels` option (as a reference,
+ * shown in the client's sheets) except for on/off and date objectives; otherwise when the levels use it.
+ */
+export function showBase(def: ObjectiveDef, option?: boolean) {
+  const t = typeOf(def);
+  if (option) return t !== "onoff" && t !== "data";
+  return !!def.relative && t === "quantitativo" && needsBase(def.relative);
+}
+
+/** Last year's actual of an objective in one scheda, with the target it gives (required only when the levels use it). */
 export function BaseInput({ def, value, onChange }: { def: ObjectiveDef; value?: number; onChange: (v: number | undefined) => void }) {
   const r = def.relative;
-  const target = value != null && value > 0 && r && (r.targetOf ?? "base") === "base" ? (value * r.target) / 100 : undefined;
+  const used = !!r && typeOf(def) === "quantitativo" && needsBase(r);
+  const target = value != null && value > 0 && r && used && (r.targetOf ?? "base") === "base" ? (value * r.target) / 100 : undefined;
   return (
     <div className="flex flex-wrap items-end gap-4">
-      <Block label={tr("Actual anno precedente")}>
+      <Block label={used ? tr("Actual anno precedente") : tr("Actual anno precedente (facoltativo)")}>
         <span className="relative block w-[160px]">
           <input
             type="number"
@@ -605,9 +617,11 @@ export function BaseInput({ def, value, onChange }: { def: ObjectiveDef; value?:
         </span>
       </Block>
       <p className="pb-2 text-[11.5px] text-muted">
-        {target != null
-          ? tr("Target {0} ({1}% dell'anno precedente): i livelli si calcolano da qui.", [formatValue(def, Math.round(target * 100) / 100), def.relative?.target])
-          : tr("I livelli sono in % dell'actual dell'anno precedente: inseriscilo per calcolarli.")}
+        {!used
+          ? tr("Solo di riferimento: i livelli di questo obiettivo non lo usano.")
+          : target != null
+            ? tr("Target {0} ({1}% dell'anno precedente): i livelli si calcolano da qui.", [formatValue(def, Math.round(target * 100) / 100), def.relative?.target])
+            : tr("I livelli sono in % dell'actual dell'anno precedente: inseriscilo per calcolarli.")}
       </p>
     </div>
   );

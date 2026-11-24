@@ -8,7 +8,7 @@ import { fullName } from "@spark/core";
 import { CATEGORIES, CYCLES, cycleLabel, formatValue, needsBase, schedeUsing, toRelative, typeDefaults, typeOf, type Level, type ObjectiveDef, type Scheda } from "../lib/mbo";
 import { useMbo, useMboOptions } from "../store";
 import { MultiSelect } from "@spark/core";
-import { BaseInput, Block, ChoiceButtons, CustomObjectiveEditor, LevelsEditor, PresetPicker, SectionTitle, baseError, customError, levelsError } from "./SchedaEditor";
+import { BaseInput, showBase, Block, ChoiceButtons, CustomObjectiveEditor, LevelsEditor, PresetPicker, SectionTitle, baseError, customError, levelsError } from "./SchedaEditor";
 import { CATEGORY_ICON } from "./ObiettiviTable";
 import { StatusPill } from "./SchedeTable";
 import { GhostButton, PrimaryButton, inputCls } from "@spark/core";
@@ -325,10 +325,10 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                           {perActivity ? (
                             tr("livelli per attività")
                           ) : relative ? (
-                            !withBase ? (
-                              tr("livelli standard")
-                            ) : a.base != null && a.base > 0 ? (
+                            a.base != null && a.base > 0 ? (
                               tr("actual anno precedente {0}", [formatValue(draft, a.base)])
+                            ) : !withBase ? (
+                              tr("livelli standard")
                             ) : (
                               <span className="font-semibold text-amber-700">{tr("manca l'actual anno precedente")}</span>
                             )
@@ -381,7 +381,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                         </p>
                       </div>
 
-                      {withBase && (
+                      {showBase(scaled, options.relativeLevels) && (
                         <div className="rounded-lg bg-canvas p-3">
                           <BaseInput def={scaled} value={a.base} onChange={(base) => patchAssignment(id, { base })} />
                         </div>
