@@ -26,7 +26,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { fullName } from "@spark/core";
-import { CATEGORIES, cycleLabel, schedeUsing, typeLabel, typeOf, type ObjectiveDef } from "../lib/mbo";
+import { CATEGORIES, cycleLabel, itemDef, payoutFor, schedeUsing, typeLabel, typeOf, type ObjectiveDef } from "../lib/mbo";
 import { useCatalogCustomObjectives, useMbo } from "../store";
 import { LevelsReadOnly, PayoutCurve } from "./SchedaEditor";
 import { MisuraModal } from "./Misura";
@@ -34,7 +34,7 @@ import { StatusPill } from "./SchedeTable";
 import { FilterMenu, GhostButton, Modal, PrimaryButton, Tooltip, useAccess } from "@spark/core";
 import { tr } from "@spark/core";
 
-type SortKey = "name" | "category" | "usage" | "cycle";
+type SortKey = "name" | "category" | "usage" | "achievement" | "cycle";
 const collator = new Intl.Collator("it", { sensitivity: "base" });
 
 const CATEGORY_STYLE: Record<string, string> = {
@@ -65,6 +65,27 @@ export function CategoryPill({ category }: { category?: string }) {
   );
 }
 
+/** Average payout of the measured schede (bar up to 100%, over 100% in green), with how many are measured. */
+function Achievement({ value }: { value?: { avg: number; measured: number; items: number } }) {
+  if (!value?.items) return <span className="text-[12.5px] text-faint">—</span>;
+  if (!value.measured)
+    return <span className="whitespace-nowrap text-[12px] text-muted">{tr("Da misurare · 0/{0}", [value.items])}</span>;
+  const avg = Math.round(value.avg);
+  return (
+    <div className="w-[120px]" title={tr("Payout medio delle schede misurate")}>
+      <div className="flex items-baseline justify-between gap-2">
+        <span className={`text-[12.5px] font-bold tabular-nums ${avg >= 100 ? "text-emerald-700" : avg > 0 ? "text-ink" : "text-red-600"}`}>{avg}%</span>
+        <span className="text-[11px] tabular-nums text-muted">
+          {value.measured}/{value.items}
+        </span>
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[#eef1f5]">
+        <div className={`h-full rounded-full ${avg >= 100 ? "bg-emerald-500" : "bg-brand"}`} style={{ width: `${Math.min(avg, 100)}%` }} />
+      </div>
+    </div>
+  );
+}
+
 export function ObiettiviTable() {
   const { companies: COMPANIES } = useOrg();
   const router = useRouter();
@@ -89,6 +110,30 @@ export function ObiettiviTable() {
   const canManage = allowed("mbo.catalog.manage");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDeleting, setBulkDeleting] = useState(false);
+
+  // per objective: achievement in the active schede that use it (also personalized copies) = average payout of the
+  // measured ones, always with the objective's default levels (per-scheda levels ignored; % levels use the scheda's
+  // last-year actual, or the objective's); `measured` of `items`
+  const achievementMap = useMemo(() => {
+    const m = new Map<string, { avg: number; measured: number; items: number }>();
+    for (const s of schede) {
+      if (s.status === "archiviata") continue;
+      for (const it of s.items) {
+        const id = it.custom ? it.custom.originId : it.objectiveId;
+        if (!id) continue;
+        const def = itemDef(objectives, { id: it.id, objectiveId: id, weight: it.weight, base: it.base });
+        if (!def) continue;
+        const a = m.get(id) ?? { avg: 0, measured: 0, items: 0 };
+        a.items++;
+        if (it.actual != null) {
+          a.avg = (a.avg * a.measured + payoutFor(def, it.actual)) / (a.measured + 1);
+          a.measured++;
+        }
+        m.set(id, a);
+      }
+    }
+    return m;
+  }, [schede, objectives]);
 
   // per objective: how many schede use it, and which groups / companies their assignees belong to
   const usageMap = useMemo(() => {
@@ -124,7 +169,11 @@ export function ObiettiviTable() {
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
     const val = (o: ObjectiveDef, k: SortKey): string | number =>
-      k === "usage" ? (usageMap.get(o.id)?.total ?? 0) : k === "category" ? CATEGORIES.indexOf(o.category ?? "") : k === "name" ? o.name : (o[k] ?? "");
+      k === "usage"
+        ? (usageMap.get(o.id)?.total ?? 0)
+        : k === "achievement"
+          ? (achievementMap.get(o.id)?.measured ? achievementMap.get(o.id)!.avg : -1)
+          : k === "category" ? CATEGORIES.indexOf(o.category ?? "") : k === "name" ? o.name : (o[k] ?? "");
     return objectives
       .filter((o) => {
         const u = usageMap.get(o.id);
@@ -141,7 +190,7 @@ export function ObiettiviTable() {
         const c = typeof x === "number" && typeof y === "number" ? x - y : collator.compare(String(x), String(y));
         return c * sort.dir;
       });
-  }, [objectives, usageMap, category, company, showArchived, q, sort, personObjectives]);
+  }, [objectives, usageMap, achievementMap, category, company, showArchived, q, sort, personObjectives]);
 
   // selection limited to what the filters show
   const visibleSelected = rows.filter((o) => selected.has(o.id));
@@ -164,6 +213,7 @@ export function ObiettiviTable() {
     { key: "name", label: "Obiettivo", sortable: true },
     { key: "category", label: "Livello", sortable: true },
     { key: "usage", label: "Schede", sortable: true },
+    { key: "achievement", label: "Raggiungimento", sortable: true },
     { key: "cycle", label: "Ciclo", sortable: true },
   ];
 
@@ -345,6 +395,9 @@ export function ObiettiviTable() {
                     <span className="inline-flex items-center gap-1.5 text-[13px] tabular-nums text-[#5b6476]">
                       {u.total || <span className="text-faint">0</span>}
                     </span>
+                  </td>
+                  <td className="px-3">
+                    <Achievement value={achievementMap.get(o.id)} />
                   </td>
                   <td className="whitespace-nowrap px-3 text-[12.5px] text-[#5b6476]">{o.cycle ? tr(cycleLabel(o.cycle)) : "—"}</td>
                   <td className="sticky right-0 border-l border-line bg-white px-3 py-1 group-hover:bg-[#f8fafd]">
