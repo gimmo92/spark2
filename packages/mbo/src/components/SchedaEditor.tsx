@@ -99,7 +99,7 @@ function NoEdit() {
 
 function SchedaEditor({ scheda }: { scheda?: Scheda }) {
   const router = useRouter();
-  const { users, addScheda, updateScheda, notify, objectives, mboSettings, catalogItems } = useMbo();
+  const { users, addScheda, updateScheda, updateObjective, notify, objectives, mboSettings, catalogItems } = useMbo();
   const { allowed } = useAccess();
   const options = useMboOptions();
   const globalDef = catalogById(objectives, mboSettings.globalThresholdId);
@@ -167,6 +167,29 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
     ]);
     setExpanded(id);
   };
+  /** Personalized catalog objective: its levels become the objective's standard ones, and the item goes back to the catalog objective. */
+  const setAsDefault = (it: SchedaItem) => {
+    const c = it.custom;
+    const origin = c?.originId ? catalogById(objectives, c.originId) : undefined;
+    if (!c || !origin) return;
+    const e = customError({ ...c, name: c.name || origin.name });
+    if (e) {
+      setSubmitted(true);
+      notify(tr(e));
+      return;
+    }
+    updateObjective(origin.id, { calc: c.calc, levels: c.levels, relative: c.relative, activities: c.activities, activityLevels: c.activityLevels });
+    setItems((p) =>
+      p.map((x) => {
+        if (x.id !== it.id) return x;
+        const rest = { ...x, objectiveId: origin.id };
+        delete rest.custom;
+        delete rest.levels;
+        return rest;
+      }),
+    );
+    notify(tr("Livelli impostati come default di {0}", [origin.name]));
+  };
   const personalize = (it: SchedaItem) => {
     const def = itemDef(objectives, it);
     if (!def) return;
@@ -176,6 +199,7 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
       custom: {
         ...def,
         id: uid("cu"),
+        originId: it.objectiveId,
         base: undefined,
         levels: def.relative ? resolveRelative(def.relative, 100) : def.levels.map((l) => ({ ...l })),
       },
@@ -438,7 +462,22 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
                         <BaseInput def={def} value={it.base} onChange={(base) => updateItem(it.id, { base })} />
                       )}
                       {it.custom ? (
-                        <CustomObjectiveEditor def={it.custom} onChange={(p) => updateCustom(it.id, p)} error={e} />
+                        <CustomObjectiveEditor
+                          def={it.custom}
+                          onChange={(p) => updateCustom(it.id, p)}
+                          error={e}
+                          levelsExtra={
+                            it.custom.originId && catalogById(objectives, it.custom.originId) && allowed("mbo.catalog.manage") ? (
+                              <button
+                                type="button"
+                                onClick={() => setAsDefault(it)}
+                                className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline"
+                              >
+                                <Star className="h-3.5 w-3.5" /> {tr("Imposta come default dell'obiettivo")}
+                              </button>
+                            ) : undefined
+                          }
+                        />
                       ) : (
                         <div className="grid gap-4 sm:grid-cols-[1fr_220px]">
                           <div>
@@ -631,7 +670,18 @@ export function BaseInput({ def, value, onChange }: { def: ObjectiveDef; value?:
  * Editable levels where each one says what it is calculated on: the target (pays 100%) is a % of last year's actual
  * or a fixed value; every other level is a % of last year, a % of the target or a fixed value.
  */
-export function RelativeLevelsEditor({ value, unit = "", onChange }: { value: RelativeScale; unit?: string; onChange: (r: RelativeScale) => void }) {
+export function RelativeLevelsEditor({
+  value,
+  unit = "",
+  onChange,
+  extra,
+}: {
+  value: RelativeScale;
+  unit?: string;
+  onChange: (r: RelativeScale) => void;
+  /** Shown next to "Aggiungi livello" (e.g. "Imposta come default"). */
+  extra?: React.ReactNode;
+}) {
   const set = (i: number, p: Partial<RelativeLevel>) => onChange({ ...value, levels: value.levels.map((l, k) => (k === i ? { ...l, ...p } : l)) });
   const cols = "grid grid-cols-[64px_96px_1fr_84px_28px] items-center gap-2";
   const targetOf = value.targetOf ?? "base";
@@ -714,15 +764,19 @@ export function RelativeLevelsEditor({ value, unit = "", onChange }: { value: Re
           </div>
         ))}
       </div>
-      <button
-        type="button"
-        onClick={() => {
-          const last = value.levels.filter((l) => l.of === "target").at(-1);
-          onChange({ ...value, levels: [...value.levels, { pct: last ? last.pct + 2 : 110, of: "target", payout: last ? last.payout + 20 : 120 }] });
-        }}
-        className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline"
-      >
-        <Plus className="h-3.5 w-3.5" />{" "}{tr("Aggiungi livello")}</button>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
+        <button
+          type="button"
+          onClick={() => {
+            const last = value.levels.filter((l) => l.of === "target").at(-1);
+            onChange({ ...value, levels: [...value.levels, { pct: last ? last.pct + 2 : 110, of: "target", payout: last ? last.payout + 20 : 120 }] });
+          }}
+          className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline"
+        >
+          <Plus className="h-3.5 w-3.5" /> {tr("Aggiungi livello")}
+        </button>
+        {extra}
+      </div>
     </div>
   );
 }
@@ -894,11 +948,14 @@ export function CustomObjectiveEditor({
   onChange,
   error,
   showName = true,
+  levelsExtra,
 }: {
   def: ObjectiveDef;
   onChange: (p: Partial<ObjectiveDef>) => void;
   error?: string;
   showName?: boolean;
+  /** Shown next to "Aggiungi livello". */
+  levelsExtra?: React.ReactNode;
 }) {
   const type = typeOf(def);
   const perActivity = type === "progetto" && !!def.activityLevels;
@@ -936,8 +993,10 @@ export function CustomObjectiveEditor({
           )}
 
           {type === "progetto" && <ActivitiesEditor def={def} onChange={onChange} />}
-          {relative && <RelativeLevelsEditor value={scale} unit={def.unit} onChange={(r) => onChange(relativePatch(r))} />}
-          {!perActivity && !relative && <LevelsEditor unit={def.unit} type={type} levels={def.levels} onChange={(levels) => onChange({ levels })} />}
+          {relative && <RelativeLevelsEditor value={scale} unit={def.unit} onChange={(r) => onChange(relativePatch(r))} extra={levelsExtra} />}
+          {!perActivity && !relative && (
+            <LevelsEditor unit={def.unit} type={type} levels={def.levels} onChange={(levels) => onChange({ levels })} extra={levelsExtra} />
+          )}
           {error && (
             <p className="flex items-center gap-1.5 text-[12px] font-semibold text-red-600">
               <TriangleAlert className="h-3.5 w-3.5" /> {tr(error)}
@@ -989,11 +1048,14 @@ export function LevelsEditor({
   type = "quantitativo",
   levels,
   onChange,
+  extra,
 }: {
   unit: string;
   type?: ObjectiveType;
   levels: Level[];
   onChange: (levels: Level[]) => void;
+  /** Shown next to "Aggiungi livello" (e.g. "Imposta come default"). */
+  extra?: React.ReactNode;
 }) {
   const setLevel = (i: number, patch: Partial<Level>) => onChange(levels.map((l, k) => (k === i ? { ...l, ...patch } : l)));
   const r = typeRange(type);
@@ -1063,6 +1125,7 @@ export function LevelsEditor({
           </div>
         ))}
       </div>
+      <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1">
       <button
         type="button"
         onClick={() => {
@@ -1078,9 +1141,11 @@ export function LevelsEditor({
             },
           ]);
         }}
-        className="mt-2 inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline"
+        className="inline-flex items-center gap-1.5 text-[12px] font-semibold text-brand hover:underline"
       >
         <Plus className="h-3.5 w-3.5" />{" "}{tr("Aggiungi livello")}</button>
+        {extra}
+      </div>
     </div>
   );
 }

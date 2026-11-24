@@ -70,6 +70,7 @@ export function useMbo() {
       const next = items.map((it) => {
         if (!it.custom) return it;
         const def = { ...it.custom };
+        delete def.originId;
         // id derived from the one-off definition: running twice (e.g. React dev double effects) can't duplicate it
         const obj: ObjectiveDef = { ...def, id: `ob-${def.id}`, cycle: def.cycle ?? cycle, updatedAt: today() };
         created.push(obj);

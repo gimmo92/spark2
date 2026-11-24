@@ -400,7 +400,33 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                               />
                             </div>
                           )}
-                          <LevelsEditor unit={draft.unit} type={typeOf(draft)} levels={lv} onChange={(levels) => patchAssignment(id, { levels })} />
+                          <LevelsEditor
+                            unit={draft.unit}
+                            type={typeOf(draft)}
+                            levels={lv}
+                            onChange={(levels) => patchAssignment(id, { levels })}
+                            extra={
+                              a.levels ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    // these levels become the objective's standard ones; schede with the same levels drop their override
+                                    const std = a.levels!.map((l) => ({ ...l }));
+                                    patch({ levels: std });
+                                    setAssignments((all) =>
+                                      Object.fromEntries(
+                                        Object.entries(all).map(([k, x]) => [k, JSON.stringify(x.levels) === JSON.stringify(std) ? { ...x, levels: undefined } : x]),
+                                      ),
+                                    );
+                                    notify(tr("Livelli impostati come default: salva l'obiettivo per confermare"));
+                                  }}
+                                  className="text-[12px] font-semibold text-brand hover:underline"
+                                >
+                                  {tr("Imposta come default dell'obiettivo")}
+                                </button>
+                              ) : undefined
+                            }
+                          />
                           {a.levels && (
                             <button
                               type="button"

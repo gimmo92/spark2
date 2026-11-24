@@ -323,6 +323,8 @@ export interface ObjectiveDef {
   levels: Level[]; // ordered by ascending target
   /** "quantitativo": levels relative to last year's actual, entered per scheda (`SchedaItem.base`). */
   relative?: RelativeScale;
+  /** One-off copy of a catalog objective ("Personalizza per questa scheda"): the objective it came from. */
+  originId?: string;
   /** Set by `itemDef` on relative objectives: the scheda's last-year actual the levels were computed from. */
   base?: number;
   /** Catalog-only metadata (absent on one-off objectives inside a scheda). */
