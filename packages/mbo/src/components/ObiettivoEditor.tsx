@@ -156,6 +156,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
       weightedActivities: typeOf(draft) === "progetto" && draft.weightedActivities ? true : undefined,
       activityLevels: typeOf(draft) === "progetto" && draft.activityLevels ? true : undefined,
       relative: relative ? scaled.relative : undefined,
+      lastYear: draft.lastYear != null && draft.lastYear > 0 ? draft.lastYear : undefined,
       category: draft.category,
       cycle: draft.cycle,
       unit: draft.unit.trim(),
@@ -267,7 +268,7 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
 
       <section className="card p-5">
         <SectionTitle n={2} title={tr("Misurazione e livelli standard")} />
-        <CustomObjectiveEditor def={draft} onChange={patch} showName={false} error={submitted && !nameError ? (draftError ?? undefined) : undefined} />
+        <CustomObjectiveEditor def={draft} onChange={patch} showName={false} lastYearField error={submitted && !nameError ? (draftError ?? undefined) : undefined} />
       </section>
 
       <section className="card p-5">
@@ -325,8 +326,8 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
                           {perActivity ? (
                             tr("livelli per attività")
                           ) : relative ? (
-                            a.base != null && a.base > 0 ? (
-                              tr("actual anno precedente {0}", [formatValue(draft, a.base)])
+                            (a.base ?? draft.lastYear ?? 0) > 0 ? (
+                              tr("actual anno precedente {0}", [formatValue(draft, (a.base ?? draft.lastYear)!)])
                             ) : !withBase ? (
                               tr("livelli standard")
                             ) : (

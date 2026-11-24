@@ -323,9 +323,11 @@ export interface ObjectiveDef {
   levels: Level[]; // ordered by ascending target
   /** "quantitativo": levels relative to last year's actual, entered per scheda (`SchedaItem.base`). */
   relative?: RelativeScale;
+  /** Last year's actual of the objective (catalog): used by every scheda that doesn't enter its own (`SchedaItem.base`). */
+  lastYear?: number;
   /** One-off copy of a catalog objective ("Personalizza per questa scheda"): the objective it came from. */
   originId?: string;
-  /** Set by `itemDef` on relative objectives: the scheda's last-year actual the levels were computed from. */
+  /** Set by `itemDef`: the last-year actual in use (the scheda's own, or the objective's `lastYear`). */
   base?: number;
   /** Catalog-only metadata (absent on one-off objectives inside a scheda). */
   description?: string;
@@ -396,14 +398,16 @@ export const catalogById = (catalog: Catalog, id?: string) => catalog.find((o) =
 export const itemDef = (catalog: Catalog, it: SchedaItem): ObjectiveDef | undefined => {
   const def = it.custom ?? catalogById(catalog, it.objectiveId);
   if (!def) return undefined;
-  // relative levels: computed from the scheda's last-year actual (none yet = no levels, payout 0)
+  // last year's actual: the scheda's own, otherwise the objective's
+  const base = it.base != null && it.base > 0 ? it.base : def.lastYear != null && def.lastYear > 0 ? def.lastYear : undefined;
+  // relative levels: computed from it (none yet = no levels, payout 0)
   if (def.relative && typeOf(def) === "quantitativo")
     return {
       ...def,
-      base: it.base,
-      levels: !needsBase(def.relative) ? resolveRelative(def.relative) : it.base != null && it.base > 0 ? resolveRelative(def.relative, it.base) : [],
+      base,
+      levels: !needsBase(def.relative) ? resolveRelative(def.relative) : base != null ? resolveRelative(def.relative, base) : [],
     };
-  return !it.custom && it.levels ? { ...def, levels: it.levels } : def;
+  return { ...def, base, levels: !it.custom && it.levels ? it.levels : def.levels };
 };
 
 /** Short description of a relative scale, e.g. "90% AP → 10% · 108% AP → 100% · 110% target → 120%". */

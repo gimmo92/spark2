@@ -619,8 +619,10 @@ export function typePatch(def: ObjectiveDef, type: ObjectiveType): Partial<Objec
 const BASE_MISSING = "Inserisci l'actual dell'anno precedente";
 
 /** Error for an objective with % levels in one scheda: last year's actual missing, or levels out of order with it. */
-export function baseError(def: ObjectiveDef | undefined, base?: number): string | null {
+export function baseError(def: ObjectiveDef | undefined, own?: number): string | null {
   if (!def?.relative || typeOf(def) !== "quantitativo" || !needsBase(def.relative)) return null;
+  // the scheda's own value, otherwise the objective's
+  const base = own != null && own > 0 ? own : def.lastYear;
   if (!(base != null && base > 0)) return BASE_MISSING;
   const e = levelsError(resolveRelative(def.relative, base));
   return e === "I livelli target devono essere crescenti" ? "Con questo actual dell'anno precedente due livelli non sono in ordine crescente" : e;
@@ -637,26 +639,46 @@ export function showBase(def: ObjectiveDef, option?: boolean) {
 }
 
 /** Last year's actual of an objective in one scheda, with the target it gives (required only when the levels use it). */
-export function BaseInput({ def, value, onChange }: { def: ObjectiveDef; value?: number; onChange: (v: number | undefined) => void }) {
+export function BaseInput({
+  def,
+  value,
+  onChange,
+  catalog = false,
+}: {
+  def: ObjectiveDef;
+  value?: number;
+  onChange: (v: number | undefined) => void;
+  /** On the objective itself (catalog): the default of every scheda, never required here. */
+  catalog?: boolean;
+}) {
   const r = def.relative;
   const used = !!r && typeOf(def) === "quantitativo" && needsBase(r);
-  const target = value != null && value > 0 && r && used && (r.targetOf ?? "base") === "base" ? (value * r.target) / 100 : undefined;
+  // in a scheda, an empty field uses the objective's value
+  const fallback = !catalog && def.lastYear != null && def.lastYear > 0 ? def.lastYear : undefined;
+  const effective = value != null && value > 0 ? value : fallback;
+  const target = effective != null && r && used && (r.targetOf ?? "base") === "base" ? (effective * r.target) / 100 : undefined;
+  const required = used && !catalog && fallback == null;
   return (
     <div className="flex flex-wrap items-end gap-4">
-      <Block label={used ? tr("Actual anno precedente") : tr("Actual anno precedente (facoltativo)")}>
+      <Block label={required ? tr("Actual anno precedente") : tr("Actual anno precedente (facoltativo)")}>
         <span className="relative block w-[160px]">
           <input
             type="number"
             min={0}
             className={`${inputCls} ${def.unit ? "pr-10" : ""} text-right font-semibold tabular-nums`}
             value={value ?? ""}
+            placeholder={fallback != null ? formatValue(def, fallback) : undefined}
             onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
           />
           {def.unit && <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[12px] text-muted">{def.unit}</span>}
         </span>
       </Block>
       <p className="pb-2 text-[11.5px] text-muted">
-        {!used
+        {catalog
+          ? tr("Valore di default per tutte le schede: ogni scheda può inserire il suo.")
+          : fallback != null && !(value != null && value > 0)
+            ? tr("Vuoto: si usa quello dell'obiettivo ({0}).", [formatValue(def, fallback)])
+          : !used
           ? tr("Solo di riferimento: i livelli di questo obiettivo non lo usano.")
           : target != null
             ? tr("Target {0} ({1}% dell'anno precedente): i livelli si calcolano da qui.", [formatValue(def, Math.round(target * 100) / 100), def.relative?.target])
@@ -949,6 +971,7 @@ export function CustomObjectiveEditor({
   error,
   showName = true,
   levelsExtra,
+  lastYearField = false,
 }: {
   def: ObjectiveDef;
   onChange: (p: Partial<ObjectiveDef>) => void;
@@ -956,6 +979,8 @@ export function CustomObjectiveEditor({
   showName?: boolean;
   /** Shown next to "Aggiungi livello". */
   levelsExtra?: React.ReactNode;
+  /** Catalog objective: asks last year's actual (default of every scheda). */
+  lastYearField?: boolean;
 }) {
   const type = typeOf(def);
   const perActivity = type === "progetto" && !!def.activityLevels;
@@ -992,6 +1017,9 @@ export function CustomObjectiveEditor({
             </div>
           )}
 
+          {lastYearField && showBase(def, options.relativeLevels) && (
+            <BaseInput catalog def={def} value={def.lastYear} onChange={(lastYear) => onChange({ lastYear })} />
+          )}
           {type === "progetto" && <ActivitiesEditor def={def} onChange={onChange} />}
           {relative && <RelativeLevelsEditor value={scale} unit={def.unit} onChange={(r) => onChange(relativePatch(r))} extra={levelsExtra} />}
           {!perActivity && !relative && (

@@ -393,8 +393,8 @@ export function IncentivePlanSheet() {
                     </td>
                     {/* last year's actual of the objective (entered in the sheet when its levels use it) */}
                     <td className="border-l border-[#bfbfbf] px-2.5 py-0.5 text-right tabular-nums">
-                      {c.item.base != null && c.item.base > 0
-                        ? objValue(c.def, c.item.base)
+                      {c.def.base != null && c.def.base > 0
+                        ? objValue(c.def, c.def.base)
                         : "—"}
                     </td>
                     <td
