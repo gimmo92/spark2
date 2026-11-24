@@ -60,15 +60,23 @@ export function useMbo() {
     [setObjectives],
   );
   /**
-   * Objectives created inside a scheda are catalog objectives like any other: each one-off definition
+   * Objectives created inside a scheda are catalog objectives like any other: each new one-off definition
    * (`item.custom`) becomes a catalog objective and the item points to it. Returns the new items.
+   * Not a new objective: a catalog objective personalized for one scheda (`custom.originId`) stays a copy inside
+   * the scheda, and so does a new one named like an existing catalog objective of the same cycle (it becomes
+   * that objective's personalized copy) — so the catalog has one objective per name.
    */
   const catalogItems = useCallback(
     (items: SchedaItem[], cycle: string): SchedaItem[] => {
       if (!items.some((it) => it.custom)) return items;
       const created: ObjectiveDef[] = [];
+      const key = (o: Pick<ObjectiveDef, "name" | "cycle">) => `${o.name.trim().toLowerCase()}|${o.cycle ?? cycle}`;
+      const byName = new Map(objectives.filter((o) => !o.archived).map((o) => [key(o), o.id]));
       const next = items.map((it) => {
         if (!it.custom) return it;
+        if (it.custom.originId) return it;
+        const same = byName.get(key(it.custom));
+        if (same) return { ...it, custom: { ...it.custom, originId: same } };
         const def = { ...it.custom };
         delete def.originId;
         // id derived from the one-off definition: running twice (e.g. React dev double effects) can't duplicate it
@@ -79,10 +87,10 @@ export function useMbo() {
         delete rest.levels;
         return { ...rest, objectiveId: obj.id };
       });
-      setObjectives((prev) => [...created, ...prev.filter((o) => !created.some((c) => c.id === o.id))]);
+      if (created.length) setObjectives((prev) => [...created, ...prev.filter((o) => !created.some((c) => c.id === o.id))]);
       return next;
     },
-    [setObjectives],
+    [objectives, setObjectives],
   );
   const updateObjective = useCallback(
     (id: string, patch: Partial<ObjectiveDef>) => setObjectives((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch, updatedAt: today() } : o))),
@@ -170,6 +178,6 @@ export function useCatalogCustomObjectives() {
   useEffect(() => {
     if (!hydrated || done.current || !allowed("mbo.catalog.manage")) return;
     done.current = true;
-    for (const s of schede) if (s.items.some((it) => it.custom) && canEditScheda(s)) updateScheda(s.id, { items: catalogItems(s.items, s.cycle) });
+    for (const s of schede) if (s.items.some((it) => it.custom && !it.custom.originId) && canEditScheda(s)) updateScheda(s.id, { items: catalogItems(s.items, s.cycle) });
   }, [hydrated, schede, allowed, catalogItems, updateScheda, canEditScheda]);
 }

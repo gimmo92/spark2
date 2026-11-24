@@ -10,8 +10,10 @@ import {
   activityWeight,
   formatValue,
   fromDay,
+  itemDef,
   payoutFor,
   projectActual,
+  relativeRows,
   schedeUsing,
   toDay,
   typeOf,
@@ -21,7 +23,7 @@ import {
 } from "../lib/mbo";
 import { useMbo } from "../store";
 import { StatusPill } from "./SchedeTable";
-import { tr } from "@spark/core";
+import { localeTag, tr } from "@spark/core";
 
 const box =
   "h-8 rounded-lg border border-[#dfe3ea] bg-white px-2.5 text-[12.5px] font-semibold tabular-nums outline-none focus:border-brand focus:ring-3 focus:ring-brand/15";
@@ -31,7 +33,19 @@ export function LevelChips({ def, actual }: { def: ObjectiveDef; actual?: number
   const type = typeOf(def);
   if (type === "progetto" && def.activityLevels) return <p className="text-[11.5px] text-muted">{tr("Livelli per attività: payout = somma pesata delle attività")}</p>;
   const levels = [...def.levels].sort((a, b) => (type === "data" ? b.target - a.target : a.target - b.target));
-  if (!levels.length) return null;
+  // levels in % of last year's actual: none until it is entered (in the scheda or on the objective)
+  if (!levels.length)
+    return def.relative ? (
+      <p className="text-[11.5px] font-semibold text-amber-700">{tr("Manca l'actual anno precedente: inseriscilo nella scheda o nell'obiettivo.")}</p>
+    ) : null;
+  // % levels: each value also shows the % it comes from ("108% AP", "110% target")
+  const rows = def.relative ? relativeRows(def.relative, def.base ?? 0) : [];
+  const origin = (v: number) => {
+    const r = rows.find((x) => x.target === v);
+    if (!r || r.of === "value") return "";
+    const n = r.pct.toLocaleString(localeTag(), { maximumFractionDigits: 2 });
+    return ` (${r.of === "base" ? tr("{0}% AP", [n]) : tr("{0}% target", [n])})`;
+  };
   // highest level reached by the actual (dates: earlier is better)
   const reached = actual == null ? -1 : levels.findLastIndex((l) => (type === "data" ? actual <= l.target : actual >= l.target));
   return (
@@ -46,7 +60,8 @@ export function LevelChips({ def, actual }: { def: ObjectiveDef; actual?: number
               on ? "border-brand bg-brand-soft font-bold text-brand" : "border-line bg-white text-[#5b6476]"
             }`}
           >
-            {type === "onoff" ? tr("Raggiunto") : formatValue(def, l.target)} → {l.payout}%
+            {type === "onoff" ? tr("Raggiunto") : formatValue(def, l.target)}
+            {origin(l.target) && <span className="font-normal text-faint">{origin(l.target)}</span>} → {l.payout}%
           </span>
         );
       })}
@@ -230,7 +245,7 @@ interface Row {
 
 /** "Misura": enters the actual result of a catalog objective in every scheda that uses it. */
 export function MisuraModal({ def, onClose }: { def: ObjectiveDef; onClose: () => void }) {
-  const { schede, users, updateScheda, canEditScheda, mboSettings, setMboSettings, notify } = useMbo();
+  const { schede, users, objectives, updateScheda, canEditScheda, mboSettings, setMboSettings, notify } = useMbo();
   const { allowed } = useAccess();
   const byUser = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
   const isGlobal = mboSettings.globalThresholdId === def.id;
@@ -250,12 +265,13 @@ export function MisuraModal({ def, onClose }: { def: ObjectiveDef; onClose: () =
       if (s.status === "archiviata") continue;
       const editable = canEditScheda(s);
       for (const it of s.items)
-        if (!it.custom && it.objectiveId === def.id)
+        // the objective in this scheda: own levels, last year's actual, or its personalized copy
+        if ((!it.custom && it.objectiveId === def.id) || it.custom?.originId === def.id)
           out.push({
             key: `${s.id}:${it.id}`,
             scheda: s,
             itemId: it.id,
-            def: it.levels ? { ...def, levels: it.levels } : def,
+            def: itemDef([def, ...objectives], it) ?? def,
             weight: it.weight,
             measure: { actual: it.actual, done: it.done, values: it.values },
             editable,

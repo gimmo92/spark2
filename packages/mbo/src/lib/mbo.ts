@@ -421,9 +421,13 @@ export function relativeText(r: RelativeScale, sep = " · "): string {
     .join(sep);
 }
 
-/** Schede that use a catalog objective, as a weighted item or as threshold. */
+/** Schede that use a catalog objective, as a weighted item (also personalized for that scheda) or as threshold. */
 export const schedeUsing = (schede: Scheda[], objectiveId: string) =>
-  schede.filter((s) => s.threshold?.objectiveId === objectiveId || s.items.some((i) => !i.custom && i.objectiveId === objectiveId));
+  schede.filter(
+    (s) =>
+      s.threshold?.objectiveId === objectiveId ||
+      s.items.some((i) => (!i.custom && i.objectiveId === objectiveId) || i.custom?.originId === objectiveId),
+  );
 
 /** Payout % for an objective given the actual value. */
 export function payoutFor(def: ObjectiveDef, actual?: number): number {

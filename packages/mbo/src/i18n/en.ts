@@ -568,6 +568,7 @@ export const EN: Record<string, string> = {
   "I livelli sono in % dell'actual dell'anno precedente: inseriscilo per calcolarli.": "The levels are in % of last year's actual: enter it to calculate them.",
   Valore: "Value",
   "Calcolato su": "Calculated on",
+  "Manca l'actual anno precedente: inseriscilo nella scheda o nell'obiettivo.": "Last year's actual missing: enter it in the sheet or on the objective.",
   "Valore di default per tutte le schede: ogni scheda può inserire il suo.": "Default for every sheet: each sheet can enter its own.",
   "Vuoto: si usa quello dell'obiettivo ({0}).": "Empty: the objective's value is used ({0}).",
   "Imposta come default dell'obiettivo": "Set as default for this objective",
