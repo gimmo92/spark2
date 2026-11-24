@@ -86,6 +86,7 @@ export const CORE_PERMISSIONS: PermissionDef[] = [
   { id: "people.create", group: "Persone", label: "Creare utenti e inviare inviti" },
   { id: "people.level", group: "Persone", label: "Cambiare il livello di accesso degli utenti" },
   { id: "teams.manage", group: "Persone", label: "Gestire i team" },
+  { id: "companies.manage", group: "Persone", label: "Gestire le società", hint: "Lista Società: aggiungere, rinominare, eliminare" },
   {
     id: "dashboard.view",
     group: "Dashboard",

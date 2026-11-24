@@ -11,7 +11,7 @@ import { tr } from "../i18n/i18n";
 type Draft = Omit<User, "id" | "createdAt">;
 
 export function UserFormModal({ user, onClose }: { user?: User; onClose: () => void }) {
-  const { teamNames: TEAMS, companyForTeam, buForTeam, emailDomains } = useOrg();
+  const { teamNames: TEAMS, companies, companyForTeam, buForTeam, emailDomains } = useOrg();
   const { users, addUser, updateUser, notify } = useCore();
   const { userFields = [] } = useSparkConfig();
   const { levels, allowed, isAdmin, adminLevel } = useAccess();
@@ -126,7 +126,17 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
             ))}
           </select>
         </Field>
-        <div className="sm:col-span-2">
+        <Field label={tr("Società")}>
+          <select className={inputCls} value={d.company} onChange={(e) => set("company", e.target.value)}>
+            {/* a company no longer in Lista Società stays selectable for this user */}
+            {[...new Set([...(d.company ? [d.company] : []), ...companies])].map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </Field>
+        <div>
           <Field label={tr("Responsabile")}>
             <select className={inputCls} value={d.managerId ?? ""} onChange={(e) => set("managerId", e.target.value || undefined)}>
               <option value="">{tr("Nessun responsabile")}</option>
@@ -164,12 +174,11 @@ export function UserFormModal({ user, onClose }: { user?: User; onClose: () => v
             <input className={inputCls} value={d.role} onChange={(e) => set("role", e.target.value)} placeholder={tr("es. Production Dept. Supervisor")} />
           </Field>
         </div>
-        <p className="text-[12px] text-muted sm:col-span-2">{tr("Società:")}{" "}<span className="font-semibold text-ink">{d.company}</span>
-          {buForTeam(d.team) && (
-            <>{" "}{tr("· BU:")}{" "}<span className="font-semibold text-ink">{buForTeam(d.team)}</span>
-            </>
-          )}
-        </p>
+        {buForTeam(d.team) && (
+          <p className="text-[12px] text-muted sm:col-span-2">
+            {tr("Business Unit")}: <span className="font-semibold text-ink">{buForTeam(d.team)}</span>
+          </p>
+        )}
         <button type="submit" hidden />
       </form>
     </Modal>

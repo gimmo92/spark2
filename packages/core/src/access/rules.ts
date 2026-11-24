@@ -22,7 +22,7 @@ const CORE_ACCESS: Record<string, CollectionAccess> = {
   users: { owners: (d) => [d.id], view: "people.view", edit: ["people.edit"] },
   letters: { view: "letters.manage", edit: ["letters.manage"] },
 };
-const CORE_SETTINGS: SettingsAccess = { access: ["access.manage"] };
+const CORE_SETTINGS: SettingsAccess = { access: ["access.manage"], org: ["companies.manage"] };
 
 export function accessRulesOf(config: Pick<SparkConfig, "modules">) {
   const collections: Record<string, CollectionAccess> = { ...CORE_ACCESS };

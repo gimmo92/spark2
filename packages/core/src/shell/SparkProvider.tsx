@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { buOfTeam, collectionsOf, type OrgConfig, type SparkConfig } from "../config";
-import { DataProvider, useCollection, useData } from "../data/DataProvider";
+import { DataProvider, useCollection, useData, useSettings } from "../data/DataProvider";
 import type { User } from "../people/data";
 import { INVITE_ERRORS, type InviteDTO, type InvitesStatus } from "../people/invites";
 import { addMessages } from "../i18n/i18n";
@@ -121,23 +121,35 @@ function useCoreCtx() {
 
 export const useSparkConfig = () => useCoreCtx().config;
 
-/** Organisation data from the client config, plus helpers. */
+/** Organisation data edited in the app (settings document "org"); missing fields fall back to the client config. */
+export interface OrgSettings {
+  /** Companies of the group (La mia azienda → Lista Società). */
+  companies?: string[];
+}
+
+/** Organisation data from the client config and the in-app settings, plus helpers. */
 export function useOrg(): OrgConfig & {
   teamNames: string[];
   buNames: string[];
   companyForTeam: (team: string) => string;
   buForTeam: (team: string) => string | undefined;
+  /** Saves the companies list (permission "companies.manage"). */
+  setCompanies: (companies: string[]) => void;
 } {
   const { org } = useCoreCtx().config;
+  const [stored, patch] = useSettings<OrgSettings>("org", {});
+  const companies = stored.companies ?? org.companies;
   return useMemo(
     () => ({
       ...org,
+      companies,
       teamNames: org.teams.map((t) => t.name),
       buNames: (org.businessUnits ?? []).map((b) => b.name),
-      companyForTeam: (team: string) => org.teams.find((t) => t.name === team)?.company ?? org.companies[0] ?? "",
+      companyForTeam: (team: string) => org.teams.find((t) => t.name === team)?.company ?? companies[0] ?? "",
       buForTeam: buOfTeam(org),
+      setCompanies: (list: string[]) => patch({ companies: list }),
     }),
-    [org],
+    [org, companies, patch],
   );
 }
 
