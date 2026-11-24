@@ -59,6 +59,11 @@ export function useMbo() {
     },
     [setObjectives],
   );
+  /** Removes catalog objectives for good (callers only pass objectives no scheda uses). */
+  const deleteObjectives = useCallback(
+    (ids: string[]) => setObjectives((prev) => prev.filter((o) => !ids.includes(o.id))),
+    [setObjectives],
+  );
   /**
    * Objectives created inside a scheda are catalog objectives like any other: each new one-off definition
    * (`item.custom`) becomes a catalog objective and the item points to it. Returns the new items.
@@ -145,6 +150,7 @@ export function useMbo() {
     updateScheda,
     objectives,
     addObjective,
+    deleteObjectives,
     catalogItems,
     updateObjective,
     presets,

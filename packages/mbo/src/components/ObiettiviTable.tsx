@@ -20,6 +20,7 @@ import {
   Plus,
   Search,
   Tag,
+  Trash2,
   User,
   Users,
   type LucideIcon,
@@ -67,7 +68,7 @@ export function CategoryPill({ category }: { category?: string }) {
 export function ObiettiviTable() {
   const { companies: COMPANIES } = useOrg();
   const router = useRouter();
-  const { objectives, schede, users, updateObjective, notify, canEditScheda, mboSettings } = useMbo();
+  const { objectives, schede, users, updateObjective, deleteObjectives, notify, canEditScheda, mboSettings } = useMbo();
   const { allowed } = useAccess();
   useCatalogCustomObjectives();
   /** The user can enter results for this objective in at least one active scheda (or the global threshold). */
@@ -84,6 +85,10 @@ export function ObiettiviTable() {
   const [viewing, setViewing] = useState<string | null>(null);
   const [archiving, setArchiving] = useState<ObjectiveDef | null>(null);
   const [measuring, setMeasuring] = useState<ObjectiveDef | null>(null);
+  // multiple selection (catalog managers): bulk delete
+  const canManage = allowed("mbo.catalog.manage");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   // per objective: how many schede use it, and which groups / companies their assignees belong to
   const usageMap = useMemo(() => {
@@ -138,6 +143,19 @@ export function ObiettiviTable() {
       });
   }, [objectives, usageMap, category, company, showArchived, q, sort, personObjectives]);
 
+  // selection limited to what the filters show
+  const visibleSelected = rows.filter((o) => selected.has(o.id));
+  const allVisible = rows.length > 0 && visibleSelected.length === rows.length;
+  const toggle = (id: string) =>
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  // an objective in use (scheda item, personalized copy, scheda threshold, global threshold) can't be deleted: archive it
+  const inUse = (o: ObjectiveDef) => (usageMap.get(o.id)?.total ?? 0) > 0 || mboSettings.globalThresholdId === o.id;
+  const deletable = visibleSelected.filter((o) => !inUse(o));
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
   const anyFilter = category || company || showArchived || q || person;
   const viewed = viewing ? objectives.find((o) => o.id === viewing) : undefined;
@@ -227,10 +245,40 @@ export function ObiettiviTable() {
         )}
       </div>
 
+      {canManage && visibleSelected.length > 0 && (
+        <div className="card flex flex-wrap items-center gap-3 px-4 py-2.5">
+          <span className="text-[12.5px] font-semibold">{tr("{0} obiettivi selezionati", [visibleSelected.length])}</span>
+          <button
+            type="button"
+            onClick={() => setBulkDeleting(true)}
+            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12.5px] font-semibold text-red-600 hover:bg-red-50"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> {tr("Elimina")}
+          </button>
+          <button type="button" onClick={() => setSelected(new Set())} className="ml-auto text-[12.5px] font-semibold text-muted hover:text-ink hover:underline">
+            {tr("Annulla selezione")}
+          </button>
+        </div>
+      )}
+
       <div className="card overflow-x-auto">
         <table className="w-full min-w-[640px] border-collapse text-left">
           <thead>
             <tr className="border-b border-line">
+              {canManage && (
+                <th className="w-[36px] py-2.5 pl-4">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4 accent-brand"
+                    aria-label={tr("Seleziona tutti")}
+                    checked={allVisible}
+                    ref={(el) => {
+                      if (el) el.indeterminate = visibleSelected.length > 0 && !allVisible;
+                    }}
+                    onChange={() => setSelected(allVisible ? new Set() : new Set(rows.map((o) => o.id)))}
+                  />
+                </th>
+              )}
               {cols.map((c) => {
                 const active = sort.key === c.key;
                 return (
@@ -267,8 +315,22 @@ export function ObiettiviTable() {
             {rows.map((o) => {
               const u = usageMap.get(o.id) ?? { total: 0, asThreshold: 0 };
               return (
-                <tr key={o.id} className={`group border-b border-line last:border-0 hover:bg-[#f8fafd] ${o.archived ? "opacity-60" : ""}`}>
-                  <td className="px-3 py-[9px] pl-4">
+                <tr
+                  key={o.id}
+                  className={`group border-b border-line last:border-0 hover:bg-[#f8fafd] ${o.archived ? "opacity-60" : ""} ${selected.has(o.id) ? "bg-brand-soft/40" : ""}`}
+                >
+                  {canManage && (
+                    <td className="py-[9px] pl-4">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-brand"
+                        aria-label={tr("Seleziona {0}", [o.name])}
+                        checked={selected.has(o.id)}
+                        onChange={() => toggle(o.id)}
+                      />
+                    </td>
+                  )}
+                  <td className={`px-3 py-[9px] ${canManage ? "" : "pl-4"}`}>
                     <button type="button" onClick={() => setViewing(o.id)} className="block text-left">
                       <span className="block max-w-[520px] truncate text-[13.5px] font-semibold text-brand hover:underline">{o.name}</span>
                       <span className="block max-w-[520px] truncate text-[11.5px] text-muted" title={tr(o.description)}>
@@ -318,7 +380,7 @@ export function ObiettiviTable() {
             })}
             {rows.length === 0 && (
               <tr>
-                <td colSpan={cols.length + 1} className="px-4 py-12 text-center">
+                <td colSpan={cols.length + (canManage ? 2 : 1)} className="px-4 py-12 text-center">
                   <p className="text-[14px] font-semibold">{tr("Nessun obiettivo trovato")}</p>
                   <p className="mt-1 text-[12.5px] text-muted">{tr("Prova a modificare i filtri o la ricerca.")}</p>
                 </td>
@@ -330,6 +392,43 @@ export function ObiettiviTable() {
 
       {measuring && <MisuraModal def={measuring} onClose={() => setMeasuring(null)} />}
       {viewed && <ObiettivoView def={viewed} onClose={() => setViewing(null)} onEdit={() => router.push(`/mbo/obiettivi/${viewed.id}`)} />}
+
+      {bulkDeleting && (
+        <Modal
+          title={tr("Eliminare gli obiettivi?")}
+          onClose={() => setBulkDeleting(false)}
+          width="max-w-md"
+          footer={
+            <>
+              <GhostButton onClick={() => setBulkDeleting(false)}>{tr("Annulla")}</GhostButton>
+              <PrimaryButton
+                className="!bg-none !bg-red-600 !shadow-none"
+                disabled={!deletable.length}
+                onClick={() => {
+                  const ids = deletable.map((o) => o.id);
+                  deleteObjectives(ids);
+                  setSelected((s) => new Set([...s].filter((id) => !ids.includes(id))));
+                  notify(tr("{0} obiettivi eliminati", [ids.length]));
+                  setBulkDeleting(false);
+                }}
+              >
+                {tr("Elimina {0}", [deletable.length])}
+              </PrimaryButton>
+            </>
+          }
+        >
+          <p className="text-[13px] leading-relaxed text-muted">
+            {deletable.length
+              ? tr("{0} obiettivi verranno eliminati definitivamente dal catalogo.", [deletable.length])
+              : tr("Nessuno degli obiettivi selezionati può essere eliminato.")}
+          </p>
+          {visibleSelected.length > deletable.length && (
+            <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-[12.5px] text-amber-800">
+              {tr("{0} sono usati in schede o come soglia e restano: puoi archiviarli.", [visibleSelected.length - deletable.length])}
+            </p>
+          )}
+        </Modal>
+      )}
 
       {archiving && (
         <Modal
