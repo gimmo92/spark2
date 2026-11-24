@@ -13,6 +13,7 @@ import {
   ChevronUp,
   ChevronsUpDown,
   Eye,
+  FolderPlus,
   Gauge,
   Globe,
   Layers,
@@ -25,7 +26,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { fullName } from "@spark/core";
-import { CATEGORIES, cycleLabel, schedeUsing, typeLabel, typeOf, type ObjectiveDef } from "../lib/mbo";
+import { CATEGORIES, cycleLabel, schedeUsing, typeLabel, typeOf, type ObjectiveDef, type Scheda } from "../lib/mbo";
 import { useMbo } from "../store";
 import { LevelsReadOnly, PayoutCurve } from "./SchedaEditor";
 import { MisuraModal } from "./Misura";
@@ -33,6 +34,15 @@ import { StatusPill } from "./SchedeTable";
 import { FilterMenu, GhostButton, Modal, PrimaryButton, Tooltip, useAccess } from "@spark/core";
 
 type SortKey = "name" | "category" | "usage" | "cycle";
+
+/** A row of the list: a catalog objective, or an objective created inside one scheda (not in the catalog). */
+interface Row {
+  key: string;
+  def: ObjectiveDef;
+  /** Set for scheda-only objectives. */
+  scheda?: Scheda;
+  itemId?: string;
+}
 const collator = new Intl.Collator("it", { sensitivity: "base" });
 
 const CATEGORY_STYLE: Record<string, string> = {
@@ -66,7 +76,7 @@ export function CategoryPill({ category }: { category?: string }) {
 export function ObiettiviTable() {
   const { companies: COMPANIES } = useOrg();
   const router = useRouter();
-  const { objectives, schede, users, updateObjective, notify, canEditScheda, mboSettings } = useMbo();
+  const { objectives, schede, users, addObjective, updateObjective, updateScheda, notify, canEditScheda, mboSettings } = useMbo();
   const { allowed } = useAccess();
   /** The user can enter results for this objective in at least one active scheda (or the global threshold). */
   const canMeasure = (o: ObjectiveDef) =>
@@ -101,14 +111,34 @@ export function ObiettiviTable() {
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const val = (o: ObjectiveDef, k: SortKey): string | number =>
-      k === "usage" ? (usageMap.get(o.id)?.total ?? 0) : k === "category" ? CATEGORIES.indexOf(o.category ?? "") : k === "name" ? o.name : (o[k] ?? "");
-    return objectives
-      .filter((o) => {
-        const u = usageMap.get(o.id);
-        if (!!o.archived !== !!showArchived) return false;
+    const byId = new Map(users.map((u) => [u.id, u]));
+    const cycleOf = (r: Row) => r.scheda?.cycle ?? r.def.cycle ?? "";
+    const val = (r: Row, k: SortKey): string | number =>
+      k === "usage"
+        ? r.scheda
+          ? 1
+          : (usageMap.get(r.def.id)?.total ?? 0)
+        : k === "category"
+          ? CATEGORIES.indexOf(r.def.category ?? "")
+          : k === "name"
+            ? r.def.name
+            : cycleOf(r);
+    const all: Row[] = [
+      ...objectives.map((def) => ({ key: def.id, def })),
+      // objectives created inside a scheda live only there: listed too, so nothing is missing from the list
+      ...schede
+        .filter((s) => s.status !== "archiviata")
+        .flatMap((s) => s.items.filter((it) => it.custom).map((it) => ({ key: `${s.id}:${it.id}`, def: it.custom!, scheda: s, itemId: it.id }))),
+    ];
+    return all
+      .filter((r) => {
+        const o = r.def;
+        if (r.scheda ? !!showArchived : !!o.archived !== !!showArchived) return false;
         if (category && o.category !== category) return false;
-        if (company && !u?.companies.has(company)) return false;
+        if (company) {
+          const has = r.scheda ? r.scheda.assigneeIds.some((id) => byId.get(id)?.company === company) : usageMap.get(o.id)?.companies.has(company);
+          if (!has) return false;
+        }
         if (needle && !`${o.name} ${o.description ?? ""}`.toLowerCase().includes(needle)) return false;
         return true;
       })
@@ -118,11 +148,31 @@ export function ObiettiviTable() {
         const c = typeof x === "number" && typeof y === "number" ? x - y : collator.compare(String(x), String(y));
         return c * sort.dir;
       });
-  }, [objectives, usageMap, category, company, showArchived, q, sort]);
+  }, [objectives, schede, users, usageMap, category, company, showArchived, q, sort]);
+
+  /** Turn a scheda-only objective into a catalog objective; the scheda then points to it. */
+  const toCatalog = (r: Row) => {
+    if (!r.scheda || !r.itemId) return;
+    const { id: _id, ...def } = r.def;
+    void _id;
+    const obj = addObjective({ ...def, cycle: def.cycle ?? r.scheda.cycle });
+    updateScheda(r.scheda.id, {
+      items: r.scheda.items.map((it) => {
+        if (it.id !== r.itemId) return it;
+        const { custom: _custom, levels: _levels, ...rest } = it;
+        void _custom;
+        void _levels;
+        return { ...rest, objectiveId: obj.id };
+      }),
+    });
+    notify(`"${obj.name}" aggiunto al catalogo obiettivi`);
+  };
+  const canCatalog = allowed("mbo.catalog.manage");
 
   const toggleSort = (key: SortKey) => setSort((s) => (s.key === key ? { key, dir: s.dir === 1 ? -1 : 1 } : { key, dir: 1 }));
   const anyFilter = category || company || showArchived || q;
-  const viewed = viewing ? objectives.find((o) => o.id === viewing) : undefined;
+  const viewedRow = viewing ? rows.find((r) => r.key === viewing) : undefined;
+  const viewed = viewedRow?.def;
 
   const cols: { key: SortKey | "levels"; label: string; sortable: boolean }[] = [
     { key: "name", label: "Obiettivo", sortable: true },
@@ -230,12 +280,50 @@ export function ObiettiviTable() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((o) => {
+            {rows.map((r) => {
+              const o = r.def;
               const u = usageMap.get(o.id) ?? { total: 0, asThreshold: 0 };
+              if (r.scheda) {
+                const s = r.scheda;
+                const editable = canEditScheda(s);
+                return (
+                  <tr key={r.key} className="group border-b border-line last:border-0 hover:bg-[#f8fafd]">
+                    <td className="px-3 py-[9px] pl-4">
+                      <button type="button" onClick={() => setViewing(r.key)} className="block text-left">
+                        <span className="flex max-w-[520px] items-center gap-2">
+                          <span className="truncate text-[13.5px] font-semibold text-brand hover:underline">{o.name || "Senza nome"}</span>
+                          <span className="shrink-0 rounded-full bg-amber-50 px-2 py-[2px] text-[10.5px] font-bold text-amber-800">Solo in scheda</span>
+                        </span>
+                        <span className="block max-w-[520px] truncate text-[11.5px] text-muted">{s.name}</span>
+                      </button>
+                    </td>
+                    <td className="px-3">
+                      <CategoryPill category={o.category} />
+                    </td>
+                    <td className="px-3 text-[13px] tabular-nums text-[#5b6476]">1</td>
+                    <td className="whitespace-nowrap px-3 text-[12.5px] text-[#5b6476]">{cycleLabel(s.cycle)}</td>
+                    <td className="sticky right-0 border-l border-line bg-white px-3 py-1 group-hover:bg-[#f8fafd]">
+                      <div className="flex items-center gap-0.5">
+                        <IconBtn label="Visualizza" onClick={() => setViewing(r.key)}>
+                          <Eye className="h-4 w-4" strokeWidth={2.2} />
+                        </IconBtn>
+                        <IconBtn label="Modifica nella scheda" onClick={() => router.push(`/mbo/schede/${s.id}`)} disabled={!editable}>
+                          <Pencil className="h-4 w-4" strokeWidth={2.2} />
+                        </IconBtn>
+                        {canCatalog && (
+                          <IconBtn label="Aggiungi al catalogo" onClick={() => toCatalog(r)} disabled={!editable || !o.name.trim()}>
+                            <FolderPlus className="h-4 w-4" strokeWidth={2.2} />
+                          </IconBtn>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              }
               return (
-                <tr key={o.id} className={`group border-b border-line last:border-0 hover:bg-[#f8fafd] ${o.archived ? "opacity-60" : ""}`}>
+                <tr key={r.key} className={`group border-b border-line last:border-0 hover:bg-[#f8fafd] ${o.archived ? "opacity-60" : ""}`}>
                   <td className="px-3 py-[9px] pl-4">
-                    <button type="button" onClick={() => setViewing(o.id)} className="block text-left">
+                    <button type="button" onClick={() => setViewing(r.key)} className="block text-left">
                       <span className="block max-w-[520px] truncate text-[13.5px] font-semibold text-brand hover:underline">{o.name}</span>
                       <span className="block max-w-[520px] truncate text-[11.5px] text-muted" title={o.description}>
                         {o.description || "Nessuna descrizione"}
@@ -253,7 +341,7 @@ export function ObiettiviTable() {
                   <td className="whitespace-nowrap px-3 text-[12.5px] text-[#5b6476]">{o.cycle ? cycleLabel(o.cycle) : "—"}</td>
                   <td className="sticky right-0 border-l border-line bg-white px-3 py-1 group-hover:bg-[#f8fafd]">
                     <div className="flex items-center gap-0.5">
-                      <IconBtn label="Visualizza" onClick={() => setViewing(o.id)}>
+                      <IconBtn label="Visualizza" onClick={() => setViewing(r.key)}>
                         <Eye className="h-4 w-4" strokeWidth={2.2} />
                       </IconBtn>
                       <IconBtn label="Misura" onClick={() => setMeasuring(o)} disabled={o.archived || !canMeasure(o)}>
@@ -295,7 +383,13 @@ export function ObiettiviTable() {
       </div>
 
       {measuring && <MisuraModal def={measuring} onClose={() => setMeasuring(null)} />}
-      {viewed && <ObiettivoView def={viewed} onClose={() => setViewing(null)} onEdit={() => router.push(`/mbo/obiettivi/${viewed.id}`)} />}
+      {viewed && (
+        <ObiettivoView
+          def={viewed}
+          onClose={() => setViewing(null)}
+          onEdit={() => router.push(viewedRow?.scheda ? `/mbo/schede/${viewedRow.scheda.id}` : `/mbo/obiettivi/${viewed.id}`)}
+        />
+      )}
 
       {archiving && (
         <Modal
