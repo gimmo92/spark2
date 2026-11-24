@@ -41,7 +41,7 @@ import {
   typeLabel,
   typeOf,
 } from "../lib/mbo";
-import { useMbo } from "../store";
+import { useMbo, useMboOptions } from "../store";
 import { InviaWorkflowModal, WorkflowBadge } from "./InviaWorkflow";
 import { Badge, FilterMenu, GhostButton, Modal, PrimaryButton, Tooltip } from "@spark/core";
 
@@ -65,6 +65,7 @@ const collator = new Intl.Collator("it", { sensitivity: "base" });
 export function SchedeTable() {
   const { teamNames: TEAMS, companies: COMPANIES } = useOrg();
   const router = useRouter();
+  const { schedaViewHref } = useMboOptions();
   const { schede, users, addScheda, updateScheda, notify, objectives, globalGate, canCreateScheda, canEditScheda } = useMbo();
   const byId = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
 
@@ -378,7 +379,7 @@ export function SchedeTable() {
                   </td>
                   <td className="sticky right-0 border-l border-line bg-white px-3 py-1 group-hover:bg-[#f8fafd]">
                     <div className="flex items-center gap-0.5">
-                      <IconBtn label="Visualizza" onClick={() => setViewing(s.id)}>
+                      <IconBtn label="Visualizza" onClick={() => (schedaViewHref ? router.push(schedaViewHref(s.id)) : setViewing(s.id))}>
                         <Eye className="h-4 w-4" strokeWidth={2.2} />
                       </IconBtn>
                       {canEditScheda(s) && (

@@ -19,8 +19,9 @@ export default defineConfig({
     // TODO(owner): teams, from the client's organisation
     teams: [],
   },
-  // levels target / payout per project activity (their bonus roadmaps: milestones → payout)
-  modules: [createMboModule({ activityLevels: true })],
+  // levels target / payout per project activity (their bonus roadmaps: milestones → payout);
+  // "Visualizza" opens the Excel-like Incentive Plan calculation (src/components/IncentivePlanSheet.tsx)
+  modules: [createMboModule({ activityLevels: true, schedaViewHref: (id) => `/mbo/schede/${id}/calcolo` })],
   nav: [
     { label: "Profilo", href: "/profilo", icon: Info },
     { label: "Dashboard", href: "/dashboard", icon: ChartColumn },

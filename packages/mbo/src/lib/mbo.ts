@@ -80,6 +80,8 @@ export interface Activity {
 export interface MboOptions {
   /** "progetto" objectives may have target → payout levels per activity. */
   activityLevels?: boolean;
+  /** "Visualizza" on a scheda opens this page (a client screen) instead of the standard preview. */
+  schedaViewHref?: (schedaId: string) => string;
 }
 
 /** Levels an activity starts from: its completion pays 100%. */
