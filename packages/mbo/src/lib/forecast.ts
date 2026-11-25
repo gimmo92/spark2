@@ -1,4 +1,4 @@
-import { catalogById, itemDef, payoutFor, type Catalog, type GlobalGate, type ObjectiveDef, type Scheda, typeOf, typeRange } from "./mbo";
+import { catalogById, itemDef, payoutFor, relativeRows, type Catalog, type GlobalGate, type ObjectiveDef, type Scheda, typeOf, typeRange } from "./mbo";
 
 /** Starting point for every objective that has no explicit estimate. */
 export type ForecastBase = "min" | "target" | "max" | "actual";
@@ -34,9 +34,23 @@ export const emptyScenario = (): ForecastScenario => ({
 
 const sorted = (d: ObjectiveDef) => [...d.levels].sort((a, b) => a.target - b.target);
 
-/** Level whose payout is closest to 100% ("at target"). */
-export const targetLevel = (d: ObjectiveDef) =>
-  sorted(d).reduce((best, l) => (Math.abs(l.payout - 100) < Math.abs(best.payout - 100) ? l : best), sorted(d)[0]);
+/** The target level: the scale's target for % levels, otherwise the level whose payout is closest to 100%. */
+export const targetLevel = (d: ObjectiveDef) => {
+  const t = d.relative && d.levels.length ? relativeRows(d.relative, d.base ?? 0).find((r) => r.isTarget) : undefined;
+  const hit = t && sorted(d).find((l) => l.target === t.target);
+  return hit ?? sorted(d).reduce((best, l) => (Math.abs(l.payout - 100) < Math.abs(best.payout - 100) ? l : best), sorted(d)[0]);
+};
+
+/**
+ * The objective as the forecast shows and estimates it: % levels resolved on the objective's last-year actual,
+ * or on the first scheda in scope that has one. Other objectives as they are.
+ */
+export function forecastDef(def: ObjectiveDef, schede: Scheda[]): ObjectiveDef {
+  if (!def.relative || typeOf(def) !== "quantitativo") return def;
+  const own = def.lastYear != null && def.lastYear > 0;
+  const it = own ? undefined : schede.flatMap((s) => s.items).find((i) => !i.custom && i.objectiveId === def.id && (i.base ?? 0) > 0);
+  return itemDef([def], { id: "forecast", objectiveId: def.id, weight: 0, base: it?.base }) ?? def;
+}
 
 export function baseValue(d: ObjectiveDef, base: ForecastBase, actual?: number): number {
   // by payout, not by target: for dates the best level is the earliest one
@@ -69,12 +83,21 @@ export interface SchedaForecast {
   items: { id: string; name: string; weight: number; value: number; payout: number; estimated: boolean }[];
 }
 
-/** Forecast a scheda: each item uses the scenario estimate, else the scenario base; a missed threshold zeroes it. */
-export function forecastScheda(s: Scheda, catalog: Catalog, sc: ForecastScenario, global?: GlobalGate): SchedaForecast {
+/**
+ * Forecast a scheda: each item uses the scenario estimate, else the scenario base; a missed threshold zeroes it.
+ * `shown`: the objectives as the estimates were made on (`forecastDef`); for % levels an estimate is moved to each
+ * scheda's own target in proportion (e.g. 105% of the shown target = 105% of this scheda's target).
+ */
+export function forecastScheda(s: Scheda, catalog: Catalog, sc: ForecastScenario, global?: GlobalGate, shown?: Map<string, ObjectiveDef>): SchedaForecast {
   const items = s.items.flatMap((it) => {
     const def = itemDef(catalog, it);
     if (!def) return [];
-    const explicit = !it.custom && it.objectiveId ? sc.estimates[it.objectiveId] : undefined;
+    let explicit = !it.custom && it.objectiveId ? sc.estimates[it.objectiveId] : undefined;
+    const ref = it.objectiveId ? shown?.get(it.objectiveId) : undefined;
+    if (explicit != null && def.relative && ref && def.levels.length && ref.levels.length) {
+      const tRef = targetLevel(ref).target;
+      if (tRef) explicit = (explicit * targetLevel(def).target) / tRef;
+    }
     const value = explicit ?? baseValue(def, sc.base, it.actual);
     return [{ id: it.id, name: def.name, weight: Number(it.weight) || 0, value, payout: payoutFor(def, value), estimated: explicit != null }];
   });
@@ -97,3 +120,16 @@ export function forecastScheda(s: Scheda, catalog: Catalog, sc: ForecastScenario
 }
 
 export const bonusFor = (sc: ForecastScenario, schedaId: string) => sc.bonusBySchede[schedaId] ?? sc.bonusTarget;
+
+/**
+ * Bonus at 100% of a whole scheda (all its assignees): the scenario's per-scheda value × assignees if set; otherwise,
+ * with `bonusOf` (client option: each person's own target bonus), the sum of the assignees' bonuses (scenario default
+ * for whoever has none); otherwise the scenario default × assignees.
+ */
+export function schedaBonus<U>(sc: ForecastScenario, s: Scheda, people: U[], bonusOf?: (u: U) => number | undefined): number {
+  const n = Math.max(people.length, 1);
+  const set = sc.bonusBySchede[s.id];
+  if (set != null) return set * n;
+  if (bonusOf && people.length) return people.reduce((a, u) => a + (bonusOf(u) ?? sc.bonusTarget), 0);
+  return sc.bonusTarget * n;
+}

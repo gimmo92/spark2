@@ -22,6 +22,8 @@ export default defineConfig({
     // TODO(owner): teams, from the client's organisation
     teams: [],
   },
+  // English by default (users switch IT / EN from the menu)
+  locale: "en",
   // levels target / payout per project activity (their bonus roadmaps: milestones → payout);
   // "Visualizza" opens the Excel-like Incentive Plan calculation (src/components/IncentivePlanSheet.tsx)
   // target bonus per person, read by the Incentive Plan sheet
@@ -30,7 +32,19 @@ export default defineConfig({
     { key: "bonusCurrency", label: "Valuta bonus", placeholder: "CHF", upper: true, maxLength: 3 },
   ],
   // quantitative targets in % of last year's actual (e.g. minimum 90% of last year, target 108%, then 110%… of the target)
-  modules: [createMboModule({ activityLevels: true, relativeLevels: true, schedaViewHref: (id) => `/mbo/schede/${id}/calcolo` })],
+  // the forecast's on-target budget is the sum of each person's target bonus (user fields below, CHF when not set)
+  modules: [
+    createMboModule({
+      activityLevels: true,
+      relativeLevels: true,
+      schedaViewHref: (id) => `/mbo/schede/${id}/calcolo`,
+      bonusOf: (u) => {
+        const v = u.extra?.bonusTarget;
+        return v === undefined || v === "" || Number.isNaN(Number(v)) ? undefined : Number(v);
+      },
+      bonusCurrencyOf: (u) => String(u.extra?.bonusCurrency || "CHF"),
+    }),
+  ],
   nav: [
     { label: "Profilo", href: "/profilo", icon: Info },
     { label: "Dashboard", href: "/dashboard", icon: ChartColumn },

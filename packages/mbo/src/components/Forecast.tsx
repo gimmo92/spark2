@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Building2, CalendarDays, ChevronDown, FolderOpen, RotateCcw, Save, ShieldAlert, Trash2 } from "lucide-react";
 import { fullName, type User } from "@spark/core";
-import { BASES, baseValue, bonusFor, emptyScenario, forecastScheda, sliderRange, type ForecastBase, type ForecastScenario } from "../lib/forecast";
+import { BASES, baseValue, emptyScenario, forecastDef, forecastScheda, schedaBonus, sliderRange, type ForecastBase, type ForecastScenario } from "../lib/forecast";
 import {
   YEARS,
   catalogById,
@@ -15,12 +15,13 @@ import {
   payoutFor,
   schedaScore,
   type ObjectiveDef,
+  type Scheda,
   fromDay,
   levelsText,
   toDay,
   typeOf,
 } from "../lib/mbo";
-import { useMbo } from "../store";
+import { useMbo, useMboOptions } from "../store";
 import { BUCKETS, ChartCard, Histogram } from "./DashboardMbo";
 import { fmt } from "./SchedaEditor";
 import { StatusPill } from "./SchedeTable";
@@ -29,7 +30,11 @@ import { localeTag, tr } from "@spark/core";
 
 const CURRENT_KEY = "spark.forecast.current.v1";
 const SAVED_KEY = "spark.forecast.saved.v1";
-const eur = { format: (n: number) => new Intl.NumberFormat(localeTag(), { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n) };
+/** Money in `currency` (ISO code), or a plain number when the people in scope have different currencies. */
+const moneyFormat = (currency?: string) => ({
+  format: (n: number) =>
+    new Intl.NumberFormat(localeTag(), currency ? { style: "currency", currency, maximumFractionDigits: 0 } : { maximumFractionDigits: 0 }).format(n),
+});
 const avg = (xs: number[]) => (xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0);
 
 function load<T>(key: string, fallback: T): T {
@@ -44,6 +49,7 @@ function load<T>(key: string, fallback: T): T {
 export function Forecast() {
   const { companies: COMPANIES } = useOrg();
   const { schede, users, objectives, hydrated, notify, globalGate } = useMbo();
+  const { bonusOf, bonusCurrencyOf } = useMboOptions();
   const [year, setYear] = useState("2026");
   const [company, setCompany] = useState("");
   const [sc, setSc] = useState<ForecastScenario>(emptyScenario);
@@ -82,6 +88,15 @@ export function Forecast() {
     [schede, year, company, byUser],
   );
 
+  // bonus currency: the one shared by everyone in scope (EUR when the client doesn't set it), none when mixed
+  const currency = useMemo(() => {
+    if (!bonusCurrencyOf) return "EUR";
+    const set = new Set(scope.flatMap((s) => s.assigneeIds).map((id) => byUser.get(id)).filter((u) => !!u).map((u) => bonusCurrencyOf(u) || "EUR"));
+    return set.size <= 1 ? ([...set][0] ?? "EUR") : undefined;
+  }, [scope, byUser, bonusCurrencyOf]);
+  const eur = moneyFormat(currency);
+  const bonusOfScheda = (s: Scheda) => schedaBonus(sc, s, people(s.assigneeIds), bonusOf);
+
   // catalog objectives used in scope, as weighted items and as thresholds
   const { weighted, gates } = useMemo(() => {
     const count = new Map<string, number>();
@@ -92,7 +107,11 @@ export function Forecast() {
     }
     const pick = (m: Map<string, number>) =>
       [...m.entries()]
-        .map(([id, n]) => ({ def: catalogById(objectives, id), n }))
+        .map(([id, n]) => {
+          const d = catalogById(objectives, id);
+          // % levels: shown and estimated in values (on the objective's last-year actual, or a scheda's)
+          return { def: d && forecastDef(d, scope), n };
+        })
         .filter((x): x is { def: ObjectiveDef; n: number } => !!x.def)
         .sort((a, b) => b.n - a.n);
     const globalDef = catalogById(objectives, globalGate.objectiveId);
@@ -100,16 +119,17 @@ export function Forecast() {
     return { weighted: pick(count), gates: globalDef ? [{ def: globalDef, n: scope.length, global: true }, ...own] : own };
   }, [scope, objectives, globalGate]);
 
+  const shown = useMemo(() => new Map(weighted.map((w) => [w.def.id, w.def])), [weighted]);
   const results = useMemo(
-    () => scope.map((s) => forecastScheda(s, objectives, sc, globalGate)).sort((a, b) => b.score - a.score),
-    [scope, objectives, sc, globalGate],
+    () => scope.map((s) => forecastScheda(s, objectives, sc, globalGate, shown)).sort((a, b) => b.score - a.score),
+    [scope, objectives, sc, globalGate, shown],
   );
 
   const kpi = useMemo(() => {
     const scores = results.map((r) => r.score);
     const actualScores = scope.filter(hasActuals).map((s) => schedaScore(objectives, s, globalGate));
-    const bonusAtTarget = results.reduce((a, r) => a + bonusFor(sc, r.scheda.id) * r.scheda.assigneeIds.length, 0);
-    const bonusForecast = results.reduce((a, r) => a + (bonusFor(sc, r.scheda.id) * r.scheda.assigneeIds.length * r.score) / 100, 0);
+    const bonusAtTarget = results.reduce((a, r) => a + bonusOfScheda(r.scheda), 0);
+    const bonusForecast = results.reduce((a, r) => a + (bonusOfScheda(r.scheda) * r.score) / 100, 0);
     return {
       avg: avg(scores),
       actualAvg: actualScores.length ? avg(actualScores) : null,
@@ -119,7 +139,9 @@ export function Forecast() {
       bonusForecast,
       histogram: BUCKETS.map((b) => ({ label: b.label, value: scores.filter(b.test).length })),
     };
-  }, [results, scope, objectives, sc, globalGate]);
+    // bonusOfScheda reads sc, users and the client option, all listed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [results, scope, objectives, sc, globalGate, byUser, bonusOf]);
 
   const setEstimate = (id: string, value: number | undefined) =>
     setSc((s) => {
@@ -340,7 +362,7 @@ export function Forecast() {
                         onChange={(e) => setSc((s) => ({ ...s, bonusTarget: Math.max(0, Number(e.target.value) || 0) }))}
                         className="w-[110px] rounded-lg border border-[#dfe3ea] py-1.5 pl-2.5 pr-6 text-right text-[13px] font-semibold tabular-nums text-ink outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
                       />
-                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[12px]">€</span>
+                      <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-[11px]">{currency ?? ""}</span>
                     </span>
                   </label>
                 </div>
@@ -357,7 +379,9 @@ export function Forecast() {
                     <tbody>
                       {results.map((r) => {
                         const ppl = people(r.scheda.assigneeIds);
-                        const bonus = bonusFor(sc, r.scheda.id);
+                        // per assignee (the scheda's total / assignees): the person's own bonus when the client sets it
+                        const total = bonusOfScheda(r.scheda);
+                        const bonus = Math.round(total / Math.max(ppl.length, 1));
                         const isOpen = expanded === r.scheda.id;
                         return (
                           <Fragment key={r.scheda.id}>
@@ -406,7 +430,7 @@ export function Forecast() {
                                 />
                                 {ppl.length > 1 && <span className="ml-1 text-[11px] text-muted">×{ppl.length}</span>}
                               </td>
-                              <td className="px-5 text-right text-[13px] font-semibold tabular-nums">{eur.format((bonus * ppl.length * r.score) / 100)}</td>
+                              <td className="px-5 text-right text-[13px] font-semibold tabular-nums">{eur.format((total * r.score) / 100)}</td>
                             </tr>
                             {isOpen && (
                               <tr className="border-b border-line bg-[#fafbfc]">

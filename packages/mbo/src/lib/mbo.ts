@@ -84,6 +84,10 @@ export interface MboOptions {
   activityLevels?: boolean;
   /** "quantitativo" objectives may set levels in % of last year's actual (entered per scheda) or of the target. */
   relativeLevels?: boolean;
+  /** Each person's target bonus at 100% payout (e.g. from a user field): the forecast's on-target budget sums them. */
+  bonusOf?: (u: { extra?: Record<string, unknown> }) => number | undefined;
+  /** Currency of each person's bonus (ISO code); the forecast shows amounts in it when everyone in scope has the same. */
+  bonusCurrencyOf?: (u: { extra?: Record<string, unknown> }) => string | undefined;
   /** "Visualizza" on a scheda opens this page (a client screen) instead of the standard preview. */
   schedaViewHref?: (schedaId: string) => string;
 }
