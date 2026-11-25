@@ -119,6 +119,16 @@ export function Forecast() {
     return { weighted: pick(count), gates: globalDef ? [{ def: globalDef, n: scope.length, global: true }, ...own] : own };
   }, [scope, objectives, globalGate]);
 
+  // results already measured in scope, per objective (the first one found): shown by "current results"
+  const measured = useMemo(() => {
+    const items = new Map<string, number>();
+    const gates = new Map<string, number>();
+    for (const s of scope) {
+      for (const it of s.items) if (!it.custom && it.objectiveId && it.actual != null && !items.has(it.objectiveId)) items.set(it.objectiveId, it.actual);
+      if (s.threshold?.actual != null && !gates.has(s.threshold.objectiveId)) gates.set(s.threshold.objectiveId, s.threshold.actual);
+    }
+    return { items, gates };
+  }, [scope]);
   const shown = useMemo(() => new Map(weighted.map((w) => [w.def.id, w.def])), [weighted]);
   const results = useMemo(
     () => scope.map((s) => forecastScheda(s, objectives, sc, globalGate, shown)).sort((a, b) => b.score - a.score),
@@ -324,7 +334,16 @@ export function Forecast() {
                       <ShieldAlert className="h-3.5 w-3.5" />{" "}{tr("Obiettivi soglia")}</p>
                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                       {gates.map(({ def, n, ...g }) => (
-                        <EstimateRow key={def.id} def={def} n={n} gate global={"global" in g} sc={sc} onChange={(v) => setEstimate(def.id, v)} />
+                        <EstimateRow
+                          key={def.id}
+                          def={def}
+                          n={n}
+                          gate
+                          global={"global" in g}
+                          sc={sc}
+                          actual={"global" in g ? globalGate.actual : measured.gates.get(def.id)}
+                          onChange={(v) => setEstimate(def.id, v)}
+                        />
                       ))}
                     </div>
                   </div>
@@ -333,7 +352,7 @@ export function Forecast() {
                   <p className="mb-2 text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Obiettivi delle schede")}</p>
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {weighted.map(({ def, n }) => (
-                      <EstimateRow key={def.id} def={def} n={n} sc={sc} onChange={(v) => setEstimate(def.id, v)} />
+                      <EstimateRow key={def.id} def={def} n={n} sc={sc} actual={measured.items.get(def.id)} onChange={(v) => setEstimate(def.id, v)} />
                     ))}
                   </div>
                   <p className="mt-3 text-[11px] text-faint">{tr("Gli obiettivi creati dentro una singola scheda seguono il punto di partenza. Il payout usa i livelli di ogni scheda, anche se personalizzati.")}</p>
@@ -457,7 +476,7 @@ export function Forecast() {
                                             {it.estimated && <span className="ml-1.5 text-[10.5px] font-bold text-brand">{tr("stimato")}</span>}
                                           </td>
                                           <td className="py-1.5 text-right tabular-nums text-muted">{it.weight}%</td>
-                                          <td className="py-1.5 text-right tabular-nums">{fmt(it.value)}</td>
+                                          <td className="py-1.5 text-right tabular-nums">{it.value == null ? <span className="text-faint">{tr("Non consuntivato")}</span> : fmt(it.value)}</td>
                                           <td className="py-1.5 text-right tabular-nums">{it.payout}%</td>
                                           <td className="py-1.5 text-right font-semibold tabular-nums">
                                             {r.gateOk ? tr("{0} pt", [Math.round((it.weight * it.payout) / 100)]) : tr("0 pt")}
@@ -511,6 +530,7 @@ function EstimateRow({
   gate,
   global,
   sc,
+  actual,
   onChange,
 }: {
   def: ObjectiveDef;
@@ -518,11 +538,15 @@ function EstimateRow({
   gate?: boolean;
   global?: boolean;
   sc: ForecastScenario;
+  /** A result already measured for this objective in scope ("current results"). */
+  actual?: number;
   onChange: (v: number | undefined) => void;
 }) {
   const explicit = sc.estimates[def.id];
-  const value = explicit ?? baseValue(def, sc.base);
-  const payout = payoutFor(def, value);
+  // "current results": the measured value, nothing when not measured yet (pays 0)
+  const value = explicit ?? (sc.base === "actual" ? actual : baseValue(def, sc.base));
+  const unmeasured = value == null;
+  const payout = value == null ? 0 : payoutFor(def, value);
   const { min, max, step } = sliderRange(def);
   const isDate = typeOf(def) === "data";
   const met = payout > 0;
@@ -545,7 +569,9 @@ function EstimateRow({
             {met ? tr("Raggiunta") : tr("Non raggiunta")}
           </span>
         ) : (
-          <span className="shrink-0 rounded-full bg-[#eef1f5] px-2 py-[2px] text-[11px] font-bold tabular-nums text-ink">{payout}%</span>
+          <span className="shrink-0 rounded-full bg-[#eef1f5] px-2 py-[2px] text-[11px] font-bold tabular-nums text-ink">
+            {unmeasured ? tr("Non consuntivato") : `${payout}%`}
+          </span>
         )}
       </div>
       <div className="mt-2 flex items-center gap-2.5">
@@ -554,7 +580,7 @@ function EstimateRow({
           min={min}
           max={max}
           step={step}
-          value={Math.min(Math.max(value, min), max)}
+          value={value == null ? min : Math.min(Math.max(value, min), max)}
           onChange={(e) => onChange(Number(e.target.value))}
           aria-label={tr("Risultato stimato {0}", [def.name])}
           // dates: earlier is better, so the slider grows towards the earliest date
@@ -564,7 +590,7 @@ function EstimateRow({
         {isDate ? (
           <input
             type="date"
-            value={Number.isFinite(value) ? fromDay(value) : ""}
+            value={value != null && Number.isFinite(value) ? fromDay(value) : ""}
             onChange={(e) => onChange(e.target.value ? toDay(e.target.value) : undefined)}
             aria-label={tr("Data stimata {0}", [def.name])}
             className="w-[132px] rounded-md border border-[#dfe3ea] bg-white px-2 py-1 text-[12.5px] font-semibold tabular-nums outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"
@@ -574,7 +600,7 @@ function EstimateRow({
             <input
               type="number"
               step={step}
-              value={Number.isFinite(value) ? value : ""}
+              value={value != null && Number.isFinite(value) ? value : ""}
               onChange={(e) => onChange(e.target.value === "" ? undefined : Number(e.target.value))}
               aria-label={tr("Valore stimato {0}", [def.name])}
               className="w-[92px] rounded-md border border-[#dfe3ea] bg-white py-1 pl-2 pr-9 text-right text-[12.5px] font-semibold tabular-nums outline-none focus:border-brand focus:ring-3 focus:ring-brand/15"

@@ -7,7 +7,7 @@ export const BASES: { value: ForecastBase; label: string; hint: string }[] = [
   { value: "min", label: "Pessimistico", hint: "Ogni obiettivo al livello minimo" },
   { value: "target", label: "A target", hint: "Ogni obiettivo al livello che paga il 100%" },
   { value: "max", label: "Ottimistico", hint: "Ogni obiettivo al livello massimo" },
-  { value: "actual", label: "Consuntivi attuali", hint: "Usa i consuntivi già inseriti (altrimenti target)" },
+  { value: "actual", label: "Consuntivi attuali", hint: "Solo i consuntivi già inseriti: gli obiettivi non consuntivati pagano 0" },
 ];
 
 export interface ForecastScenario {
@@ -80,7 +80,8 @@ export interface SchedaForecast {
   scheda: Scheda;
   score: number; // weighted payout %
   gateOk: boolean;
-  items: { id: string; name: string; weight: number; value: number; payout: number; estimated: boolean }[];
+  /** `value` undefined: not measured yet (base "actual"), pays 0. */
+  items: { id: string; name: string; weight: number; value?: number; payout: number; estimated: boolean }[];
 }
 
 /**
@@ -98,8 +99,9 @@ export function forecastScheda(s: Scheda, catalog: Catalog, sc: ForecastScenario
       const tRef = targetLevel(ref).target;
       if (tRef) explicit = (explicit * targetLevel(def).target) / tRef;
     }
-    const value = explicit ?? baseValue(def, sc.base, it.actual);
-    return [{ id: it.id, name: def.name, weight: Number(it.weight) || 0, value, payout: payoutFor(def, value), estimated: explicit != null }];
+    // "current results": only what has been measured (the rest pays 0)
+    const value = explicit ?? (sc.base === "actual" ? it.actual : baseValue(def, sc.base, it.actual));
+    return [{ id: it.id, name: def.name, weight: Number(it.weight) || 0, value, payout: value == null ? 0 : payoutFor(def, value), estimated: explicit != null }];
   });
 
   let gateOk = true;

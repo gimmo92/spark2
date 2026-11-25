@@ -568,6 +568,8 @@ export const EN: Record<string, string> = {
   "I livelli sono in % dell'actual dell'anno precedente: inseriscilo per calcolarli.": "The levels are in % of last year's actual: enter it to calculate them.",
   Valore: "Value",
   "Calcolato su": "Calculated on",
+  "Non consuntivato": "Not measured",
+  "Solo i consuntivi già inseriti: gli obiettivi non consuntivati pagano 0": "Only the results already entered: objectives not measured pay 0",
   "Livelli di questa scheda": "Levels of this sheet",
   "Livelli standard (modificali per questa scheda)": "Standard levels (edit them for this sheet)",
   Raggiungimento: "Achievement",
