@@ -55,12 +55,21 @@ export function useRoleWeights() {
   return { weights: byRole, upsert };
 }
 
-/** Saved market benchmarks, keyed by role title. */
+/** Saved market benchmarks of every analysis; `get(analysisId, role)`. */
 export function useBenchmarks() {
   const [items, update] = useCollection<BenchmarkDoc>(BENCHMARKS);
-  const byRole = new Map(items.map((d) => [d.role, d]));
-  const upsert = useCallback((doc: BenchmarkDoc) => update((prev) => [doc, ...prev.filter((d) => d.id !== doc.id)]), [update]);
-  return { benchmarks: byRole, upsert };
+  const byKey = new Map(items.filter((d) => d.analysisId).map((d) => [`${d.analysisId}|${d.role}`, d]));
+  const upsertMany = useCallback(
+    (docs: BenchmarkDoc[]) =>
+      update((prev) => {
+        const ids = new Set(docs.map((d) => d.id));
+        return [...docs, ...prev.filter((d) => !ids.has(d.id))];
+      }),
+    [update],
+  );
+  // a deleted analysis takes its benchmarks with it
+  const removeFor = useCallback((analysisId: string) => update((prev) => prev.filter((d) => d.analysisId !== analysisId)), [update]);
+  return { get: (analysisId: string, role: string) => byKey.get(`${analysisId}|${role}`), upsertMany, removeFor };
 }
 
 export type { SavedJustification };

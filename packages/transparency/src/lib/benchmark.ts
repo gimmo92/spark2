@@ -9,8 +9,6 @@ export interface BenchmarkStats {
   max: number;
 }
 
-export type BenchmarkConfidence = "alta" | "media" | "bassa";
-
 export const AREAS = [
   { id: "italia", label: "Tutta Italia" },
   { id: "nord-ovest", label: "Nord-Ovest" },
@@ -83,18 +81,21 @@ export function scopeParts(s: BenchmarkScope): string[] {
 
 export const sameScope = (a: BenchmarkScope, b: BenchmarkScope) => JSON.stringify(cleanScope(a)) === JSON.stringify(cleanScope(b));
 
-/** Saved market benchmark of one role (collection `benchmarks`, one record per role title). */
+/** Saved market benchmark of one role of one saved analysis (collection `benchmarks`). */
 export interface BenchmarkDoc extends Doc {
+  analysisId: string;
   role: string;
   scope: BenchmarkScope;
+  /** Sector used: the scope's, or the one recognised from the analysis' roles. */
+  sector?: string;
   stats: BenchmarkStats | null;
-  confidence?: BenchmarkConfidence;
-  rationale?: string;
-  /** Model that made the estimate. */
+  /** Internal: what computed the figures (not shown). */
   source: string;
   fetchedAt: string;
   fetchedBy?: string;
 }
+
+export const benchmarkId = (analysisId: string, role: string) => `${analysisId}:${role.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 80)}`;
 
 /** What the model sees about a role: no names, no company pay. */
 export interface BenchmarkInput {

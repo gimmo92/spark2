@@ -3,7 +3,7 @@ import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { AI_MODEL, Anthropic, aiConfigured, claude, requireCaller, throttled, type CallerConfig } from "@spark/core/server";
-import { SENIORITIES, SIZES, cleanScope, cleanStats, geoLabel, type BenchmarkConfidence, type BenchmarkInput, type BenchmarkScope, type BenchmarkStats } from "../../lib/benchmark";
+import { SENIORITIES, SIZES, cleanScope, cleanStats, geoLabel, type BenchmarkInput, type BenchmarkScope, type BenchmarkStats } from "../../lib/benchmark";
 
 const MAX_ROLES = 400;
 const BATCH = 40;
@@ -13,11 +13,11 @@ Per ogni ruolo stimi la retribuzione annua lorda (RAL) di mercato in euro, a tem
 area geografica (tutta Italia, macro-area, regione o città: tieni conto delle differenze territoriali), dimensione dell'azienda, settore e seniority.
 Restituisci cinque valori crescenti: minimo, primo quartile, mediana, terzo quartile, massimo del mercato per quel ruolo in quel perimetro.
 Usa il titolo del ruolo, il livello e il contratto CCNL (i minimi tabellari sono un pavimento) e la qualifica. Se la seniority è "dal livello CCNL", deducila dal livello.
-Affidabilità: "alta" per ruoli diffusi e ben definiti, "media" se il titolo o il livello lasciano margine, "bassa" per ruoli rari o ambigui.
-Motivazione: una frase in italiano, al massimo 25 parole, sui riferimenti usati (CCNL, territorio, dimensione, seniority).
+Se il settore non è indicato, riconoscilo dall'insieme dei ruoli e dei contratti (es. assicurativo, tecnologia, servizi ambientali), usalo per le stime e restituiscilo in "settore" (due o tre parole, in italiano).
 Restituisci un elemento per ogni ruolo ricevuto, con lo stesso "index".`;
 
 const Answer = z.object({
+  settore: z.string(),
   roles: z.array(
     z.object({
       index: z.number().int(),
@@ -26,8 +26,6 @@ const Answer = z.object({
       median: z.number(),
       q3: z.number(),
       max: z.number(),
-      affidabilita: z.enum(["alta", "media", "bassa"]),
-      motivazione: z.string(),
     }),
   ),
 });
@@ -63,7 +61,7 @@ async function estimate(client: ReturnType<typeof claude>, roles: BenchmarkInput
     messages: [{ role: "user", content: `Perimetro:\n${scopeText(scope)}\n\nRuoli (JSON):\n${JSON.stringify(list)}` }],
   });
   if (message.stop_reason === "refusal" || !message.parsed_output) throw new Error(`no_output:${message.stop_reason}`);
-  return message.parsed_output.roles;
+  return message.parsed_output;
 }
 
 /**
@@ -95,14 +93,15 @@ export function createBenchmarkRoute(config: CallerConfig) {
     const batches: BenchmarkInput[][] = [];
     for (let i = 0; i < roles.length; i += BATCH) batches.push(roles.slice(i, i + BATCH));
     try {
-      const answers = (await Promise.all(batches.map((b, i) => estimate(client, b, i * BATCH, scope)))).flat();
-      const out: { role: string; stats: BenchmarkStats | null; confidence: BenchmarkConfidence; rationale: string }[] = [];
-      for (const a of answers) {
+      const results = await Promise.all(batches.map((b, i) => estimate(client, b, i * BATCH, scope)));
+      const out: { role: string; stats: BenchmarkStats | null }[] = [];
+      for (const a of results.flatMap((x) => x.roles)) {
         const r = roles[a.index];
         if (!r || out.some((o) => o.role === r.role)) continue;
-        out.push({ role: r.role, stats: cleanStats(a), confidence: a.affidabilita, rationale: a.motivazione.trim().slice(0, 300) });
+        out.push({ role: r.role, stats: cleanStats(a) });
       }
-      return NextResponse.json({ roles: out, scope, source: AI_MODEL });
+      const sector = scope.sector || results[0]?.settore.trim().slice(0, 60) || undefined;
+      return NextResponse.json({ roles: out, scope, sector, source: AI_MODEL });
     } catch (e) {
       if (e instanceof Anthropic.RateLimitError) return NextResponse.json({ error: "rate" }, { status: 429 });
       console.error("benchmark failed", e instanceof Anthropic.APIError ? `${e.status} ${e.message}` : e);

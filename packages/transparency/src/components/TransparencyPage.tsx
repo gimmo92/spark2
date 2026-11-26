@@ -9,6 +9,8 @@ import { parseExcelFromFile, WorkbookParseError, type ParsedWorkbook } from "../
 import { checkSchema, TEA_V2_EXPECTED_HEADERS, type SchemaCheckResult } from "../lib/provaTrasparenzaAdapter";
 import { usePayAnalyses } from "../store";
 import { Results } from "./Results";
+import { useBenchmarkRunner } from "./benchmarkRunner";
+import { useBenchmarks } from "../store";
 
 type Step =
   | { kind: "upload" }
@@ -26,6 +28,8 @@ export function TransparencyPage() {
   const { allowed } = useAccess();
   const { notify, viewer } = useCore();
   const canManage = allowed("transparency.manage");
+  const { run: runBenchmarks } = useBenchmarkRunner();
+  const { removeFor } = useBenchmarks();
 
   const open = (id: string) => {
     const doc = analyses.find((d) => d.id === id);
@@ -51,6 +55,8 @@ export function TransparencyPage() {
     });
     setStep({ ...s, docId: id, name: name || s.fileName });
     notify(s.docId ? tr("Analisi aggiornata") : tr("Analisi salvata nello storico"));
+    // market benchmarks of the roles are ready by the time the Benchmarks page is opened
+    if (!s.docId) void runBenchmarks(id, s.analysis.employees);
   };
 
   return (
@@ -81,6 +87,7 @@ export function TransparencyPage() {
           onOpen={open}
           onRemove={(id) => {
             remove(id);
+            removeFor(id);
             if (step.kind === "results" && step.docId === id) setStep({ kind: "upload" });
             notify(tr("Analisi eliminata"));
           }}
