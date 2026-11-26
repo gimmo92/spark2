@@ -2,13 +2,14 @@
 
 import { Suspense, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { DatabaseZap, Menu, X } from "lucide-react";
 import { Sidebar, SparkLogo } from "./Sidebar";
 import type { SparkConfig } from "../config";
 import { SparkProvider, useCore } from "./SparkProvider";
 import { RouteGuard } from "../access/navAccess";
 import { tr } from "../i18n/i18n";
-import { TenantBar } from "../people/TenantsPage";
+import { TenantBar, TenantPicker } from "../people/TenantsPage";
 import { SparkPanel } from "../spark/SparkPanel";
 
 function Toasts() {
@@ -47,13 +48,24 @@ function DataBanner() {
 function TenantGate({ multiTenant, children }: { multiTenant: boolean; children: React.ReactNode }) {
   const { viewer } = useCore();
   if (!multiTenant || !viewer?.staff) return <>{children}</>;
-  if (!viewer.tenant) return <SparkPanel />;
+  if (!viewer.tenant)
+    return (
+      <Suspense fallback={null}>
+        <NoTenant />
+      </Suspense>
+    );
   return (
     <>
       <TenantBar name={viewer.tenantName} />
       {children}
     </>
   );
+}
+
+/** Staff with no company picked: the panel (home, /spark), or "pick the company" on a company page. */
+function NoTenant() {
+  const pathname = usePathname();
+  return pathname === "/" || pathname.startsWith("/spark") ? <SparkPanel /> : <TenantPicker path={pathname} />;
 }
 
 /** Authenticated app frame: sidebar, data banner, toasts. Rendered by each app's (app)/layout via a client wrapper. */

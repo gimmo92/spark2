@@ -1,18 +1,71 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ArrowRightLeft, Building2, Check, LogIn, Plus } from "lucide-react";
 import { Badge, Field, GhostButton, Modal, PrimaryButton, inputCls } from "../ui/ui";
 import { localeTag, tr } from "../i18n/i18n";
 import { TENANT_ERRORS, type TenantDTO } from "./tenants";
 
-/** Work on another tenant (or go back to the list with ""): the whole app reloads on its data. */
-export async function switchTenant(id: string) {
+/** Work on another tenant (or go back to the list with ""): the whole app reloads on its data, on `next` (default home). */
+export async function switchTenant(id: string, next = "/") {
   const r = await fetch("/api/tenants", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
   // full reload on purpose: data store and invites are loaded once per page load, for the new tenant
-  // eslint-disable-next-line @next/next/no-location-assign-relative-destination
-  if (r.ok) window.location.assign("/");
+  if (r.ok) window.location.assign(next);
   return r.ok;
+}
+
+/**
+ * Multi-tenant apps, staff who haven't picked a company and open a company page (e.g. Trasparenza):
+ * pick the company, then stay on that page.
+ */
+export function TenantPicker({ path }: { path: string }) {
+  const [tenants, setTenants] = useState<TenantDTO[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/tenants", { cache: "no-store" })
+      .then(async (r) => {
+        const body = (await r.json().catch(() => ({}))) as { tenants?: TenantDTO[]; error?: string };
+        if (!alive) return;
+        if (r.ok && body.tenants) setTenants(body.tenants);
+        else setError(TENANT_ERRORS[body.error ?? "config"] ?? TENANT_ERRORS.config);
+      })
+      .catch(() => alive && setError(TENANT_ERRORS.config));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  return (
+    <div className="card mx-auto mt-6 max-w-md p-6">
+      <Building2 className="mx-auto h-6 w-6 text-brand" />
+      <p className="mt-3 text-center text-[14px] font-semibold">{tr("Scegli l'azienda")}</p>
+      <p className="mt-1 text-center text-[12.5px] text-muted">{tr("Questa pagina mostra i dati di un'azienda: entra in quella su cui vuoi lavorare.")}</p>
+      {error && <p className="mt-3 text-center text-[12.5px] font-semibold text-amber-900">{tr(error)}</p>}
+      {!tenants && !error && <p className="mt-3 text-center text-[12.5px] text-muted">{tr("Caricamento…")}</p>}
+      {tenants && tenants.length === 0 && <p className="mt-3 text-center text-[12.5px] text-muted">{tr("Nessuna azienda: creane una dal Pannello Spark.")}</p>}
+      {tenants && tenants.length > 0 && (
+        <ul className="mt-3 divide-y divide-line rounded-xl border border-line">
+          {tenants.map((t) => (
+            <li key={t.id} className="flex items-center gap-2 px-3 py-1.5">
+              <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{t.name}</span>
+              <button
+                type="button"
+                onClick={() => void switchTenant(t.id, path)}
+                className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-semibold text-brand transition-colors hover:bg-brand-soft"
+              >
+                <LogIn className="h-3.5 w-3.5" /> {tr("Entra")}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <p className="mt-4 text-center">
+        <Link href="/spark" className="text-[12.5px] font-semibold text-brand hover:underline">{tr("Vai al Pannello Spark")}</Link>
+      </p>
+    </div>
+  );
 }
 
 /**

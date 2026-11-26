@@ -1,4 +1,4 @@
-import { BookOpen, ChartColumn, Goal, Info, Scale, Settings, Star, Target, Thermometer, User } from "lucide-react";
+import { BookOpen, ChartColumn, Goal, Info, Scale, Settings, Star, Target, CloudSun, User } from "lucide-react";
 import { defineConfig } from "@spark/core";
 import { mboModule } from "@spark/mbo";
 import { transparencyModule } from "@spark/transparency";
@@ -52,7 +52,7 @@ export default defineConfig({
     { label: "Valutazioni", href: "/valutazioni", icon: Star, locked: true },
     { label: "OKR", href: "/okr", icon: Goal, locked: true },
     { label: "Trasparenza retributiva", href: "/trasparenza", icon: Scale, permission: "transparency.view", module: "transparency" },
-    { label: "Analisi di clima", href: "/clima", icon: Thermometer, locked: true },
+    { label: "Analisi di clima", href: "/clima", icon: CloudSun, locked: true },
     { label: "Impostazioni", href: "/impostazioni", icon: Settings },
   ],
   dashboardTabs: [],
