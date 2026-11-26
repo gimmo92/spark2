@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
   const admin = getSupabaseAdmin();
   const { data: invite, error: lookupError } = await admin
     .from("registration_invites")
-    .select("email, code, registered_at")
+    .select("*")
     .eq("email", email)
     .maybeSingle();
   if (lookupError) return NextResponse.json({ error: "config", missing: ["tabella registration_invites"], detail: lookupError.code }, { status: 500 });
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
 
   const markRegistered = () => admin.from("registration_invites").update({ registered_at: new Date().toISOString() }).eq("email", email);
 
-  const { data: created, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { [SPARK_ACCESS_FLAG]: true } });
+  const { data: created, error } = await admin.auth.admin.createUser({ email, password, email_confirm: true, app_metadata: { [SPARK_ACCESS_FLAG]: true, ...(invite.tenant && { tenant: invite.tenant }) } });
   if (error || !created.user) {
     if (/already|exists|registered/i.test(error?.message ?? "")) {
       await markRegistered();

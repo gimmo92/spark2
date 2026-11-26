@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { accessRulesOf, canRead, canWrite, canWriteUser } from "../../access/rules";
 import { requireUser } from "../../auth/require";
+import { resolveTenant } from "../../auth/tenant";
 import { loadViewer, type Viewer } from "../../auth/viewer";
 import { collectionsOf, type Doc, type SparkConfig } from "../../config";
 import type { DataChanges, ViewerDTO } from "../../data/sync";
@@ -10,19 +11,40 @@ import { authConfigured } from "../../supabase/env";
 const PAGE = 1000;
 const CHUNK = 500;
 
-type AppConfig = Pick<SparkConfig, "modules" | "permissions"> & { org?: SparkConfig["org"] };
+type AppConfig = Pick<SparkConfig, "modules" | "permissions" | "multiTenant"> & { org?: SparkConfig["org"] };
 
-async function guard(config: AppConfig): Promise<NextResponse | Viewer> {
+/** The caller with permissions; `tenant` is set only in multi-tenant apps (every query is scoped to it). */
+type Caller = Viewer & { tenant?: string };
+
+async function guard(config: AppConfig): Promise<NextResponse | Caller> {
   if (!authConfigured || !adminConfigured()) return NextResponse.json({ error: "config" }, { status: 503 });
   const auth = await requireUser();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
-  const viewer = await loadViewer(auth.email, config);
+  let tenant: string | undefined;
+  let extra: Partial<ViewerDTO> = {};
+  if (config.multiTenant) {
+    const t = await resolveTenant(auth.email);
+    if (!t.tenant) {
+      // staff must pick a tenant first; anybody else without one has no data at all
+      if (t.staff) return NextResponse.json({ error: "tenant", viewer: { email: auth.email, level: "ADMIN", isAdmin: true, staff: true, tenant: "" } satisfies ViewerDTO }, { status: 409 });
+      return NextResponse.json({ error: "unlinked" }, { status: 403 });
+    }
+    tenant = t.tenant;
+    extra = { staff: t.staff, tenant: t.tenant, tenantName: t.name };
+  }
+  const viewer = await loadViewer(auth.email, config, tenant);
   if ("error" in viewer) return NextResponse.json({ error: viewer.error }, { status: 503 });
   if (!viewer.person) return NextResponse.json({ error: "unlinked" }, { status: 403 });
-  return viewer;
+  return Object.assign(viewer, extra, { tenant });
 }
 
-const info = (v: Viewer): ViewerDTO => ({ email: v.email, userId: v.userId, level: v.level, isAdmin: v.isAdmin });
+const info = (v: Caller): ViewerDTO => ({
+  email: v.email,
+  userId: v.userId,
+  level: v.level,
+  isAdmin: v.isAdmin,
+  ...(v.tenant !== undefined ? { staff: v.staff, tenant: v.tenant, tenantName: v.tenantName } : {}),
+});
 
 /**
  * /api/data for one app. GET returns only what the logged-in user may read; POST applies the
@@ -59,9 +81,8 @@ export function createDataRoute(config: AppConfig) {
     const out: Record<string, Doc[]> = Object.fromEntries(collections.map((c) => [c, []]));
     let total = 0;
     for (let from = 0; ; from += PAGE) {
-      const { data, error } = await db
-        .from("app_data")
-        .select("collection, data")
+      const q = db.from("app_data").select("collection, data");
+      const { data, error } = await (v.tenant === undefined ? q : q.eq("tenant", v.tenant))
         .in("collection", collections)
         .order("collection")
         .order("id")
@@ -93,12 +114,22 @@ export function createDataRoute(config: AppConfig) {
     }
 
     const table = () => getSupabaseAdmin().from("app_data");
+    const tenant = v.tenant;
+    // multi-tenant apps: every query is restricted to the caller's tenant
+    const select = () => {
+      const q = table().select("id, data");
+      return tenant === undefined ? q : q.eq("tenant", tenant);
+    };
+    const remove = () => {
+      const q = table().delete();
+      return tenant === undefined ? q : q.eq("tenant", tenant);
+    };
 
     /** Stored versions of the touched records: permissions are checked on the old owners too. */
     async function stored(c: string, ids: string[]) {
       const map = new Map<string, Doc>();
       for (let i = 0; i < ids.length; i += CHUNK) {
-        const { data, error } = await table().select("id, data").eq("collection", c).in("id", ids.slice(i, i + CHUNK));
+        const { data, error } = await select().eq("collection", c).in("id", ids.slice(i, i + CHUNK));
         if (error) throw error;
         for (const r of data) map.set(r.id, r.data as Doc);
       }
@@ -106,14 +137,14 @@ export function createDataRoute(config: AppConfig) {
     }
 
     const now = new Date().toISOString();
-    const rows: Array<{ collection: string; id: string; data: Doc; updated_at: string; updated_by: string }> = [];
+    const rows: Array<{ collection: string; id: string; data: Doc; updated_at: string; updated_by: string; tenant?: string }> = [];
     const toDelete: Array<[string, string[]]> = [];
     let rejected = 0;
     try {
       for (const [c, items] of upserts) {
         const before = v.isAdmin ? new Map<string, Doc>() : await stored(c, items.map((x) => x.id));
         for (const item of items) {
-          if (writable(v, c, before.get(item.id), item)) rows.push({ collection: c, id: item.id, data: item, updated_at: now, updated_by: v.email });
+          if (writable(v, c, before.get(item.id), item)) rows.push({ collection: c, id: item.id, data: item, updated_at: now, updated_by: v.email, ...(tenant !== undefined && { tenant }) });
           else rejected++;
         }
       }
@@ -132,12 +163,12 @@ export function createDataRoute(config: AppConfig) {
     }
 
     for (let i = 0; i < rows.length; i += CHUNK) {
-      const { error } = await table().upsert(rows.slice(i, i + CHUNK), { onConflict: "collection,id" });
+      const { error } = await table().upsert(rows.slice(i, i + CHUNK), { onConflict: tenant === undefined ? "collection,id" : "tenant,collection,id" });
       if (error) return NextResponse.json({ error: "table", detail: error.code }, { status: 503 });
     }
     for (const [c, ids] of toDelete) {
       for (let i = 0; i < ids.length; i += CHUNK) {
-        const { error } = await table().delete().eq("collection", c).in("id", ids.slice(i, i + CHUNK));
+        const { error } = await remove().eq("collection", c).in("id", ids.slice(i, i + CHUNK));
         if (error) return NextResponse.json({ error: "table", detail: error.code }, { status: 503 });
       }
     }

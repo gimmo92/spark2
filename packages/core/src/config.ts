@@ -97,6 +97,12 @@ export interface SparkConfig {
   locale?: Locale;
   /** Client-specific translations (keyed by the Italian text); may also reword core/module copy. */
   messages?: Messages;
+  /**
+   * Several companies (tenants) share this app and its database (e.g. the free plan). Needs
+   * `supabase/multi-tenant/*.sql` on the database. Spark staff (ADMIN_EMAILS) create tenants and pick
+   * the one to work on; everybody else only ever sees the tenant they were invited to.
+   */
+  multiTenant?: boolean;
   /** localStorage key prefix for the browser-only fallback. */
   storagePrefix?: string;
 }

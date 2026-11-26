@@ -12,6 +12,9 @@ export interface ViewerInfo {
   userId?: string;
   level: string;
   isAdmin: boolean;
+  staff?: boolean;
+  tenant?: string;
+  tenantName?: string;
 }
 
 export interface Viewer extends ViewerInfo {
@@ -25,13 +28,22 @@ export interface Viewer extends ViewerInfo {
 /**
  * Resolve the logged-in email to its Spark user and permissions, from the client's own data.
  * ADMIN_EMAILS are always admins. With no ADMIN_EMAILS and no users yet, the first user is admin
- * (bootstrap of an empty project).
+ * (bootstrap of an empty single-tenant project).
  */
-export async function loadViewer(email: string, config: Pick<SparkConfig, "modules" | "permissions"> & { org?: SparkConfig["org"] }): Promise<Viewer | { error: string }> {
+export async function loadViewer(
+  email: string,
+  config: Pick<SparkConfig, "modules" | "permissions"> & { org?: SparkConfig["org"] },
+  /** Multi-tenant app: only this tenant's records. Omit in single-tenant apps. */
+  tenant?: string,
+): Promise<Viewer | { error: string }> {
   const db = getSupabaseAdmin();
+  const rows = () => {
+    const q = db.from("app_data").select("data");
+    return tenant === undefined ? q : q.eq("tenant", tenant);
+  };
   const [{ data: userRows, error: e1 }, { data: accessRow, error: e2 }] = await Promise.all([
-    db.from("app_data").select("data").eq("collection", "users").limit(100000),
-    db.from("app_data").select("data").eq("collection", "settings").eq("id", "access").maybeSingle(),
+    rows().eq("collection", "users").limit(100000),
+    rows().eq("collection", "settings").eq("id", "access").maybeSingle(),
   ]);
   if (e1 || e2) return { error: "table" };
 
@@ -42,7 +54,7 @@ export async function loadViewer(email: string, config: Pick<SparkConfig, "modul
 
   const record = users.find((u) => u.email?.toLowerCase() === email && u.status !== "disattivato");
   const admins = adminEmails();
-  const isAdmin = admins.includes(email) || record?.level === ADMIN_LEVEL || (!admins.length && users.length === 0);
+  const isAdmin = admins.includes(email) || record?.level === ADMIN_LEVEL || (tenant === undefined && !admins.length && users.length === 0);
   const level = isAdmin ? ADMIN_LEVEL : (record?.level ?? "");
   const person = record ? { ...record, level } : isAdmin ? { id: `admin:${email}`, level, team: "" } : undefined;
   return { email, userId: record?.id, level, isAdmin, person, users, byId, can };

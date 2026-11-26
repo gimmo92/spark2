@@ -2,12 +2,14 @@
 
 # Spark — core + client apps (FDE)
 
-Spark is **not a multi-tenant SaaS**. The owner works Forward-Deployed: a shared **core** (auth, security, data store, shell, base UI, people) plus **one app per client** where that client's features and workflows are built, because clients ask for extreme customisations. Everything stays on the owner's accounts (GitHub `gimmo92/spark2`, Vercel, Supabase), so it's a single **monorepo** (npm workspaces).
+Spark is **not a multi-tenant SaaS** (the one exception is the free plan app, `apps/free`). The owner works Forward-Deployed: a shared **core** (auth, security, data store, shell, base UI, people) plus **one app per client** where that client's features and workflows are built, because clients ask for extreme customisations. Everything stays on the owner's accounts (GitHub `gimmo92/spark2`, Vercel, Supabase), so it's a single **monorepo** (npm workspaces).
 
 ```
 packages/core   @spark/core  auth (password + email code), proxy gate, /api routes, data store, shell, UI kit, users/teams/invites
 packages/mbo    @spark/mbo   standard MBO module (schede, obiettivi, preset, workflow, forecast, MBO dashboard/settings)
+packages/transparency  @spark/transparency  pay transparency module (EU directive 2023/970 gender pay gaps, reports, per-employee letters)
 apps/demo       @spark/demo  demo client Valmec S.p.A. → app.tryspark.it (Vercel Root Directory = apps/demo)
+apps/free       @spark/free  multi-tenant free plan (pay transparency only) → free.tryspark.it (not deployed yet, see its CLAUDE.md)
 apps/carlo-gavazzi  @spark/carlo-gavazzi  client Carlo Gavazzi Services AG (see its CLAUDE.md; not deployed yet)
 apps/<client>   one Next.js app per client (own Vercel project, own Supabase project)
 ```
@@ -16,7 +18,7 @@ apps/<client>   one Next.js app per client (own Vercel project, own Supabase pro
 
 - **Client code never edits `packages/*`.** Client apps import from `@spark/core` / `@spark/mbo`. If a client need is useful to everyone, build it in the core/module first (generic, configurable), then use it in the client app.
 - No client-specific logic, names or data in packages. Organisation, menu, tabs, modules, seed data come from the app's `src/spark.config.ts` (`SparkConfig` in `packages/core/src/config.ts`).
-- One Supabase + one Vercel project per client: data never mixed, no tenant ids.
+- One Supabase + one Vercel project per client: data never mixed, no tenant ids. **Only exception: multi-tenant apps** (`SparkConfig.multiTenant`, today `apps/free`): many companies share one app + database, isolated by the server (see "Multi-tenant"). A company that pays moves to its own `apps/<client>`.
 - Changes to a package affect every client app: run lint/typecheck/build for all apps before pushing.
 
 ## Working rules (from the owner)
@@ -51,7 +53,21 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 - Options `bonusOf(user)` / `bonusCurrencyOf(user)` (Carlo Gavazzi: user fields `bonusTarget` / `bonusCurrency`): the forecast's on-target budget is the sum of the assignees' own bonuses (scenario default for whoever has none, per-scheda override still possible), shown in their currency when everyone in scope shares it. In the forecast, % levels are shown and estimated in values (`forecastDef`: on the objective's last-year actual or a scheda's) and each estimate is moved to every scheda's own target in proportion.
 - Option `createMboModule({ relativeLevels: true })` (on in Carlo Gavazzi): quantitative objectives and target/payout presets always use the "Calcolato su" levels editor (no toggle): the target (payout editable, default 100%) is a % of last year's actual or a fixed value; every other level is a % of last year, a % of the target or a fixed value (`ObjectiveDef.relative` / `Preset.relative`, e.g. min 90% PY, target 108% PY, 110…118% of the target). Old plain levels open as fixed values (`toRelative`). The objective may store last year in `ObjectiveDef.lastYear` (asked on the objective page; default of every scheda) and each scheda item may override it in `SchedaItem.base`; a scheda item may also have its own % scale (`SchedaItem.relative`, edited in Modifica obiettivo → assegnazione alle schede, used by `itemDef`) (always asked with the option, except on/off and date objectives; required only when some level uses it, `needsBase`; set in the scheda or in the objective's assignments); `itemDef` turns the scale into absolute `levels` (none without a base → payout 0). The catalog's own `levels` are the scale on a base of 100; fixed values mixed with % of last year (`mixedScale`) are order-checked per scheda. Presets needing last year are offered only on quantitative objectives. The Gavazzi Incentive Plan sheet shows each level's defined % in the % column.
 - Objectives created inside a scheda are catalog objectives like any other: saving the scheda moves `item.custom` to the catalog (`catalogItems`, id `ob-<custom id>`), and `useCatalogCustomObjectives()` (Obiettivi / Schede lists) upgrades schede saved before. Users without `mbo.catalog.manage` keep them one-off. Not moved (one objective per name): a catalog objective personalized for one scheda (`custom.originId`, set by "Personalizza per questa scheda") stays a copy in the scheda, and a new one-off named like an existing catalog objective of the same cycle becomes its personalized copy. `schedeUsing` and the Misura modal count personalized copies under their catalog objective; Misura uses `itemDef` (per-scheda levels, last year's actual).
-- SQL migrations: `packages/core/supabase/migrations/*.sql` (run in order on every client database; each grants `service_role`). Client-only tables go in `apps/<client>/supabase/migrations/`.
+- SQL migrations: `packages/core/supabase/migrations/*.sql` (run in order on every client database; each grants `service_role`; 0003 drops the fixed collection list of `app_data`, needed by modules with their own collections, e.g. `letters`, `payAnalyses`). Client-only tables go in `apps/<client>/supabase/migrations/`. Multi-tenant databases also run `packages/core/supabase/multi-tenant/*.sql` (never on a single-tenant database).
+
+## Multi-tenant (core, `SparkConfig.multiTenant`)
+
+- Several companies (tenants) share one app + Supabase. Migration `supabase/multi-tenant/0001_tenants.sql`: table `tenants` (id, name, plan), column `tenant` on `app_data` (primary key `tenant, collection, id`) and on `registration_invites` (an email belongs to one tenant).
+- **The server decides the tenant** (`auth/tenant.ts` `resolveTenant`): staff = `ADMIN_EMAILS` → the tenant they picked (httpOnly cookie `spark_tenant`, checked against `tenants`); everybody else → the tenant of the invite they registered with (also copied to `app_metadata.tenant`). `/api/data` (only with `multiTenant`) scopes every read/write/delete and `loadViewer` to it; no tenant → staff get `409 tenant` (the shell shows the Aziende page), others `unlinked`. `/api/invites` and `/api/auth/register` carry the inviter's tenant. Single-tenant apps never touch the column (`tenant` undefined = old queries).
+- Staff UI (core `people/TenantsPage.tsx`, shown by `AppShell` instead of the page while no tenant is picked): list of companies, **Nuova azienda** (`POST /api/tenants`: creates the tenant, its first user with level ADMIN, settings `org` with the company name, the invite + email), **Entra** (`PUT /api/tenants`, full reload); a bar "Stai lavorando su X · Cambia azienda" on every page. Route: `apps/<app>/src/app/api/tenants/route.ts` re-exports `@spark/core/routes/tenants`.
+- Moving a tenant to its own app: copy its `app_data` rows (without `tenant`) and invites into the new client's Supabase (script still to write: `scripts/migrate-tenant`).
+
+## Pay transparency (`@spark/transparency`)
+
+- Logic ported from the Vue admin panel (`pisa97/try-spark-admin-panel`, `src/utils/compensation`, TS, strict fixes only) into `src/lib`: workbook parsing (exceljs, in the browser), the Spark/TEA payroll template (`provaTrasparenzaAdapter`: files that don't match are refused; empty template downloadable from the upload screen), `CompensationAnalysis` (EU dashboard: mean/median/hourly/variable gaps, quartiles; groups by CCNL level, qualification, cost centre), PDFs with jsPDF (`GapReportPdf` report, `PayLetter` individual art. 7 letter, Italian content). Not ported yet: fascia/role views, history insights, hire simulation, population filters.
+- UI (`components/`): `TransparencyPage` (upload → column check → results; history), `Results` (Dashboard UE / per livello CCNL / qualifica / centro di costo / dipendenti, metric base/totale/variabile, company filter, report PDF), `EmployeePanel` (profile, pay breakdown, justification = person left out of the gaps and listed in the report, individual letter with sample-size fallback scopes).
+- Data: collection `payAnalyses` (one record per saved analysis with the normalised employees, ~1.7 KB per employee; mind Vercel's 4.5 MB request body on very large files). Permissions `transparency.view` / `transparency.manage` (collection readable/writable only with them).
+- Benchmark (market ranges via web search + LLM) not built yet: the old prototype is `salary-transparency/salary-transparency/api/benchmark/role.js` (Serper + Gemini).
 
 ## Languages (core i18n)
 
@@ -117,4 +133,5 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 - Scheda editor: split editing by permission (goals / results / status-approval), not only all-or-nothing.
 - Extension points in modules (e.g. client-defined workflow task types), a `new-client` script, link workflows to schede.
 - Link the user list to real accounts; move `app_data` to relational tables per module when a client needs it.
+- Free app: deploy (`apps/free/CLAUDE.md`), `scripts/migrate-tenant`, benchmark in the transparency module.
 - Optional: lock out after N wrong login codes.

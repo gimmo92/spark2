@@ -99,6 +99,12 @@ export function DataProvider({ collections, seed, migrate, storagePrefix, onSave
         synced.current = fill(collections);
         setData(fromLocal());
         setDataSource("db");
+      } else if (body.error === "tenant") {
+        // multi-tenant app, Spark staff: no tenant picked yet (the shell shows the tenant list)
+        if (body.viewer) setViewer(body.viewer);
+        setData(fill(collections));
+        setDataSource("denied");
+        setDataMessage(DATA_ERRORS.tenant);
       } else if (body.error === "unlinked") {
         // logged in, but not a Spark user: show nothing
         setData(fill(collections));

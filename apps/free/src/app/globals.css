@@ -1,0 +1,7 @@
+@import "tailwindcss";
+@import "../../../../packages/core/src/styles.css";
+
+/* Tailwind must also scan the shared packages for class names. */
+@source "../../../../packages";
+
+/* Client-specific overrides go below. */

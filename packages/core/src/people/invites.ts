@@ -14,6 +14,7 @@ export const INVITE_ERRORS: Record<string, string> = {
   unauthenticated: "Accedi con password e codice per gestire gli inviti.",
   forbidden: "Il tuo livello di accesso non permette di invitare utenti.",
   registered: "L'utente è già registrato.",
+  other_tenant: "Questa email è già usata da un'altra azienda.",
   send: "SendGrid non ha accettato l'email. Controlla mittente e API key.",
   email: "Indirizzo email non valido.",
 };

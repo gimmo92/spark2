@@ -8,6 +8,7 @@ import type { SparkConfig } from "../config";
 import { SparkProvider, useCore } from "./SparkProvider";
 import { RouteGuard } from "../access/navAccess";
 import { tr } from "../i18n/i18n";
+import { TenantBar, TenantsPage } from "../people/TenantsPage";
 
 function Toasts() {
   const { toasts } = useCore();
@@ -27,8 +28,9 @@ function Toasts() {
 }
 
 function DataBanner() {
-  const { dataSource, dataMessage } = useCore();
+  const { dataSource, dataMessage, viewer } = useCore();
   if ((dataSource !== "local" && dataSource !== "denied") || !dataMessage) return null;
+  if (viewer?.staff && !viewer.tenant) return null; // the tenant list is shown instead
   return (
     <div role="status" className="mb-3 flex items-center gap-2 rounded-xl border border-amber-200 print:hidden bg-amber-50 px-3 py-2 text-[12.5px] font-semibold text-amber-900">
       <DatabaseZap className="h-4 w-4 shrink-0" />
@@ -37,6 +39,19 @@ function DataBanner() {
       <Link href="/login?next=/" className="shrink-0 rounded-lg px-2 py-1 text-amber-900 underline hover:bg-amber-100">{tr("Accedi")}</Link>
       )}
     </div>
+  );
+}
+
+/** Multi-tenant apps: staff pick a tenant first, then see which one they are working on. */
+function TenantGate({ multiTenant, children }: { multiTenant: boolean; children: React.ReactNode }) {
+  const { viewer } = useCore();
+  if (!multiTenant || !viewer?.staff) return <>{children}</>;
+  if (!viewer.tenant) return <TenantsPage />;
+  return (
+    <>
+      <TenantBar name={viewer.tenantName} />
+      {children}
+    </>
   );
 }
 
@@ -91,9 +106,11 @@ export function AppShell({ config, children }: { config: SparkConfig; children: 
           </header>
           <main className="px-4 py-5 lg:px-6 lg:py-4 print:p-0">
             <DataBanner />
-            <Suspense fallback={null}>
-              <RouteGuard>{children}</RouteGuard>
-            </Suspense>
+            <TenantGate multiTenant={!!config.multiTenant}>
+              <Suspense fallback={null}>
+                <RouteGuard>{children}</RouteGuard>
+              </Suspense>
+            </TenantGate>
           </main>
         </div>
       </div>

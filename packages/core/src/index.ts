@@ -16,6 +16,8 @@ export * from "./letters/pdf";
 export * from "./letters/LettersPage";
 export * from "./people/MyProfile";
 export * from "./people/invites";
+export * from "./people/tenants";
+export * from "./people/TenantsPage";
 export * from "./people/Dashboard";
 export * from "./people/InviteAction";
 export * from "./people/TeamsGrid";

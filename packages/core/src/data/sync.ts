@@ -13,6 +13,11 @@ export interface ViewerDTO {
   userId?: string;
   level: string;
   isAdmin: boolean;
+  /** Multi-tenant app: Spark staff (ADMIN_EMAILS), who pick the tenant to work on. */
+  staff?: boolean;
+  /** Multi-tenant app: the tenant whose data is shown ("" = none picked yet). */
+  tenant?: string;
+  tenantName?: string;
 }
 
 /** Where the data lives right now ("denied" = logged in but not allowed to see any data). */
@@ -25,6 +30,7 @@ export const DATA_ERRORS: Record<string, string> = {
   unauthenticated: "Non hai effettuato l'accesso: i dati restano solo in questo browser. Accedi per salvarli nel database.",
   forbidden: "Il tuo account non può modificare i dati: le modifiche restano solo in questo browser.",
   network: "Database non raggiungibile: i dati restano solo in questo browser.",
+  tenant: "Scegli l'azienda su cui lavorare.",
   unlinked:
     "Il tuo account non è collegato a nessun utente di Spark: chiedi a un amministratore di aggiungerti alla Lista Utenti con questa email.",
 };

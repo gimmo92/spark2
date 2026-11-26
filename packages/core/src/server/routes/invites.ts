@@ -1,5 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { requireUser } from "../../auth/require";
+import { newInviteCode as newCode } from "../../auth/inviteCode";
+import { resolveTenant } from "../../auth/tenant";
 import { loadViewer } from "../../auth/viewer";
 import { sendInviteEmail, sendgridConfigured } from "../../email/sendgrid";
 import { adminConfigured, getSupabaseAdmin } from "../../supabase/admin";
@@ -7,38 +9,30 @@ import { authConfigured } from "../../supabase/env";
 
 import type { InviteDTO } from "../../people/invites";
 
-const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"; // no 0/O/1/I to avoid typos
-
-/** 8 random characters shown as XXXX-XXXX (~40 bits, single use). */
-function newCode() {
-  const bytes = crypto.getRandomValues(new Uint8Array(8));
-  const s = Array.from(bytes, (b) => ALPHABET[b % ALPHABET.length]).join("");
-  return `${s.slice(0, 4)}-${s.slice(4)}`;
-}
 
 /** Logged-in user with "people.create" (invites carry registration codes: nobody else sees them). */
 async function guard() {
   if (!authConfigured || !adminConfigured()) return NextResponse.json({ error: "config" }, { status: 503 });
   const auth = await requireUser();
   if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
-  const viewer = await loadViewer(auth.email, { modules: [] });
+  // multi-tenant app: invites belong to the caller's tenant ("" in single-tenant apps)
+  const { tenant } = await resolveTenant(auth.email);
+  const viewer = await loadViewer(auth.email, { modules: [] }, tenant || undefined);
   if ("error" in viewer) return NextResponse.json({ error: "config" }, { status: 503 });
   if (!viewer.can(viewer.person, "people.create")) return NextResponse.json({ error: "forbidden" }, { status: 403 });
   // non-admins only deal with the people they can see
   const visible = new Set(
     viewer.users.filter((u) => viewer.isAdmin || viewer.can(viewer.person, "people.view", u)).map((u) => u.email.toLowerCase()),
   );
-  return { ...auth, isAdmin: viewer.isAdmin, visible };
+  return { ...auth, isAdmin: viewer.isAdmin, visible, tenant };
 }
 
 /** List all invites (status + code) for the user list and profiles. */
 export async function GET() {
   const auth = await guard();
   if (auth instanceof NextResponse) return auth;
-  const { data, error } = await getSupabaseAdmin()
-    .from("registration_invites")
-    .select("email, code, sent_at, registered_at")
-    .order("sent_at", { ascending: false });
+  const q = getSupabaseAdmin().from("registration_invites").select("email, code, sent_at, registered_at");
+  const { data, error } = await (auth.tenant ? q.eq("tenant", auth.tenant) : q).order("sent_at", { ascending: false });
   if (error) return NextResponse.json({ error: "config" }, { status: 503 });
   const invites = (data as InviteDTO[]).filter((i) => auth.isAdmin || auth.visible.has(i.email));
   return NextResponse.json({ invites });
@@ -57,8 +51,10 @@ export async function POST(request: NextRequest) {
   if (!auth.isAdmin && !auth.visible.has(email)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
 
   const db = getSupabaseAdmin().from("registration_invites");
-  const { data: existing, error: readError } = await db.select("email, code, sent_at, registered_at").eq("email", email).maybeSingle();
+  const { data: existing, error: readError } = await db.select("*").eq("email", email).maybeSingle();
   if (readError) return NextResponse.json({ error: "config" }, { status: 503 });
+  // an email belongs to one tenant only
+  if (existing && (existing.tenant ?? "") !== auth.tenant) return NextResponse.json({ error: "other_tenant" }, { status: 409 });
   if (existing?.registered_at) return NextResponse.json({ error: "registered" }, { status: 409 });
 
   const code = existing?.code ?? newCode();
@@ -70,7 +66,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "send" }, { status: 502 });
   }
 
-  const row = { email, code, full_name: fullName, invited_by: auth.email, sent_at: new Date().toISOString() };
+  const row = { email, code, full_name: fullName, invited_by: auth.email, sent_at: new Date().toISOString(), ...(auth.tenant && { tenant: auth.tenant }) };
   const { data, error } = await db.upsert(row, { onConflict: "email" }).select("email, code, sent_at, registered_at").single();
   if (error) return NextResponse.json({ error: "config" }, { status: 503 });
   return NextResponse.json({ invite: data as InviteDTO });

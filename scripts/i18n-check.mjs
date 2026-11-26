@@ -41,14 +41,15 @@ function dict(file) {
 }
 
 const core = dict(path.join(ROOT, "packages/core/src/i18n/en.ts"));
-const mbo = dict(path.join(ROOT, "packages/mbo/src/i18n/en.ts"));
+// feature modules: each has its own dictionary, merged over the core one
+const modules = ["mbo", "transparency"].map((m) => ({ name: `@spark/${m}`, dir: `packages/${m}/src`, dict: dict(path.join(ROOT, `packages/${m}/src/i18n/en.ts`)) }));
 const scopes = [
   { name: "@spark/core", dir: "packages/core/src", dicts: [core] },
-  { name: "@spark/mbo", dir: "packages/mbo/src", dicts: [core, mbo] },
+  ...modules.map((m) => ({ name: m.name, dir: m.dir, dicts: [core, m.dict] })),
   ...fs.readdirSync(path.join(ROOT, "apps")).map((a) => ({
     name: `apps/${a}`,
     dir: `apps/${a}/src`,
-    dicts: [core, mbo, dict(path.join(ROOT, `apps/${a}/src/i18n/en.ts`))],
+    dicts: [core, ...modules.map((m) => m.dict), dict(path.join(ROOT, `apps/${a}/src/i18n/en.ts`))],
   })),
 ];
 
@@ -59,9 +60,10 @@ for (const s of scopes) {
   problems += missing.length;
 }
 // the module dictionary is merged over the core one: a different translation would change core screens
-for (const [k, v] of mbo) if (core.has(k) && core.get(k) !== v) {
-  console.log(`conflict ${JSON.stringify(k)}: core ${JSON.stringify(core.get(k))} / mbo ${JSON.stringify(v)}`);
-  problems++;
-}
+for (const m of modules)
+  for (const [k, v] of m.dict) if (core.has(k) && core.get(k) !== v) {
+    console.log(`conflict ${JSON.stringify(k)}: core ${JSON.stringify(core.get(k))} / ${m.name} ${JSON.stringify(v)}`);
+    problems++;
+  }
 console.log(problems ? `${problems} problem(s)` : "i18n ok");
 process.exit(problems ? 1 : 0);
