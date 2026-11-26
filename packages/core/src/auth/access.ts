@@ -8,12 +8,17 @@ export const adminEmails = () =>
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
 
-/** Spark staff, the same list in every installation: Spark panel, modules, companies (multi-tenant). */
-export const staffEmails = () =>
-  (process.env.SPARK_STAFF_EMAILS ?? "")
+/**
+ * Spark staff: Spark panel, modules, companies (multi-tenant). SPARK_STAFF_EMAILS when set, else
+ * ADMIN_EMAILS (set SPARK_STAFF_EMAILS only in a client app whose ADMIN_EMAILS lists the client's admins).
+ */
+export const staffEmails = () => {
+  const staff = (process.env.SPARK_STAFF_EMAILS ?? "")
     .split(",")
     .map((s) => s.trim().toLowerCase())
     .filter(Boolean);
+  return staff.length ? staff : adminEmails();
+};
 
 export const isStaff = (email: string) => staffEmails().includes(email.toLowerCase());
 
