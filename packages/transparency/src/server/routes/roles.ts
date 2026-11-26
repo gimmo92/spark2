@@ -1,11 +1,9 @@
 import "server-only";
-import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
-import { requireCaller, type CallerConfig } from "@spark/core/server";
+import { AI_MODEL, Anthropic, aiConfigured, claude, requireCaller, throttled, type CallerConfig } from "@spark/core/server";
 import { CRITERIA, normalizeScores, type RoleInput, type RoleScores } from "../../lib/roleWeights";
-import { MODEL, throttled } from "../ai";
 
 const MAX_ROLES = 400;
 const BATCH = 40;
@@ -35,7 +33,7 @@ const Answer = z.object({
 
 const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : undefined);
 
-async function weigh(client: Anthropic, roles: RoleInput[], offset: number) {
+async function weigh(client: ReturnType<typeof claude>, roles: RoleInput[], offset: number) {
   const list = roles.map((r, i) => ({
     index: offset + i,
     ruolo: r.role,
@@ -46,7 +44,7 @@ async function weigh(client: Anthropic, roles: RoleInput[], offset: number) {
     ...(r.description && { descrizione: r.description }),
   }));
   const message = await client.beta.messages.parse({
-    model: MODEL,
+    model: AI_MODEL,
     max_tokens: 16000,
     betas: ["server-side-fallback-2026-07-01"],
     // on a policy decline the API retries on a suitable model inside the same call
@@ -70,7 +68,7 @@ export function createRoleWeightsRoute(config: CallerConfig) {
     if (caller instanceof NextResponse) return caller;
     if (!caller.modules.includes("transparency") || !caller.can(caller.person, "transparency.manage"))
       return NextResponse.json({ error: "forbidden" }, { status: 403 });
-    if (!process.env.ANTHROPIC_API_KEY) return NextResponse.json({ error: "ai_config" }, { status: 503 });
+    if (!aiConfigured()) return NextResponse.json({ error: "ai_config" }, { status: 503 });
 
     const body = (await request.json().catch(() => null)) as { roles?: unknown } | null;
     if (!Array.isArray(body?.roles) || !body.roles.length || body.roles.length > MAX_ROLES) return NextResponse.json({ error: "body" }, { status: 400 });
@@ -89,7 +87,7 @@ export function createRoleWeightsRoute(config: CallerConfig) {
     }
     if (throttled(`roles:${caller.tenant ?? ""}`, 10)) return NextResponse.json({ error: "rate" }, { status: 429 });
 
-    const client = new Anthropic();
+    const client = claude();
     const batches: RoleInput[][] = [];
     for (let i = 0; i < roles.length; i += BATCH) batches.push(roles.slice(i, i + BATCH));
     try {

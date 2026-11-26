@@ -1,19 +1,7 @@
 import type { Doc } from "@spark/core";
 
-/** A job ad with a declared salary, found on the web for a role (annual gross EUR). */
-export interface BenchmarkAd {
-  title: string;
-  link: string;
-  source: string;
-  salaryText: string;
-  min: number | null;
-  max: number | null;
-  value: number | null;
-  note?: string;
-}
-
+/** Estimated market range of a role, annual gross EUR, full time. */
 export interface BenchmarkStats {
-  n: number;
   min: number;
   q1: number;
   median: number;
@@ -21,36 +9,36 @@ export interface BenchmarkStats {
   max: number;
 }
 
+export type BenchmarkConfidence = "alta" | "media" | "bassa";
+
 /** Saved market benchmark of one role (collection `benchmarks`, one record per role title). */
 export interface BenchmarkDoc extends Doc {
   role: string;
-  /** Title searched on the market (internal titles are often not searchable). */
+  /** Title the role has on the market (internal titles are often unclear). */
   query: string;
   sector?: string;
-  ads: BenchmarkAd[];
   stats: BenchmarkStats | null;
-  /** Web results read, before keeping only the ads with a salary. */
-  scanned: number;
+  confidence?: BenchmarkConfidence;
+  rationale?: string;
+  /** Model that made the estimate. */
+  source: string;
   fetchedAt: string;
   fetchedBy?: string;
 }
 
-/** One annual figure per ad: the declared value, else the middle of the range. */
-export const adPoint = (a: Pick<BenchmarkAd, "min" | "max" | "value">) =>
-  a.value ?? (a.min != null && a.max != null ? (a.min + a.max) / 2 : (a.min ?? a.max));
+/** What the model sees about a role: no names, no company pay. */
+export interface BenchmarkInput {
+  role: string;
+  query: string;
+  level?: string;
+  ccnl?: string;
+  qualification?: string;
+}
 
-const percentile = (sorted: number[], p: number) => {
-  const idx = (sorted.length - 1) * p;
-  const lo = Math.floor(idx);
-  const hi = Math.ceil(idx);
-  return sorted[lo]! + (sorted[hi]! - sorted[lo]!) * (idx - lo);
-};
-
-export function benchmarkStats(ads: BenchmarkAd[]): BenchmarkStats | null {
-  const values = ads
-    .map(adPoint)
-    .filter((v): v is number => v != null && Number.isFinite(v))
-    .sort((a, b) => a - b);
-  if (!values.length) return null;
-  return { n: values.length, min: values[0]!, q1: percentile(values, 0.25), median: percentile(values, 0.5), q3: percentile(values, 0.75), max: values[values.length - 1]! };
+/** Five figures in increasing order, rounded to 100 €, within a plausible range; null if unusable. */
+export function cleanStats(v: Partial<Record<keyof BenchmarkStats, unknown>>): BenchmarkStats | null {
+  const nums = [v.min, v.q1, v.median, v.q3, v.max].map((x) => Number(x));
+  if (nums.some((n) => !Number.isFinite(n) || n < 8_000 || n > 1_000_000)) return null;
+  const [min, q1, median, q3, max] = nums.sort((a, b) => a - b).map((n) => Math.round(n / 100) * 100) as [number, number, number, number, number];
+  return { min, q1, median, q3, max };
 }

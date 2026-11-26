@@ -1,6 +1,7 @@
 import config from "@/spark.config";
 import { createBenchmarkRoute } from "@spark/transparency/routes/benchmark";
 
-export const maxDuration = 120;
+// the estimate of a large company's roles runs several model calls in parallel
+export const maxDuration = 300;
 
 export const { POST } = createBenchmarkRoute(config);

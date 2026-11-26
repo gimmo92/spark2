@@ -9,7 +9,6 @@
     "./routes/*": "./src/server/routes/*.ts"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.14.0",
     "@spark/core": "*",
     "exceljs": "^4.4.0",
     "jspdf": "^3.0.1",

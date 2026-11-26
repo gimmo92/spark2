@@ -9,3 +9,4 @@ export { sendInviteEmail, sendLoginCodeEmail, sendPasswordResetEmail, sendgridCo
 export { adminEmails, hasSparkAccess } from "./auth/access";
 export { proxy } from "./server/proxy";
 export { requireCaller, type Caller, type CallerConfig } from "./server/caller";
+export { AI_MODEL, Anthropic, aiConfigured, claude, throttled } from "./server/ai";
