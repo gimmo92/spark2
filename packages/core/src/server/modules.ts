@@ -23,11 +23,12 @@ export async function readModules(multiTenant: boolean, tenants?: string[]) {
     if (error) throw error;
     return { installation: (data?.data as Rec | undefined)?.enabled, tenants: map };
   }
-  const q = db.from("app_data").select("tenant, data").eq("collection", SPARK_COLLECTION).eq("id", ID);
-  const { data, error } = await (tenants ? q.in("tenant", ["", ...tenants]) : q);
+  // one small row per tenant: read them all and filter here (`.in("tenant", [""])` would send an empty list)
+  const { data, error } = await db.from("app_data").select("tenant, data").eq("collection", SPARK_COLLECTION).eq("id", ID);
   if (error) throw error;
   let installation: string[] | undefined;
   for (const r of data ?? []) {
+    if (tenants && r.tenant !== "" && !tenants.includes(r.tenant as string)) continue;
     const list = (r.data as Rec).enabled;
     if (r.tenant === "") installation = list;
     else map.set(r.tenant as string, list);
