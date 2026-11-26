@@ -1,5 +1,5 @@
-import { Banknote, BookOpen, ChartColumn, Goal, Info, Settings, Star, Target, User } from "lucide-react";
-import { defineConfig, type Doc } from "@spark/core";
+import { Banknote, BookOpen, ChartColumn, Goal, Info, Settings, Star, Target } from "lucide-react";
+import { companyNav, defineConfig, type Doc } from "@spark/core";
 import { mboModule } from "@spark/mbo";
 import { transparencyModule } from "@spark/transparency";
 import { BUSINESS_UNITS, COMPANIES, TEAMS, buildSeedUsers, migrateUsers, EMAIL_DOMAIN } from "./seed/users";
@@ -26,22 +26,10 @@ export default defineConfig({
   nav: [
     { label: "Profilo", href: "/profilo", icon: Info },
     { label: "Dashboard", href: "/dashboard", icon: ChartColumn },
-    {
-      id: "azienda",
-      label: "La mia azienda",
-      icon: User,
-      children: [
-        { label: "Lista Utenti", href: "/azienda/utenti", permission: "people.view" },
-        { label: "Lista Società", href: "/azienda/societa", permission: "people.view" },
-        { label: "Lista Team", href: "/azienda/team", permission: "teams.manage" },
-        { label: "Business Unit", href: "/azienda/bu", permission: "teams.manage" },
-        { label: "Lista Ruoli", href: "/azienda/ruoli", permission: "people.view" },
-        { label: "Modifica azienda", href: "/azienda/modifica" },
-        { label: "Gestione Società", href: "/azienda/societa" },
-        { label: "Organigramma", href: "/azienda/organigramma" },
-        { label: "Gestione Lettere", href: "/azienda/lettere", badge: "Beta", permission: "letters.manage" },
-      ],
-    },
+    companyNav([
+      { label: "Organigramma", href: "/azienda/organigramma", locked: true },
+      { label: "Modifica azienda", href: "/azienda/modifica", locked: true },
+    ]),
     {
       id: "mbo",
       label: "MBO",

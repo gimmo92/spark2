@@ -22,7 +22,8 @@ const CORE_ACCESS: Record<string, CollectionAccess> = {
   users: { owners: (d) => [d.id], view: "people.view", edit: ["people.edit"] },
   letters: { view: "letters.manage", edit: ["letters.manage"] },
 };
-const CORE_SETTINGS: SettingsAccess = { access: ["access.manage"], org: ["companies.manage"] };
+// "org" holds companies (companies.manage) and teams / business units (teams.manage): one document, either permission saves it
+const CORE_SETTINGS: SettingsAccess = { access: ["access.manage"], org: ["companies.manage", "teams.manage"] };
 
 export function accessRulesOf(config: Pick<SparkConfig, "modules">) {
   const collections: Record<string, CollectionAccess> = { ...CORE_ACCESS };

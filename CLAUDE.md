@@ -23,7 +23,7 @@ apps/<client>   one Next.js app per client (own Vercel project, own Supabase pro
 
 ## Working rules (from the owner)
 
-- **Always commit and push to `main` after every finished change**, without asking. Verify first from the repo root: `npm run lint`, `npm run typecheck`, `npm run build` (builds every app).
+- **After every finished change, ask the owner whether it goes in the core (every installation) or only in one client app**, adapt it if needed, then commit and push to `main`. Verify first from the repo root: `npm run lint`, `npm run typecheck`, `npm run build` (builds every app).
 - UI copy is written in **Italian** and translated (IT / EN, see "Languages"). Code, comments and commit messages in English.
 - **Compact UI**: the owner works on a high-DPI screen at ~1260 CSS px. Small type (13–14px body, 11px uppercase labels), tight paddings.
 - Demo data must be **invented**: Italian names, `nome.cognome@tryspark.co` emails, Valmec companies. Never copy real people from reference screenshots (`../references/`).
@@ -45,6 +45,7 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 ## Data
 
 - `DataProvider` (core) keeps every collection (`users`, `settings` + each module's `collections`) and saves to Supabase `public.app_data` (one JSON row per record, key `collection` + `id`) via `/api/data`, behind `requireAdmin()`. It diffs state against the last saved snapshot by object reference (`diffById`) and saves 500 ms after an edit (and on `pagehide`). Empty DB on first load → uploads the app's `seed()`. If `/api/data` fails (not logged in, missing table) it falls back to `localStorage` (prefix `storagePrefix`, default `spark.v5`) and the shell shows a banner with the reason.
+- **La mia azienda is core** (`people/companyPages.ts` `COMPANY_PAGES` + `companyNav(extra)`, `people/CompanyArea.tsx`): every app's menu uses `companyNav()` (extra / locked entries at the end) and has one route `azienda/[...slug]/page.tsx` rendering `CompanyArea`, plus `azienda/utenti` and `azienda/utenti/[id]`. A page added to `COMPANY_PAGES` reaches every installation. Teams and business units are edited in the app like companies (Lista Team / Business Unit, permission `teams.manage`: add, edit, rename = users / teams follow, delete only when unused), saved in settings doc `org` (`teams`, `businessUnits`), falling back to `OrgConfig` until the first change; `loadViewer` reads them too (BU permission scope).
 - Client-specific user fields: `SparkConfig.userFields` (key, label, number/text) are shown in the user form and stored in `User.extra[key]` (e.g. Gavazzi target bonus).
 - Hooks: `useCollection<T>(name)`, `useSettings<T>(docId, defaults)` (docs in `settings`), `useCore()` (users, invites, toasts, data status), `useOrg()` (companies, teams, `companyForTeam`, email domain; companies are edited in La mia azienda → Lista Società with permission `companies.manage`, saved in settings doc `org`, falling back to `OrgConfig.companies` until the first change; renaming updates the users, a company in use cannot be deleted; the user form picks the company), `useMbo()` (module state + users/notify/hydrated).
 - `config.migrate(collection, items)` upgrades records saved with an old shape (demo: old team names).

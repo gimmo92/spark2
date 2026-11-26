@@ -23,6 +23,8 @@ export * from "./spark/SparkPanel";
 export * from "./people/Dashboard";
 export * from "./people/InviteAction";
 export * from "./people/TeamsGrid";
+export * from "./people/companyPages";
+export * from "./people/CompanyArea";
 export * from "./people/BusinessUnitsGrid";
 export * from "./people/RolesList";
 export * from "./people/CompaniesList";

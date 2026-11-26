@@ -41,16 +41,19 @@ export async function loadViewer(
     const q = db.from("app_data").select("data");
     return tenant === undefined ? q : q.eq("tenant", tenant);
   };
-  const [{ data: userRows, error: e1 }, { data: accessRow, error: e2 }] = await Promise.all([
+  const [{ data: userRows, error: e1 }, { data: accessRow, error: e2 }, { data: orgRow, error: e3 }] = await Promise.all([
     rows().eq("collection", "users").limit(100000),
     rows().eq("collection", "settings").eq("id", "access").maybeSingle(),
+    rows().eq("collection", "settings").eq("id", "org").maybeSingle(),
   ]);
-  if (e1 || e2) return { error: "table" };
+  if (e1 || e2 || e3) return { error: "table" };
 
   const users = (userRows ?? []).map((r) => r.data as User);
   const byId = new Map(users.map((u) => [u.id, u]));
   const levels = resolveAccess(accessRow?.data as AccessConfig | undefined, permissionsOf(config));
-  const can = makeChecker(levels, users, buOfTeam(config.org));
+  // teams edited in the app (settings "org") win over the client config, as in useOrg
+  const teams = (orgRow?.data as { teams?: NonNullable<SparkConfig["org"]>["teams"] } | undefined)?.teams ?? config.org?.teams;
+  const can = makeChecker(levels, users, buOfTeam(teams ? { teams } : undefined));
 
   const record = users.find((u) => u.email?.toLowerCase() === email && u.status !== "disattivato");
   const admins = adminEmails();

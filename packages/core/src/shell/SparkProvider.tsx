@@ -138,7 +138,13 @@ export const useSparkConfig = () => useCoreCtx().config;
 export interface OrgSettings {
   /** Companies of the group (La mia azienda → Lista Società). */
   companies?: string[];
+  /** Teams (Lista Team, permission "teams.manage"). */
+  teams?: OrgConfig["teams"];
+  /** Business units (permission "teams.manage"). */
+  businessUnits?: OrgConfig["businessUnits"];
 }
+
+const NO_BUS: NonNullable<OrgConfig["businessUnits"]> = [];
 
 /** Organisation data from the client config and the in-app settings, plus helpers. */
 export function useOrg(): OrgConfig & {
@@ -148,21 +154,30 @@ export function useOrg(): OrgConfig & {
   buForTeam: (team: string) => string | undefined;
   /** Saves the companies list (permission "companies.manage"). */
   setCompanies: (companies: string[]) => void;
+  /** Saves the teams / business units (permission "teams.manage"). */
+  setTeams: (teams: OrgConfig["teams"]) => void;
+  setBusinessUnits: (bus: NonNullable<OrgConfig["businessUnits"]>) => void;
 } {
   const { org } = useCoreCtx().config;
   const [stored, patch] = useSettings<OrgSettings>("org", {});
   const companies = stored.companies ?? org.companies;
+  const teams = stored.teams ?? org.teams;
+  const businessUnits = stored.businessUnits ?? org.businessUnits ?? NO_BUS;
   return useMemo(
     () => ({
       ...org,
       companies,
-      teamNames: org.teams.map((t) => t.name),
-      buNames: (org.businessUnits ?? []).map((b) => b.name),
-      companyForTeam: (team: string) => org.teams.find((t) => t.name === team)?.company ?? companies[0] ?? "",
-      buForTeam: buOfTeam(org),
+      teams,
+      businessUnits,
+      teamNames: teams.map((t) => t.name),
+      buNames: businessUnits.map((b) => b.name),
+      companyForTeam: (team: string) => teams.find((t) => t.name === team)?.company ?? companies[0] ?? "",
+      buForTeam: buOfTeam({ teams }),
       setCompanies: (list: string[]) => patch({ companies: list }),
+      setTeams: (list: OrgConfig["teams"]) => patch({ teams: list }),
+      setBusinessUnits: (list: NonNullable<OrgConfig["businessUnits"]>) => patch({ businessUnits: list }),
     }),
-    [org, companies, patch],
+    [org, companies, teams, businessUnits, patch],
   );
 }
 

@@ -2,11 +2,6 @@ import { notFound } from "next/navigation";
 import { PlaceholderPage } from "@/components/PlaceholderPage";
 
 const PAGES: Record<string, { title: string; module?: boolean }> = {
-  "azienda/modifica": { title: "Modifica azienda" },
-  "azienda/societa": { title: "Gestione Società" },
-  "azienda/ruoli": { title: "Gestione Ruoli" },
-  "azienda/organigramma": { title: "Organigramma" },
-  "azienda/lettere": { title: "Gestione Lettere" },
   competenze: { title: "Competenze", module: true },
   valutazioni: { title: "Valutazioni", module: true },
   okr: { title: "OKR", module: true },

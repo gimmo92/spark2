@@ -1,5 +1,5 @@
-import { Banknote, ChartColumn, CloudSun, Info, Settings, Target, User } from "lucide-react";
-import { defineConfig } from "@spark/core";
+import { Banknote, ChartColumn, CloudSun, Info, Settings, Target } from "lucide-react";
+import { companyNav, defineConfig } from "@spark/core";
 import { createMboModule } from "@spark/mbo";
 import { EN } from "./i18n/en";
 
@@ -48,19 +48,7 @@ export default defineConfig({
   nav: [
     { label: "Profilo", href: "/profilo", icon: Info },
     { label: "Dashboard", href: "/dashboard", icon: ChartColumn },
-    {
-      id: "azienda",
-      label: "La mia azienda",
-      icon: User,
-      children: [
-        { label: "Lista Utenti", href: "/azienda/utenti", permission: "people.view" },
-        { label: "Lista Società", href: "/azienda/societa", permission: "people.view" },
-        { label: "Lista Team", href: "/azienda/team", permission: "teams.manage" },
-        { label: "Business Unit", href: "/azienda/bu", permission: "teams.manage" },
-        { label: "Lista Ruoli", href: "/azienda/ruoli", permission: "people.view" },
-        { label: "Gestione Lettere", href: "/azienda/lettere", permission: "letters.manage" },
-      ],
-    },
+    companyNav(),
     {
       id: "mbo",
       label: "MBO",
