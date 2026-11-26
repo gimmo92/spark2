@@ -2,7 +2,7 @@
 
 import { useCallback, useSyncExternalStore } from "react";
 import { useData, useSettings } from "@spark/core";
-import { DEFAULT_SCOPE, benchmarkId, cleanScope, type BenchmarkDoc, type BenchmarkScope, type BenchmarkStats } from "../lib/benchmark";
+import { DEFAULT_SCOPE, benchmarkKey, cleanScope, uncovered, type BenchmarkDoc, type BenchmarkScope, type BenchmarkStats } from "../lib/benchmark";
 import type { Employee } from "../lib/models/Employee";
 import { rolesOf } from "../lib/roleWeights";
 import { useBenchmarks } from "../store";
@@ -18,53 +18,60 @@ const subscribe = (l: () => void) => {
 const snapshot = () => [...running].join("|");
 
 /**
- * Computes the market benchmarks of an analysis' roles in the background (server route
- * /api/transparency/benchmark) and saves them; started when an analysis is saved and by the
- * Benchmarks page for roles still missing. One run per analysis at a time.
+ * Fills the company's benchmark cache for an analysis' roles in the background (server route
+ * /api/transparency/benchmark): only roles not cached yet for the current scope, never the
+ * uncovered ones; started when an analysis is saved and by the Benchmarks page.
  */
 export function useBenchmarkRunner() {
-  const { upsertMany } = useBenchmarks();
+  const { get, sectorOf, add } = useBenchmarks();
   const email = useData().viewer?.email;
   const [stored] = useSettings<BenchmarkScope>("benchmark", DEFAULT_SCOPE);
   const scope = cleanScope(stored);
   const busy = useSyncExternalStore(subscribe, snapshot, () => "");
 
   const run = useCallback(
-    async (analysisId: string, people: Employee[], only?: string[]): Promise<"ok" | "error"> => {
+    async (analysisId: string, people: Employee[]): Promise<"ok" | "error"> => {
       if (running.has(analysisId)) return "ok";
-      const roles = rolesOf(people).filter((r) => !only || only.includes(r.role));
-      if (!roles.length) return "ok";
+      const known = scope.sector || sectorOf(analysisId);
+      const roles = rolesOf(people).filter((r) => !uncovered(r.role));
+      // with the sector still unknown every role goes: the answer also recognises the sector
+      const todo = known ? roles.filter((r) => !get(benchmarkKey(r, scope, known))) : roles;
+      if (!todo.length) return "ok";
       running.add(analysisId);
       emit();
       try {
         const r = await fetch("/api/transparency/benchmark", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ scope, roles: roles.map(({ role, level, ccnl, qualification }) => ({ role, level, ccnl, qualification })) }),
+          body: JSON.stringify({ scope: { ...scope, sector: known }, roles: todo.map(({ role, level, ccnl, qualification }) => ({ role, level, ccnl, qualification })) }),
         });
-        const body = (await r.json().catch(() => ({}))) as {
-          roles?: { role: string; stats: BenchmarkStats | null }[];
-          scope?: BenchmarkScope;
-          sector?: string;
-          source?: string;
-        };
+        const body = (await r.json().catch(() => ({}))) as { roles?: { role: string; stats: BenchmarkStats | null }[]; sector?: string; source?: string };
         if (!r.ok || !body.roles) return "error";
+        const sector = known || body.sector || "";
         const now = new Date().toISOString();
-        upsertMany(
-          body.roles.map(
-            (x): BenchmarkDoc => ({
-              id: benchmarkId(analysisId, x.role),
-              analysisId,
-              role: x.role,
-              scope: cleanScope(body.scope ?? scope),
-              ...(body.sector && { sector: body.sector }),
-              stats: x.stats,
-              source: body.source ?? "",
-              fetchedAt: now,
-              fetchedBy: email,
-            }),
-          ),
-        );
+        const byRole = new Map(todo.map((x) => [x.role, x]));
+        add([
+          ...(!scope.sector && sector ? [{ id: `sector:${analysisId}`, kind: "sector" as const, analysisId, sector }] : []),
+          ...body.roles.flatMap((x): BenchmarkDoc[] => {
+            const info = byRole.get(x.role);
+            if (!info) return [];
+            return [
+              {
+                id: benchmarkKey(info, scope, sector),
+                kind: "role",
+                role: x.role,
+                ...(info.level && { level: info.level }),
+                ...(info.ccnl && { ccnl: info.ccnl }),
+                scope,
+                ...(sector && { sector }),
+                stats: x.stats,
+                source: body.source ?? "",
+                fetchedAt: now,
+                fetchedBy: email,
+              },
+            ];
+          }),
+        ]);
         return "ok";
       } catch {
         return "error";
@@ -73,7 +80,7 @@ export function useBenchmarkRunner() {
         emit();
       }
     },
-    [scope, upsertMany, email],
+    [scope, get, sectorOf, add, email],
   );
 
   return { run, scope, isRunning: (analysisId: string) => busy.split("|").includes(analysisId) };

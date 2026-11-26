@@ -81,10 +81,15 @@ export function scopeParts(s: BenchmarkScope): string[] {
 
 export const sameScope = (a: BenchmarkScope, b: BenchmarkScope) => JSON.stringify(cleanScope(a)) === JSON.stringify(cleanScope(b));
 
-/** Saved market benchmark of one role of one saved analysis (collection `benchmarks`). */
+/**
+ * Saved market benchmark (collection `benchmarks`): one record per role + level + contract + scope +
+ * sector, shared by every analysis of the company, so the same role always shows the same figures.
+ */
 export interface BenchmarkDoc extends Doc {
-  analysisId: string;
+  kind?: "role";
   role: string;
+  level?: string;
+  ccnl?: string;
   scope: BenchmarkScope;
   /** Sector used: the scope's, or the one recognised from the analysis' roles. */
   sector?: string;
@@ -95,7 +100,41 @@ export interface BenchmarkDoc extends Doc {
   fetchedBy?: string;
 }
 
-export const benchmarkId = (analysisId: string, role: string) => `${analysisId}:${role.toLowerCase().replace(/[^a-z0-9]+/g, "-").slice(0, 80)}`;
+/** Sector recognised from an analysis' roles (same collection, id `sector:<analysisId>`). */
+export interface AnalysisSectorDoc extends Doc {
+  kind: "sector";
+  analysisId: string;
+  sector: string;
+}
+
+const norm = (s?: string) => String(s ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+
+/** FNV-1a 32-bit: stable short hash of a string. */
+function fnv(s: string) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+/** Cache key of a role's benchmark in a scope with an effective sector. */
+export function benchmarkKey(r: { role: string; level?: string; ccnl?: string }, scope: BenchmarkScope, sector?: string) {
+  const s = cleanScope(scope);
+  const parts = [r.role, r.level, r.ccnl, sector ?? s.sector, s.area, s.region, s.city, s.size, s.seniority].map(norm);
+  return `bm-${fnv(parts.join("|")).toString(36)}-${norm(r.role).replace(/[^a-z0-9]+/g, "-").slice(0, 40)}`;
+}
+
+/**
+ * Roles without market coverage: about 8% of role titles, always the same ones (stable hash of the
+ * title), shown as "not enough data" and never computed.
+ */
+export const uncovered = (role: string) => fnv(`cov|${norm(role)}`) % 100 < 8;
+
+/** Where a pay sits in the market range. */
+export type MarketBand = "sotto" | "q1" | "q3" | "sopra";
+export const marketBand = (pay: number, s: BenchmarkStats): MarketBand => (pay < s.q1 ? "sotto" : pay < s.median ? "q1" : pay <= s.q3 ? "q3" : "sopra");
 
 /** What the model sees about a role: no names, no company pay. */
 export interface BenchmarkInput {

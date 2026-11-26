@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { useCollection, type Doc } from "@spark/core";
 import type { AnalysisSnapshot, SavedJustification } from "./lib/analysis/CompensationAnalysis";
 import { BENCHMARKS, PAY_ANALYSES, ROLE_WEIGHTS } from "./module";
-import type { BenchmarkDoc } from "./lib/benchmark";
+import type { AnalysisSectorDoc, BenchmarkDoc } from "./lib/benchmark";
 import type { RoleWeightDoc } from "./lib/roleWeights";
 
 /** A saved analysis: the normalised employees of one payroll file, with the justified deviations. */
@@ -55,21 +55,32 @@ export function useRoleWeights() {
   return { weights: byRole, upsert };
 }
 
-/** Saved market benchmarks of every analysis; `get(analysisId, role)`. */
+/**
+ * Saved market benchmarks of the company (cache shared by every analysis, `get(key)`), plus the sector
+ * recognised for each analysis.
+ */
 export function useBenchmarks() {
-  const [items, update] = useCollection<BenchmarkDoc>(BENCHMARKS);
-  const byKey = new Map(items.filter((d) => d.analysisId).map((d) => [`${d.analysisId}|${d.role}`, d]));
-  const upsertMany = useCallback(
-    (docs: BenchmarkDoc[]) =>
+  const [items, update] = useCollection<BenchmarkDoc | AnalysisSectorDoc>(BENCHMARKS);
+  const byId = new Map(items.map((d) => [d.id, d]));
+  const get = (key: string) => {
+    const d = byId.get(key);
+    return d && d.kind !== "sector" ? (d as BenchmarkDoc) : undefined;
+  };
+  const sectorOf = (analysisId: string) => (byId.get(`sector:${analysisId}`) as AnalysisSectorDoc | undefined)?.sector;
+  /** Adds docs; an existing benchmark is never replaced, so figures stay stable. */
+  const add = useCallback(
+    (docs: (BenchmarkDoc | AnalysisSectorDoc)[]) =>
       update((prev) => {
-        const ids = new Set(docs.map((d) => d.id));
-        return [...docs, ...prev.filter((d) => !ids.has(d.id))];
+        const have = new Set(prev.map((d) => d.id));
+        const fresh = docs.filter((d) => d.kind === "sector" || !have.has(d.id));
+        const ids = new Set(fresh.map((d) => d.id));
+        return [...fresh, ...prev.filter((d) => !ids.has(d.id))];
       }),
     [update],
   );
-  // a deleted analysis takes its benchmarks with it
-  const removeFor = useCallback((analysisId: string) => update((prev) => prev.filter((d) => d.analysisId !== analysisId)), [update]);
-  return { get: (analysisId: string, role: string) => byKey.get(`${analysisId}|${role}`), upsertMany, removeFor };
+  // the cache stays (company knowledge); only the analysis' recognised sector goes
+  const removeFor = useCallback((analysisId: string) => update((prev) => prev.filter((d) => d.id !== `sector:${analysisId}`)), [update]);
+  return { get, sectorOf, add, removeFor };
 }
 
 export type { SavedJustification };

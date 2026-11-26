@@ -2,15 +2,17 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { Eye } from "lucide-react";
 import { Tooltip, inputCls, localeTag, tr, useAccess, useSettings } from "@spark/core";
 import { CompensationAnalysis } from "../lib/analysis/CompensationAnalysis";
 import { personPay } from "../lib/analysis/RgaComponents";
 import { SalaryMath } from "../lib/analysis/SalaryMath";
-import { AREAS, DEFAULT_SCOPE, REGIONS, SENIORITIES, SIZES, cleanScope, sameScope, scopeParts, type BenchmarkScope } from "../lib/benchmark";
+import { AREAS, DEFAULT_SCOPE, REGIONS, SENIORITIES, SIZES, benchmarkKey, cleanScope, scopeParts, uncovered, type BenchmarkScope } from "../lib/benchmark";
 import { SALARY_METRICS } from "../lib/models/constants";
 import { rolesOf } from "../lib/roleWeights";
 import { useBenchmarks, usePayAnalyses } from "../store";
 import { useBenchmarkRunner } from "./benchmarkRunner";
+import { BenchmarkDetail } from "./BenchmarkDetail";
 import { eur, gap } from "./format";
 
 const selectCls = "rounded-lg border border-[#dfe3ea] bg-white px-2 py-1.5 text-[12.5px] outline-none focus:border-brand disabled:bg-canvas";
@@ -28,7 +30,7 @@ const mean = (values: (number | null)[]) => {
  */
 export function BenchmarkPage({ transparencyHref = "/trasparenza" }: { transparencyHref?: string }) {
   const { analyses } = usePayAnalyses();
-  const { get } = useBenchmarks();
+  const { get, sectorOf } = useBenchmarks();
   const { run, isRunning } = useBenchmarkRunner();
   const { allowed } = useAccess();
   const canManage = allowed("transparency.manage");
@@ -37,6 +39,7 @@ export function BenchmarkPage({ transparencyHref = "/trasparenza" }: { transpare
   const setScope = (patch: Partial<BenchmarkScope>) => saveScope(cleanScope({ ...scope, ...patch }));
   const [id, setId] = useState("");
   const [failed, setFailed] = useState(false);
+  const [detail, setDetail] = useState<string | null>(null);
 
   const doc = analyses.find((a) => a.id === id) ?? analyses[0];
   const people = useMemo(() => (doc ? (CompensationAnalysis.fromSnapshot(doc.snapshot)?.employees ?? []) : []), [doc]);
@@ -49,29 +52,23 @@ export function BenchmarkPage({ transparencyHref = "/trasparenza" }: { transpare
     [people],
   );
   const loading = !!doc && isRunning(doc.id);
+  const sector = scope.sector || (doc ? sectorOf(doc.id) : undefined);
+  const benchOf = (r: (typeof roles)[number]) => (sector && !uncovered(r.role) ? get(benchmarkKey(r, scope, sector)) : undefined);
   // roles without figures for the current scope: filled automatically (after a short pause while the scope is being edited)
-  const missing = roles.filter((r) => {
-    const b = doc && get(doc.id, r.role);
-    return !b || !sameScope(cleanScope(b.scope), scope);
-  });
+  const missing = roles.filter((r) => !uncovered(r.role) && !benchOf(r));
   const missingKey = doc && canManage && !loading && !failed ? `${doc.id}|${missing.map((r) => r.role).join(",")}|${JSON.stringify(scope)}` : "";
   useEffect(() => {
     if (!missingKey || !doc || !missing.length) return;
     const t = setTimeout(() => {
-      void run(
-        doc.id,
-        people,
-        missing.map((r) => r.role),
-      ).then((res) => setFailed(res === "error"));
+      void run(doc.id, people).then((res) => setFailed(res === "error"));
     }, 900);
     return () => clearTimeout(t);
     // the key covers analysis, missing roles and scope
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [missingKey]);
 
-  const sector = roles.map((r) => doc && get(doc.id, r.role)?.sector).find(Boolean);
   const updated = roles
-    .map((r) => doc && get(doc.id, r.role)?.fetchedAt)
+    .map((r) => benchOf(r)?.fetchedAt)
     .filter((x): x is string => !!x)
     .sort()
     .pop();
@@ -196,14 +193,16 @@ export function BenchmarkPage({ transparencyHref = "/trasparenza" }: { transpare
                   <th className="px-3 py-2.5 pl-4">{tr("Ruolo")}</th>
                   <th className="px-3 py-2.5 text-right">{tr("RAL media azienda")}</th>
                   <th className="px-3 py-2.5 text-right">{tr("Mercato (Q1 · mediana · Q3)")}</th>
-                  <th className="px-3 py-2.5 pr-4 text-right">{tr("Rispetto alla mediana")}</th>
+                  <th className="px-3 py-2.5 text-right">{tr("Rispetto alla mediana")}</th>
+                  <th className="w-[56px] px-3 py-2.5 pr-4" />
                 </tr>
               </thead>
               <tbody>
                 {roles.map((r) => {
-                  const b = get(doc.id, r.role);
-                  const fresh = b && sameScope(cleanScope(b.scope), scope);
-                  const s = fresh ? b.stats : null;
+                  const none = uncovered(r.role);
+                  const b = benchOf(r);
+                  const fresh = !!b || none;
+                  const s = b?.stats ?? null;
                   const diff = s && r.avg ? (r.avg - s.median) / s.median : null;
                   const pending = !fresh && (loading || (!failed && canManage));
                   return (
@@ -236,8 +235,22 @@ export function BenchmarkPage({ transparencyHref = "/trasparenza" }: { transpare
                           <span className="text-muted">–</span>
                         )}
                       </td>
-                      <td className={`px-3 py-2 pr-4 text-right font-semibold tabular-nums ${diff == null ? "text-muted" : diff < -0.1 ? "text-red-600" : diff > 0.1 ? "text-emerald-700" : ""}`}>
+                      <td className={`px-3 py-2 text-right font-semibold tabular-nums ${diff == null ? "text-muted" : diff < -0.1 ? "text-red-600" : diff > 0.1 ? "text-emerald-700" : ""}`}>
                         {diff == null ? "–" : gap(diff * 100)}
+                      </td>
+                      <td className="px-3 py-1.5 pr-4 text-right">
+                        {s && (
+                          <Tooltip label={tr("Visualizza")}>
+                            <button
+                              type="button"
+                              aria-label={tr("Visualizza {0}", [r.role])}
+                              onClick={() => setDetail(r.role)}
+                              className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-brand-soft hover:text-brand"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                          </Tooltip>
+                        )}
                       </td>
                     </tr>
                   );
@@ -245,6 +258,20 @@ export function BenchmarkPage({ transparencyHref = "/trasparenza" }: { transpare
               </tbody>
             </table>
           </div>
+          {(() => {
+            const r = detail ? roles.find((x) => x.role === detail) : undefined;
+            const s = r && benchOf(r)?.stats;
+            return r && s ? (
+              <BenchmarkDetail
+                role={r.role}
+                level={r.level}
+                people={r.people}
+                stats={s}
+                scopeText={scopeParts({ ...scope, sector: scope.sector || sector }).map((p) => tr(p)).join(" · ")}
+                onClose={() => setDetail(null)}
+              />
+            ) : null;
+          })()}
         </>
       )}
     </div>
