@@ -16,7 +16,8 @@ const matches = (r: Route, path: string) => (r.exact ? path === r.href : path ==
 
 /** Every linked page of the app with the permission it needs (menu entries and tabs). */
 function routesOf(config: SparkConfig): Route[] {
-  const nav = config.nav.flatMap((i): Route[] => ("children" in i ? i.children : [i]));
+  // locked entries are not pages of the app
+  const nav = config.nav.flatMap((i): Route[] => (i.locked ? [] : "children" in i ? i.children.filter((c) => !c.locked) : [i]));
   return [...nav, ...config.dashboardTabs, ...config.settingsTabs];
 }
 
@@ -36,8 +37,9 @@ export function useNavAccess() {
     const visibleTabs = (list: Tab[]) => list.filter(ok);
     const nav = config.nav
       .map((i): NavItem | null => {
+        if (i.locked) return i;
         if ("children" in i) {
-          const children = i.children.filter(ok);
+          const children = i.children.filter((c) => c.locked || ok(c));
           return children.length ? { ...i, children } : null;
         }
         return ok(i) && hostOk(i.href) ? i : null;

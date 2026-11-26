@@ -33,6 +33,7 @@ export const EN: Record<string, string> = {
   "Inserisci un nome": "Enter a name",
   "Esiste già un livello con questo nome": "A level with this name already exists",
   "Non hai accesso a questa pagina": "You don't have access to this page",
+  "Non incluso nel tuo piano": "Not included in your plan",
   "Il tuo livello di accesso non la prevede. Se ti serve, chiedi a un amministratore.":
     "Your access level doesn't include it. If you need it, ask an administrator.",
   "Vai a una pagina disponibile": "Go to an available page",

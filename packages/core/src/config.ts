@@ -7,11 +7,15 @@ import type { Locale, Messages } from "./i18n/i18n";
 /** Every stored record has a string id. */
 export type Doc = { id: string };
 
-/** `permission`: shown only to users who have it (for at least one scope). */
-export type NavLeaf = { label: string; href: string; badge?: string; permission?: string };
+/**
+ * `permission`: shown only to users who have it (for at least one scope).
+ * `locked`: a feature the app doesn't include (e.g. the free plan): shown greyed out with a lock and
+ * `SparkConfig.lockedHint` as tooltip, never a link nor a reachable page (a locked group doesn't open).
+ */
+export type NavLeaf = { label: string; href: string; badge?: string; permission?: string; locked?: boolean };
 export type NavItem =
-  | { label: string; href: string; icon: LucideIcon; muted?: boolean; permission?: string }
-  | { id: string; label: string; icon: LucideIcon; children: NavLeaf[] };
+  | { label: string; href: string; icon: LucideIcon; muted?: boolean; permission?: string; locked?: boolean }
+  | { id: string; label: string; icon: LucideIcon; children: NavLeaf[]; locked?: boolean };
 
 export interface Tab {
   label: string;
@@ -103,6 +107,8 @@ export interface SparkConfig {
    * the one to work on; everybody else only ever sees the tenant they were invited to.
    */
   multiTenant?: boolean;
+  /** Tooltip of the `locked` menu entries (default "Non incluso nel tuo piano"). Italian, translated with tr(). */
+  lockedHint?: string;
   /** localStorage key prefix for the browser-only fallback. */
   storagePrefix?: string;
 }

@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 import { getSupabaseBrowser } from "../supabase/client";
 import { Tooltip } from "../ui/ui";
-import { ChevronDown, LogOut } from "lucide-react";
+import { ChevronDown, Lock, LogOut, type LucideIcon } from "lucide-react";
 import { useSparkConfig } from "./SparkProvider";
 import { useNavAccess } from "../access/navAccess";
 import { LocaleSwitch } from "../i18n/LocaleProvider";
@@ -33,7 +33,8 @@ export function SparkLogo({ className = "" }: { className?: string }) {
 
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const pathname = usePathname();
-  const { appName } = useSparkConfig();
+  const { appName, lockedHint } = useSparkConfig();
+  const hint = tr(lockedHint ?? "Non incluso nel tuo piano");
   const { nav } = useNavAccess();
   // groups start open when the current page is inside them
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
@@ -50,6 +51,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="thin-scroll flex-1 overflow-y-auto pb-6">
         <ul className="space-y-0.5 pt-4">
           {nav.map((item) => {
+            if (item.locked) return <LockedRow key={item.label} icon={item.icon} label={item.label} hint={hint} />;
             if ("children" in item) {
               const isOpen = !!open[item.id];
               const childActive = item.children.some((c) => pathname.startsWith(c.href));
@@ -76,6 +78,21 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     <div className="overflow-hidden" inert={!isOpen}>
                       <ul className="py-1">
                         {item.children.map((c) => {
+                          if (c.locked)
+                            return (
+                              <li key={c.href}>
+                                <Tooltip label={hint} className="flex">
+                                  <span
+                                    aria-disabled
+                                    className="flex w-full cursor-not-allowed items-center gap-4 py-1.5 pl-[34px] pr-4 text-[13px] text-faint"
+                                  >
+                                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#dfe3ea]" />
+                                    <span className="flex-1 whitespace-nowrap">{tr(c.label)}</span>
+                                    <Lock className="h-3 w-3 shrink-0" />
+                                  </span>
+                                </Tooltip>
+                              </li>
+                            );
                           const active = pathname.startsWith(c.href);
                           return (
                             <li key={c.href}>
@@ -130,6 +147,21 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       <AccountFooter />
     </nav>
+  );
+}
+
+/** A menu entry the app doesn't include: greyed out, lock, tooltip, not clickable. */
+function LockedRow({ icon: Icon, label, hint }: { icon: LucideIcon; label: string; hint: string }) {
+  return (
+    <li>
+      <Tooltip label={hint} className="flex">
+        <span aria-disabled className="flex w-full cursor-not-allowed items-center gap-3 px-6 py-2.5 text-[13px] text-faint">
+          <Icon className="h-[18px] w-[18px] shrink-0 text-[#c3c8d1]" strokeWidth={1.4} />
+          <span className="flex-1">{tr(label)}</span>
+          <Lock className="h-3.5 w-3.5 shrink-0" />
+        </span>
+      </Tooltip>
+    </li>
   );
 }
 
