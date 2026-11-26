@@ -36,6 +36,8 @@ export const transparencyModule: SparkModule = {
   permissions: TRANSPARENCY_PERMISSIONS,
   messages: { en: EN },
   // pay data: readable and writable only with the module's permissions (enforced by /api/data)
+  // benchmark scope chosen by the company (Benchmarks page)
+  settingsAccess: { benchmark: ["transparency.manage"] },
   access: {
     [PAY_ANALYSES]: { view: "transparency.view", edit: ["transparency.manage"] },
     [ROLE_WEIGHTS]: { view: "transparency.view", edit: ["transparency.manage"] },
