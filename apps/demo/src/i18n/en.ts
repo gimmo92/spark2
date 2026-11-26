@@ -12,4 +12,9 @@ export const EN: Record<string, string> = {
   "Contatta il tuo referente Spark per attivare questo modulo.": "Contact your Spark representative to activate this module.",
   "Questa pagina sarà disponibile a breve.": "This page will be available soon.",
   "Vai alla Lista Utenti": "Go to the User list",
+  "Compensation": "Compensation",
+  "Trasparenza salariale": "Pay transparency",
+  "Job grading": "Job grading",
+  "Salary review": "Salary review",
+  "Salary bands": "Salary bands",
 };

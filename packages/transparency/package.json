@@ -5,14 +5,18 @@
   "description": "Spark module: pay transparency (EU directive gender pay gap analysis, reports, per-employee letters).",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./routes/*": "./src/server/routes/*.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.14.0",
     "@spark/core": "*",
     "exceljs": "^4.4.0",
     "jspdf": "^3.0.1",
     "jspdf-autotable": "^5.0.2",
-    "lucide-react": "^1.77.0"
+    "lucide-react": "^1.77.0",
+    "server-only": "^0.0.1",
+    "zod": "^4.6.7"
   },
   "peerDependencies": {
     "next": "16.4.6",

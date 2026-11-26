@@ -3,7 +3,8 @@
 import { useCallback } from "react";
 import { useCollection, type Doc } from "@spark/core";
 import type { AnalysisSnapshot, SavedJustification } from "./lib/analysis/CompensationAnalysis";
-import { PAY_ANALYSES } from "./module";
+import { PAY_ANALYSES, ROLE_WEIGHTS } from "./module";
+import type { RoleWeightDoc } from "./lib/roleWeights";
 
 /** A saved analysis: the normalised employees of one payroll file, with the justified deviations. */
 export interface PayAnalysisDoc extends Doc {
@@ -35,6 +36,22 @@ export function usePayAnalyses() {
   const remove = useCallback((id: string) => update((prev) => prev.filter((d) => d.id !== id)), [update]);
 
   return { analyses: sorted, save, remove };
+}
+
+/** Saved role weightings (job evaluation), keyed by role title, with an upsert helper. */
+export function useRoleWeights() {
+  const [items, update] = useCollection<RoleWeightDoc>(ROLE_WEIGHTS);
+  const byRole = new Map(items.map((d) => [d.role, d]));
+  const upsert = useCallback(
+    (docs: RoleWeightDoc[]) =>
+      update((prev) => {
+        const next = new Map(prev.map((d) => [d.id, d]));
+        for (const d of docs) next.set(d.id, d);
+        return [...next.values()];
+      }),
+    [update],
+  );
+  return { weights: byRole, upsert };
 }
 
 export type { SavedJustification };

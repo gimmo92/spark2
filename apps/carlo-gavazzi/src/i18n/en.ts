@@ -14,5 +14,9 @@ export const EN: Record<string, string> = {
   "non impostato (Modifica utente)": "not set (Edit user)",
   "La scheda non ha ancora obiettivi.": "The sheet has no objectives yet.",
   "Analisi di clima": "Climate survey",
-  "Trasparenza retributiva": "Pay transparency",
+  "Compensation": "Compensation",
+  "Trasparenza salariale": "Pay transparency",
+  "Job grading": "Job grading",
+  "Salary review": "Salary review",
+  "Salary bands": "Salary bands",
 };

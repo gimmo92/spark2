@@ -7,4 +7,9 @@ export const EN: Record<string, string> = {
   OKR: "OKR",
   MBO: "MBO",
   "Analisi di clima": "Climate survey",
+  "Compensation": "Compensation",
+  "Trasparenza salariale": "Pay transparency",
+  "Job grading": "Job grading",
+  "Salary review": "Salary review",
+  "Salary bands": "Salary bands",
 };

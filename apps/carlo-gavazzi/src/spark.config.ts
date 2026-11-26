@@ -1,4 +1,4 @@
-import { ChartColumn, Info, Scale, Settings, Target, CloudSun, User } from "lucide-react";
+import { Banknote, ChartColumn, CloudSun, Info, Settings, Target, User } from "lucide-react";
 import { defineConfig } from "@spark/core";
 import { createMboModule } from "@spark/mbo";
 import { EN } from "./i18n/en";
@@ -74,7 +74,17 @@ export default defineConfig({
       ],
     },
     // other Spark modules, not in this installation
-    { label: "Trasparenza retributiva", href: "/trasparenza", icon: Scale, locked: true },
+    {
+      id: "compensation",
+      label: "Compensation",
+      icon: Banknote,
+      children: [
+        { label: "Trasparenza salariale", href: "/trasparenza", locked: true },
+        { label: "Job grading", href: "/job-grading", locked: true },
+        { label: "Salary review", href: "/salary-review", locked: true },
+        { label: "Salary bands", href: "/salary-bands", locked: true },
+      ],
+    },
     { label: "Analisi di clima", href: "/clima", icon: CloudSun, locked: true },
     { label: "Impostazioni", href: "/impostazioni", icon: Settings },
   ],

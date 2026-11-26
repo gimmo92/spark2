@@ -1,4 +1,4 @@
-import { BookOpen, ChartColumn, Goal, Info, Scale, Settings, Star, Target, User } from "lucide-react";
+import { Banknote, BookOpen, ChartColumn, Goal, Info, Settings, Star, Target, User } from "lucide-react";
 import { defineConfig, type Doc } from "@spark/core";
 import { mboModule } from "@spark/mbo";
 import { transparencyModule } from "@spark/transparency";
@@ -54,7 +54,17 @@ export default defineConfig({
         { label: "Forecast", href: "/mbo/forecast", permission: "mbo.forecast.view" },
       ],
     },
-    { label: "Trasparenza retributiva", href: "/trasparenza", icon: Scale, permission: "transparency.view", module: "transparency" },
+    {
+      id: "compensation",
+      label: "Compensation",
+      icon: Banknote,
+      children: [
+        { label: "Trasparenza salariale", href: "/trasparenza", permission: "transparency.view", module: "transparency" },
+        { label: "Job grading", href: "/job-grading", permission: "transparency.view", module: "transparency" },
+        { label: "Salary review", href: "/salary-review", locked: true },
+        { label: "Salary bands", href: "/salary-bands", locked: true },
+      ],
+    },
     { label: "Competenze", href: "/competenze", icon: BookOpen, muted: true },
     { label: "Valutazioni", href: "/valutazioni", icon: Star, muted: true },
     { label: "OKR", href: "/okr", icon: Goal, muted: true },

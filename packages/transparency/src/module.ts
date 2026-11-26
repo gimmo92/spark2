@@ -22,15 +22,19 @@ export const TRANSPARENCY_PERMISSIONS: PermissionDef[] = [
 /** Collection of saved analyses (one record per analysis, with the employees' pay data). */
 export const PAY_ANALYSES = "payAnalyses";
 
+/** Job evaluation of the company's roles (one record per role title, see lib/roleWeights). */
+export const ROLE_WEIGHTS = "roleWeights";
+
 /** Pay transparency module: EU directive 2023/970 gender pay gap analysis on the Spark payroll template. */
 export const transparencyModule: SparkModule = {
   id: "transparency",
   label: "Trasparenza retributiva",
-  collections: [PAY_ANALYSES],
+  collections: [PAY_ANALYSES, ROLE_WEIGHTS],
   permissions: TRANSPARENCY_PERMISSIONS,
   messages: { en: EN },
   // pay data: readable and writable only with the module's permissions (enforced by /api/data)
   access: {
     [PAY_ANALYSES]: { view: "transparency.view", edit: ["transparency.manage"] },
+    [ROLE_WEIGHTS]: { view: "transparency.view", edit: ["transparency.manage"] },
   },
 };

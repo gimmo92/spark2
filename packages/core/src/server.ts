@@ -8,3 +8,4 @@ export { getSupabaseServer } from "./supabase/server";
 export { sendInviteEmail, sendLoginCodeEmail, sendPasswordResetEmail, sendgridConfigured } from "./email/sendgrid";
 export { adminEmails, hasSparkAccess } from "./auth/access";
 export { proxy } from "./server/proxy";
+export { requireCaller, type Caller, type CallerConfig } from "./server/caller";

@@ -11,6 +11,7 @@ import { defaultRgaSelection, personPay } from "../lib/analysis/RgaComponents";
 import type { Employee } from "../lib/models/Employee";
 import { SALARY_METRICS, type SalaryMetric } from "../lib/models/constants";
 import { EmployeePanel } from "./EmployeePanel";
+import { EqualValueView } from "./RoleWeights";
 import { eur, gap, gapTone, num, pct } from "./format";
 
 const METRICS: { id: SalaryMetric; label: string; hint: string }[] = [
@@ -19,7 +20,7 @@ const METRICS: { id: SalaryMetric; label: string; hint: string }[] = [
   { id: SALARY_METRICS.variabile, label: "Componenti variabili", hint: "Solo le voci variabili annue." },
 ];
 
-type View = "dashboard" | "ccnl" | "qualifica" | "cdr" | "dipendenti";
+type View = "dashboard" | "ccnl" | "qualifica" | "cdr" | "parivalore" | "dipendenti";
 
 interface Props {
   analysis: CompensationAnalysis;
@@ -30,10 +31,12 @@ interface Props {
   onSave: (name: string, justifications: SavedJustification[]) => void;
   onNew: () => void;
   onEditMapping?: () => void;
+  /** Page of the role weighting (Job grading), linked from the equal-value view. */
+  jobGradingHref?: string;
 }
 
 /** Results of one analysis: EU dashboard, gaps by CCNL level / qualification / cost centre, employees. */
-export function Results({ analysis, fileName, savedName, saved, canManage, onSave, onNew, onEditMapping }: Props) {
+export function Results({ analysis, fileName, savedName, saved, canManage, onSave, onNew, onEditMapping, jobGradingHref = "/job-grading" }: Props) {
   const all = analysis.employees;
   const [view, setView] = useState<View>("dashboard");
   const [metric, setMetric] = useState<SalaryMetric>(SALARY_METRICS.base);
@@ -53,6 +56,7 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
   const qualifications = useMemo(() => scoped.qualificationGroups(metric, true, rga), [scoped, metric]); // eslint-disable-line react-hooks/exhaustive-deps
   const hasCdr = scoped.hasCostCenterData();
   const costCenters = useMemo(() => (hasCdr ? scoped.costCenters(metric, true, rga) : []), [scoped, metric, hasCdr]); // eslint-disable-line react-hooks/exhaustive-deps
+  const payOf = useMemo(() => scoped.salaryOf(metric, true, false, rga), [scoped, metric]); // eslint-disable-line react-hooks/exhaustive-deps
   const critical = useMemo(
     () =>
       ccnl
@@ -75,6 +79,7 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
     { id: "ccnl", label: "Per livello CCNL" },
     { id: "qualifica", label: "Per qualifica" },
     { id: "cdr", label: "Per centro di costo", hidden: !hasCdr },
+    { id: "parivalore", label: "Pari valore" },
     { id: "dipendenti", label: "Dipendenti" },
   ];
   const metricDef = METRICS.find((m) => m.id === metric)!;
@@ -155,6 +160,7 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
         ))}
       {view === "qualifica" && <GroupTable label="Qualifica" rows={qualifications} />}
       {view === "cdr" && <GroupTable label="Centro di costo" rows={costCenters} />}
+      {view === "parivalore" && <EqualValueView people={population} getSalary={payOf} weighHref={jobGradingHref} />}
       {view === "dipendenti" && <Employees people={company ? all.filter((e) => e.company === company) : all} excluded={excluded} onOpen={setPerson} />}
 
       {person && (
