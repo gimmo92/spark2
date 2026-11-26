@@ -34,6 +34,8 @@ export const EN: Record<string, string> = {
   "Esiste già un livello con questo nome": "A level with this name already exists",
   "Non hai accesso a questa pagina": "You don't have access to this page",
   "Non incluso nel tuo piano": "Not included in your plan",
+  "Mostra password": "Show password",
+  "Nascondi password": "Hide password",
   "Funzione non attiva": "Feature not active",
   "Pannello Spark": "Spark panel",
   "Riservato al team Spark: moduli di questa installazione e aziende che la usano.": "Spark team only: modules of this installation and the companies using it.",

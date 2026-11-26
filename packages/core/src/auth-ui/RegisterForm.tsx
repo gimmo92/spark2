@@ -8,6 +8,7 @@ import { authConfigured } from "../supabase/env";
 import { AuthCard, EmailField, Notice, authInputCls, authPrimaryCls } from "./LoginForm";
 import { tr } from "../i18n/i18n";
 import { LocaleProvider } from "../i18n/LocaleProvider";
+import { PasswordInput } from "./PasswordInput";
 
 const ERRORS: Record<string, string> = {
   invalid_code: "Email o codice di registrazione non validi. Controlla l'email di invito.",
@@ -72,12 +73,12 @@ function RegisterSteps() {
         </label>
         <label className="block">
           <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Password")}</span>
-          <input type="password" autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className={authInputCls} />
+          <PasswordInput autoComplete="new-password" required minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} className={authInputCls} />
           <span className="mt-1 block text-[11.5px] text-faint">{tr("Almeno 8 caratteri.")}</span>
         </label>
         <label className="block">
           <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Conferma password")}</span>
-          <input type="password" autoComplete="new-password" required minLength={8} value={confirm} onChange={(e) => setConfirm(e.target.value)} className={authInputCls} />
+          <PasswordInput autoComplete="new-password" required minLength={8} value={confirm} onChange={(e) => setConfirm(e.target.value)} className={authInputCls} />
         </label>
         <button type="submit" disabled={!authConfigured || busy} className={authPrimaryCls}>
           {busy && <Loader2 className="h-4 w-4 animate-spin" />}{tr("Crea account")}</button>

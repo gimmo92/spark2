@@ -8,6 +8,7 @@ import { getSupabaseBrowser } from "../supabase/client";
 import { SparkLogo } from "../shell/Sidebar";
 import { tr } from "../i18n/i18n";
 import { LocaleProvider, LocaleSwitch } from "../i18n/LocaleProvider";
+import { PasswordInput } from "./PasswordInput";
 
 const inputCls =
   "w-full rounded-lg border border-[#dfe3ea] bg-white px-3 py-2.5 text-[13.5px] outline-none transition-[border-color,box-shadow] placeholder:text-faint focus:border-brand focus:ring-3 focus:ring-brand/15";
@@ -83,11 +84,11 @@ function UpdatePassword() {
           )}
           <label className="block">
             <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Nuova password")}</span>
-            <input type="password" autoComplete="new-password" required minLength={8} autoFocus value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} />
+            <PasswordInput autoComplete="new-password" required minLength={8} autoFocus value={password} onChange={(e) => setPassword(e.target.value)} className={inputCls} />
           </label>
           <label className="block">
             <span className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Conferma password")}</span>
-            <input type="password" autoComplete="new-password" required minLength={8} value={confirm} onChange={(e) => setConfirm(e.target.value)} className={inputCls} />
+            <PasswordInput autoComplete="new-password" required minLength={8} value={confirm} onChange={(e) => setConfirm(e.target.value)} className={inputCls} />
           </label>
           <button
             type="submit"

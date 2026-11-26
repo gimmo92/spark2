@@ -8,6 +8,7 @@ import { authConfigured, safeNext } from "../supabase/env";
 import { SparkLogo } from "../shell/Sidebar";
 import { tr } from "../i18n/i18n";
 import { LocaleProvider, LocaleSwitch } from "../i18n/LocaleProvider";
+import { PasswordInput } from "./PasswordInput";
 
 /** Errors from ?error= (email links) and from the /api/auth routes. */
 const ERRORS: Record<string, string> = {
@@ -228,8 +229,7 @@ function LoginSteps() {
               className="text-[11.5px] font-semibold text-brand hover:underline"
             >{tr("Password dimenticata?")}</button>
           </span>
-          <input
-            type="password"
+          <PasswordInput
             autoComplete="current-password"
             required
             value={password}
