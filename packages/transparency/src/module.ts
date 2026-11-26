@@ -25,6 +25,7 @@ export const PAY_ANALYSES = "payAnalyses";
 /** Pay transparency module: EU directive 2023/970 gender pay gap analysis on the Spark payroll template. */
 export const transparencyModule: SparkModule = {
   id: "transparency",
+  label: "Trasparenza retributiva",
   collections: [PAY_ANALYSES],
   permissions: TRANSPARENCY_PERMISSIONS,
   messages: { en: EN },

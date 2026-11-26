@@ -12,10 +12,11 @@ export type Doc = { id: string };
  * `locked`: a feature the app doesn't include (e.g. the free plan): shown greyed out with a lock and
  * `SparkConfig.lockedHint` as tooltip, never a link nor a reachable page (a locked group doesn't open).
  */
-export type NavLeaf = { label: string; href: string; badge?: string; permission?: string; locked?: boolean };
+/** `module`: id of the SparkModule the entry belongs to; locked automatically when that module is off. */
+export type NavLeaf = { label: string; href: string; badge?: string; permission?: string; locked?: boolean; module?: string };
 export type NavItem =
-  | { label: string; href: string; icon: LucideIcon; muted?: boolean; permission?: string; locked?: boolean }
-  | { id: string; label: string; icon: LucideIcon; children: NavLeaf[]; locked?: boolean };
+  | { label: string; href: string; icon: LucideIcon; muted?: boolean; permission?: string; locked?: boolean; module?: string }
+  | { id: string; label: string; icon: LucideIcon; children: NavLeaf[]; locked?: boolean; module?: string };
 
 export interface Tab {
   label: string;
@@ -24,11 +25,17 @@ export interface Tab {
   exact?: boolean;
   /** Shown only to users who have it. */
   permission?: string;
+  /** SparkModule the tab belongs to: hidden (and its page blocked) when that module is off. */
+  module?: string;
+  /** Set by `applyModules`: the tab's module is off. */
+  locked?: boolean;
 }
 
 /** A feature module (e.g. @spark/mbo). Client-specific modules use the same shape. */
 export interface SparkModule {
   id: string;
+  /** Name shown in the Spark control panel (Italian, translated with tr()). */
+  label?: string;
   /** Data collections the module saves (rows of public.app_data). */
   collections: string[];
   /** Permissions the module adds to Impostazioni → Permessi. */
@@ -107,10 +114,48 @@ export interface SparkConfig {
    * the one to work on; everybody else only ever sees the tenant they were invited to.
    */
   multiTenant?: boolean;
+  /**
+   * Multi-tenant apps: modules a company gets until Spark staff choose its modules in the Spark
+   * panel (default: every module on in the installation).
+   */
+  tenantModules?: string[];
   /** Tooltip of the `locked` menu entries (default "Non incluso nel tuo piano"). Italian, translated with tr(). */
   lockedHint?: string;
   /** localStorage key prefix for the browser-only fallback. */
   storagePrefix?: string;
+}
+
+/**
+ * Modules on for the caller. `installation`: modules switched on for the whole installation (Spark
+ * panel; undefined = all of `config.modules`). `tenant` (multi-tenant apps): modules of the caller's
+ * company (undefined = `config.tenantModules`, else the installation's).
+ */
+export function enabledModules(config: Pick<SparkConfig, "modules" | "multiTenant" | "tenantModules">, installation?: string[], tenant?: string[]) {
+  const all = config.modules.map((m) => m.id);
+  const inst = installation ?? all;
+  const own = config.multiTenant ? (tenant ?? config.tenantModules ?? inst) : inst;
+  return all.filter((id) => inst.includes(id) && own.includes(id));
+}
+
+/**
+ * The config as seen by a caller with only `enabled` modules: other modules are dropped (their
+ * permissions, letter variables, collections) and their menu entries and tabs are locked.
+ */
+export function applyModules(config: SparkConfig, enabled: string[]): SparkConfig {
+  const off = (m?: string) => !!m && !enabled.includes(m);
+  return {
+    ...config,
+    modules: config.modules.filter((m) => enabled.includes(m.id)),
+    nav: config.nav.map((i) =>
+      off(i.module)
+        ? { ...i, locked: true }
+        : "children" in i
+          ? { ...i, children: i.children.map((c) => (off(c.module) ? { ...c, locked: true } : c)) }
+          : i,
+    ),
+    dashboardTabs: config.dashboardTabs.map((t) => (off(t.module) ? { ...t, locked: true } : t)),
+    settingsTabs: config.settingsTabs.map((t) => (off(t.module) ? { ...t, locked: true } : t)),
+  };
 }
 
 /** Collections owned by the core. */

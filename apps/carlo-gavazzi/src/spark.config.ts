@@ -65,6 +65,7 @@ export default defineConfig({
       id: "mbo",
       label: "MBO",
       icon: Target,
+      module: "mbo",
       children: [
         { label: "Schede obiettivo", href: "/mbo/schede", permission: "mbo.schede.view" },
         { label: "Obiettivi", href: "/mbo/obiettivi", permission: "mbo.catalog.manage" },
@@ -76,10 +77,10 @@ export default defineConfig({
   ],
   dashboardTabs: [
     { label: "Generale", href: "/dashboard", exact: true, permission: "dashboard.view" },
-    { label: "MBO", href: "/dashboard/mbo", permission: "mbo.dashboard.view" },
+    { label: "MBO", href: "/dashboard/mbo", permission: "mbo.dashboard.view", module: "mbo" },
   ],
   settingsTabs: [
     { label: "Permessi", href: "/impostazioni/permessi", permission: "access.manage" },
-    { label: "MBO", href: "/impostazioni/mbo", permission: "mbo.settings.manage" },
+    { label: "MBO", href: "/impostazioni/mbo", permission: "mbo.settings.manage", module: "mbo" },
   ],
 });

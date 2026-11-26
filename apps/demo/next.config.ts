@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   // shared Spark packages are TypeScript source: compile them with the app
-  transpilePackages: ["@spark/core", "@spark/mbo"],
+  transpilePackages: ["@spark/core", "@spark/mbo", "@spark/transparency"],
   turbopack: {
     root: path.join(__dirname, "../.."),
     rules: {

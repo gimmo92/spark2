@@ -1,7 +1,7 @@
 import "server-only";
 import { cookies } from "next/headers";
 import { getSupabaseAdmin } from "../supabase/admin";
-import { adminEmails } from "./access";
+import { isStaff } from "./access";
 
 /** Tenant picked by Spark staff in a multi-tenant app (ignored for everybody else). */
 export const TENANT_COOKIE = "spark_tenant";
@@ -10,7 +10,7 @@ export interface TenantInfo {
   /** "" = no tenant (single-tenant app, or staff who hasn't picked one). */
   tenant: string;
   name?: string;
-  /** Spark staff: emails in ADMIN_EMAILS. In a multi-tenant app they manage every tenant. */
+  /** Spark staff: emails in SPARK_STAFF_EMAILS. In a multi-tenant app they manage every tenant. */
   staff: boolean;
 }
 
@@ -20,7 +20,7 @@ export interface TenantInfo {
  * In a single-tenant database there is no tenant column: everybody gets "".
  */
 export async function resolveTenant(email: string): Promise<TenantInfo> {
-  const staff = adminEmails().includes(email);
+  const staff = isStaff(email);
   const db = getSupabaseAdmin();
   let id = "";
   if (staff) {

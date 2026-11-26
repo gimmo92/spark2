@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { ArrowRightLeft, Building2, LogIn, Plus } from "lucide-react";
+import { ArrowRightLeft, Building2, Check, LogIn, Plus } from "lucide-react";
 import { Badge, Field, GhostButton, Modal, PrimaryButton, inputCls } from "../ui/ui";
 import { localeTag, tr } from "../i18n/i18n";
 import { TENANT_ERRORS, type TenantDTO } from "./tenants";
@@ -16,10 +16,20 @@ export async function switchTenant(id: string) {
 }
 
 /**
- * Multi-tenant apps, Spark staff only: the companies using the app. Staff create a company (with its
- * first admin, who gets the registration invite by email) and enter it to give support.
+ * Multi-tenant apps, Spark staff only (inside the Spark panel): the companies using the app. Staff
+ * create a company (with its first admin, who gets the registration invite by email), choose its
+ * modules and enter it to give support.
  */
-export function TenantsPage() {
+export function TenantsPage({
+  modules,
+  modulesOf,
+  onModules,
+}: {
+  /** Modules on in the installation, offered per company. */
+  modules: { id: string; label: string }[];
+  modulesOf: (tenant: string) => string[];
+  onModules: (tenant: string, modules: string[]) => void;
+}) {
   const [tenants, setTenants] = useState<TenantDTO[] | null>(null);
   const [current, setCurrent] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -66,11 +76,12 @@ export function TenantsPage() {
       )}
       {tenants && tenants.length > 0 && (
         <div className="card overflow-x-auto">
-          <table className="w-full min-w-[560px] border-collapse text-left">
+          <table className="w-full min-w-[720px] border-collapse text-left">
             <thead>
               <tr className="border-b border-line text-[11px] font-bold uppercase text-[#9aa2b1]">
                 <th className="px-3 py-2.5 pl-4">{tr("Azienda")}</th>
                 <th className="px-3 py-2.5">{tr("Piano")}</th>
+                <th className="px-3 py-2.5">{tr("Moduli")}</th>
                 <th className="px-3 py-2.5">{tr("Creata il")}</th>
                 <th className="px-3 py-2.5 text-right">{tr("Utenti")}</th>
                 <th className="w-[110px] px-3 py-2.5 pr-4" />
@@ -85,6 +96,28 @@ export function TenantsPage() {
                   </td>
                   <td className="px-3 py-[9px]">
                     <Badge tone={t.plan === "free" ? "grey" : "blue"}>{t.plan === "free" ? "Free" : t.plan}</Badge>
+                  </td>
+                  <td className="px-3 py-[7px]">
+                    <div className="flex flex-wrap gap-1">
+                      {modules.map((m) => {
+                        const own = modulesOf(t.id);
+                        const on = own.includes(m.id);
+                        return (
+                          <button
+                            key={m.id}
+                            type="button"
+                            aria-pressed={on}
+                            onClick={() => onModules(t.id, on ? own.filter((x) => x !== m.id) : [...own, m.id])}
+                            className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11.5px] font-semibold transition-colors ${
+                              on ? "border-brand bg-brand-soft text-brand" : "border-[#dfe3ea] text-faint hover:border-[#c6ccd6] hover:text-muted"
+                            }`}
+                          >
+                            {on && <Check className="h-3 w-3" strokeWidth={3} />}
+                            {tr(m.label)}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </td>
                   <td className="px-3 py-[9px] text-[12.5px] text-muted">{new Date(t.created_at).toLocaleDateString(localeTag())}</td>
                   <td className="px-3 py-[9px] text-right text-[12.5px] font-semibold tabular-nums">{t.users}</td>

@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
-import { buOfTeam, collectionsOf, type OrgConfig, type SparkConfig } from "../config";
+import { applyModules, buOfTeam, collectionsOf, type OrgConfig, type SparkConfig } from "../config";
 import { DataProvider, useCollection, useData, useSettings } from "../data/DataProvider";
 import type { User } from "../people/data";
 import { INVITE_ERRORS, type InviteDTO, type InvitesStatus } from "../people/invites";
@@ -106,11 +106,24 @@ export function SparkProvider({ config, children }: { config: SparkConfig; child
         onSaveError={onSaveError}
         onRejected={onRejected}
       >
-        {/* below the data store: switching language remounts the UI, not the data */}
-        <LocaleProvider defaultLocale={config.locale}>{children}</LocaleProvider>
+        <ModuleScope value={value}>
+          {/* below the data store: switching language remounts the UI, not the data */}
+          <LocaleProvider defaultLocale={config.locale}>{children}</LocaleProvider>
+        </ModuleScope>
       </DataProvider>
     </Ctx.Provider>
   );
+}
+
+/** Below the data store: the config with only the modules the server says are on (Spark panel). */
+function ModuleScope({ value, children }: { value: CoreCtx; children: React.ReactNode }) {
+  const enabled = useData().viewer?.modules;
+  const key = enabled?.join(",");
+  const scoped = useMemo(
+    () => (key === undefined ? value : { ...value, config: applyModules(value.config, key ? key.split(",") : []) }),
+    [value, key],
+  );
+  return <Ctx.Provider value={scoped}>{children}</Ctx.Provider>;
 }
 
 function useCoreCtx() {

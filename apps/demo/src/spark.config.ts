@@ -1,6 +1,7 @@
-import { BookOpen, ChartColumn, Goal, Info, Settings, Star, Target, User } from "lucide-react";
+import { BookOpen, ChartColumn, Goal, Info, Scale, Settings, Star, Target, User } from "lucide-react";
 import { defineConfig, type Doc } from "@spark/core";
 import { mboModule } from "@spark/mbo";
+import { transparencyModule } from "@spark/transparency";
 import { BUSINESS_UNITS, COMPANIES, TEAMS, buildSeedUsers, migrateUsers, EMAIL_DOMAIN } from "./seed/users";
 import { SEED_OBJECTIVES, SEED_PRESETS, SEED_WORKFLOWS, buildSeedSchede } from "./seed/mbo";
 import { LEGACY_LETTER_IDS, SEED_LETTERS } from "./seed/letters";
@@ -21,7 +22,7 @@ export default defineConfig({
     businessUnits: BUSINESS_UNITS,
     teams: TEAMS,
   },
-  modules: [mboModule],
+  modules: [mboModule, transparencyModule],
   nav: [
     { label: "Profilo", href: "/profilo", icon: Info },
     { label: "Dashboard", href: "/dashboard", icon: ChartColumn },
@@ -45,6 +46,7 @@ export default defineConfig({
       id: "mbo",
       label: "MBO",
       icon: Target,
+      module: "mbo",
       children: [
         { label: "Schede obiettivo", href: "/mbo/schede", permission: "mbo.schede.view" },
         { label: "Obiettivi", href: "/mbo/obiettivi", permission: "mbo.catalog.manage" },
@@ -52,6 +54,7 @@ export default defineConfig({
         { label: "Forecast", href: "/mbo/forecast", permission: "mbo.forecast.view" },
       ],
     },
+    { label: "Trasparenza retributiva", href: "/trasparenza", icon: Scale, permission: "transparency.view", module: "transparency" },
     { label: "Competenze", href: "/competenze", icon: BookOpen, muted: true },
     { label: "Valutazioni", href: "/valutazioni", icon: Star, muted: true },
     { label: "OKR", href: "/okr", icon: Goal, muted: true },
@@ -59,11 +62,11 @@ export default defineConfig({
   ],
   dashboardTabs: [
     { label: "Generale", href: "/dashboard", exact: true, permission: "dashboard.view" },
-    { label: "MBO", href: "/dashboard/mbo", permission: "mbo.dashboard.view" },
+    { label: "MBO", href: "/dashboard/mbo", permission: "mbo.dashboard.view", module: "mbo" },
   ],
   settingsTabs: [
     { label: "Permessi", href: "/impostazioni/permessi", permission: "access.manage" },
-    { label: "MBO", href: "/impostazioni/mbo", permission: "mbo.settings.manage" },
+    { label: "MBO", href: "/impostazioni/mbo", permission: "mbo.settings.manage", module: "mbo" },
   ],
   seed: () => {
     const users = buildSeedUsers();

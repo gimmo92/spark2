@@ -8,7 +8,8 @@ import type { SparkConfig } from "../config";
 import { SparkProvider, useCore } from "./SparkProvider";
 import { RouteGuard } from "../access/navAccess";
 import { tr } from "../i18n/i18n";
-import { TenantBar, TenantsPage } from "../people/TenantsPage";
+import { TenantBar } from "../people/TenantsPage";
+import { SparkPanel } from "../spark/SparkPanel";
 
 function Toasts() {
   const { toasts } = useCore();
@@ -46,7 +47,7 @@ function DataBanner() {
 function TenantGate({ multiTenant, children }: { multiTenant: boolean; children: React.ReactNode }) {
   const { viewer } = useCore();
   if (!multiTenant || !viewer?.staff) return <>{children}</>;
-  if (!viewer.tenant) return <TenantsPage />;
+  if (!viewer.tenant) return <SparkPanel />;
   return (
     <>
       <TenantBar name={viewer.tenantName} />

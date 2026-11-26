@@ -1,25 +1,17 @@
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
-import { adminEmails } from "../../auth/access";
 import { newInviteCode } from "../../auth/inviteCode";
-import { requireUser } from "../../auth/require";
+import { requireStaff } from "../../auth/staff";
 import { TENANT_COOKIE } from "../../auth/tenant";
 import { cookieOptions } from "../../auth/twofa";
 import { sendInviteEmail, sendgridConfigured } from "../../email/sendgrid";
 import { ADMIN_LEVEL } from "../../access/permissions";
 import type { User } from "../../people/data";
 import type { TenantDTO } from "../../people/tenants";
-import { adminConfigured, getSupabaseAdmin } from "../../supabase/admin";
-import { authConfigured } from "../../supabase/env";
+import { getSupabaseAdmin } from "../../supabase/admin";
 
-/** Multi-tenant apps only: tenants are managed by Spark staff (ADMIN_EMAILS). */
-async function staffOnly() {
-  if (!authConfigured || !adminConfigured()) return NextResponse.json({ error: "config" }, { status: 503 });
-  const auth = await requireUser();
-  if (!auth.ok) return NextResponse.json({ error: auth.error }, { status: auth.status });
-  if (!adminEmails().includes(auth.email)) return NextResponse.json({ error: "forbidden" }, { status: 403 });
-  return auth;
-}
+/** Multi-tenant apps only: tenants are managed by Spark staff (SPARK_STAFF_EMAILS). */
+const staffOnly = requireStaff;
 
 const slug = (s: string) =>
   s

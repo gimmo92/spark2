@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 import { getSupabaseBrowser } from "../supabase/client";
 import { Tooltip } from "../ui/ui";
-import { ChevronDown, Lock, LogOut, type LucideIcon } from "lucide-react";
+import { ChevronDown, Lock, LogOut, ShieldCheck, type LucideIcon } from "lucide-react";
+import { useData } from "../data/DataProvider";
 import { useSparkConfig } from "./SparkProvider";
 import { useNavAccess } from "../access/navAccess";
 import { LocaleSwitch } from "../i18n/LocaleProvider";
@@ -36,6 +37,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const { appName, lockedHint } = useSparkConfig();
   const hint = tr(lockedHint ?? "Non incluso nel tuo piano");
   const { nav } = useNavAccess();
+  const staff = !!useData().viewer?.staff;
   // groups start open when the current page is inside them
   const [open, setOpen] = useState<Record<string, boolean>>(() =>
     Object.fromEntries(nav.flatMap((i) => ("children" in i ? [[i.id, i.children.some((c) => pathname.startsWith(c.href))]] : []))),
@@ -143,6 +145,22 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             );
           })}
         </ul>
+        {staff && (
+          <ul className="mt-3 border-t border-line pt-3">
+            <li>
+              <Link
+                href="/spark"
+                onClick={onNavigate}
+                className={`flex items-center gap-3 rounded-r-xl px-6 py-2.5 text-[13px] transition-colors ${
+                  pathname.startsWith("/spark") ? "bg-[#f6f8fb] font-semibold text-ink" : "text-ink/85 hover:bg-[#f8f9fb]"
+                }`}
+              >
+                <ShieldCheck className="h-[18px] w-[18px] shrink-0 text-brand" strokeWidth={1.6} />
+                {tr("Pannello Spark")}
+              </Link>
+            </li>
+          </ul>
+        )}
       </div>
 
       <AccountFooter />

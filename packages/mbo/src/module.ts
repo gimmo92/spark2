@@ -69,6 +69,7 @@ export const SCHEDA_EDIT = ["mbo.schede.edit", "mbo.goals.edit", "mbo.results.ed
 /** MBO module: schede obiettivo, catalogo obiettivi, preset, workflow (settings doc "mbo"). */
 const baseModule: SparkModule = {
   id: "mbo",
+  label: "MBO",
   collections: ["schede", "objectives", "presets", "workflows"],
   permissions: MBO_PERMISSIONS,
   messages: { en: EN },

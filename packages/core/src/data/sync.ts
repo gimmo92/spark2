@@ -13,8 +13,10 @@ export interface ViewerDTO {
   userId?: string;
   level: string;
   isAdmin: boolean;
-  /** Multi-tenant app: Spark staff (ADMIN_EMAILS), who pick the tenant to work on. */
+  /** Spark staff (SPARK_STAFF_EMAILS): open the Spark panel; in multi-tenant apps they pick the tenant to work on. */
   staff?: boolean;
+  /** Modules on for this user (installation, and company in multi-tenant apps). Undefined = all. */
+  modules?: string[];
   /** Multi-tenant app: the tenant whose data is shown ("" = none picked yet). */
   tenant?: string;
   tenantName?: string;

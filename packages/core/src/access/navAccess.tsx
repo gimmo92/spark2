@@ -10,14 +10,15 @@ import { useSparkConfig } from "../shell/SparkProvider";
 import { useAccess } from "./useAccess";
 import { tr } from "../i18n/i18n";
 
-type Route = { href: string; permission?: string; exact?: boolean };
+type Route = { href: string; permission?: string; exact?: boolean; locked?: boolean };
 
 const matches = (r: Route, path: string) => (r.exact ? path === r.href : path === r.href || path.startsWith(r.href + "/"));
 
-/** Every linked page of the app with the permission it needs (menu entries and tabs). */
+/** Every linked page of the app with the permission it needs (menu entries and tabs); locked = not in the plan. */
 function routesOf(config: SparkConfig): Route[] {
-  // locked entries are not pages of the app
-  const nav = config.nav.flatMap((i): Route[] => (i.locked ? [] : "children" in i ? i.children.filter((c) => !c.locked) : [i]));
+  const nav = config.nav.flatMap((i): Route[] =>
+    "children" in i ? i.children.map((c) => ({ ...c, locked: i.locked || c.locked })) : [i],
+  );
   return [...nav, ...config.dashboardTabs, ...config.settingsTabs];
 }
 
@@ -27,7 +28,7 @@ export function useNavAccess() {
   const { allowed } = useAccess();
 
   return useMemo(() => {
-    const ok = (r: Route) => !r.permission || allowed(r.permission);
+    const ok = (r: Route) => !r.locked && (!r.permission || allowed(r.permission));
     const tabs = [...config.dashboardTabs, ...config.settingsTabs];
     // a page that only hosts tabs (e.g. /impostazioni) is reachable if one of its tabs is
     const hostOk = (href: string) => {
@@ -57,11 +58,13 @@ export function useNavAccess() {
       const r = routeFor(path);
       return r ? ok(r) && hostOk(r.href) : true;
     };
+    /** The page belongs to a feature the app doesn't include (locked entry or module switched off). */
+    const isLocked = (path: string) => !!routeFor(path)?.locked;
     const firstAllowed = (prefer?: string) => {
       const pool = routes.filter((r) => ok(r) && hostOk(r.href) && !("muted" in r && r.muted));
       return (prefer && pool.find((r) => r.href.startsWith(prefer))?.href) || pool[0]?.href;
     };
-    return { nav, visibleTabs, canOpen, firstAllowed };
+    return { nav, visibleTabs, canOpen, isLocked, firstAllowed };
   }, [config, allowed]);
 }
 
@@ -70,8 +73,8 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { hydrated } = useData();
-  const { home } = useSparkConfig();
-  const { canOpen, firstAllowed } = useNavAccess();
+  const { home, lockedHint } = useSparkConfig();
+  const { canOpen, isLocked, firstAllowed } = useNavAccess();
 
   const blocked = hydrated && !canOpen(pathname);
   const section = "/" + (pathname.split("/")[1] ?? "");
@@ -85,11 +88,14 @@ export function RouteGuard({ children }: { children: React.ReactNode }) {
 
   if (!blocked) return <>{children}</>;
   if (redirect) return null;
+  const locked = isLocked(pathname);
   return (
     <div className="card mx-auto mt-6 max-w-md p-8 text-center">
       <Lock className="mx-auto h-6 w-6 text-faint" />
-      <p className="mt-3 text-[14px] font-semibold">{tr("Non hai accesso a questa pagina")}</p>
-      <p className="mt-1 text-[12.5px] text-muted">{tr("Il tuo livello di accesso non la prevede. Se ti serve, chiedi a un amministratore.")}</p>
+      <p className="mt-3 text-[14px] font-semibold">{locked ? tr("Funzione non attiva") : tr("Non hai accesso a questa pagina")}</p>
+      <p className="mt-1 text-[12.5px] text-muted">
+        {locked ? tr(lockedHint ?? "Non incluso nel tuo piano") : tr("Il tuo livello di accesso non la prevede. Se ti serve, chiedi a un amministratore.")}
+      </p>
       {next && (
         <Link href={next} className="mt-4 inline-block text-[12.5px] font-semibold text-brand hover:underline">{tr("Vai a una pagina disponibile")}</Link>
       )}
