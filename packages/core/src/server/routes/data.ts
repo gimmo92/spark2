@@ -30,8 +30,12 @@ async function guard(config: AppConfig): Promise<NextResponse | Caller> {
   if (config.multiTenant) {
     const t = await resolveTenant(auth.email);
     if (!t.tenant) {
-      // staff must pick a tenant first; anybody else without one has no data at all
-      if (t.staff) return NextResponse.json({ error: "tenant", viewer: { email: auth.email, level: "ADMIN", isAdmin: true, staff: true, tenant: "" } satisfies ViewerDTO }, { status: 409 });
+      // staff must pick a tenant first (their menu shows the installation's modules); anybody else without one has no data at all
+      if (t.staff) {
+        const inst = await readModules(true, []).catch(() => null);
+        const modules = enabledModules({ ...config, tenantModules: undefined }, inst?.installation);
+        return NextResponse.json({ error: "tenant", viewer: { email: auth.email, level: "ADMIN", isAdmin: true, staff: true, tenant: "", modules } satisfies ViewerDTO }, { status: 409 });
+      }
       return NextResponse.json({ error: "unlinked" }, { status: 403 });
     }
     tenant = t.tenant;

@@ -9,12 +9,16 @@ import { useCore } from "../shell/SparkProvider";
 import { TenantsPage } from "../people/TenantsPage";
 import { PANEL_ERRORS, type SparkPanelDTO } from "./panel";
 
+/** Modules a company uses: its own choice (or the default), among those on in the installation. */
+const ownModules = (p: SparkPanelDTO, tenant: string) =>
+  (p.tenantModules[tenant] ?? p.tenantDefault ?? p.installation).filter((x) => p.installation.includes(x));
+
 /**
  * Spark control panel (route /spark of every app, Spark staff only): modules switched on for the
  * whole installation and, in multi-tenant apps, the companies with their own modules.
  */
 export function SparkPanel() {
-  const { viewer } = useData();
+  const { viewer, setViewerModules } = useData();
   const { notify } = useCore();
   const [panel, setPanel] = useState<SparkPanelDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,9 +43,12 @@ export function SparkPanel() {
       notify(tr(PANEL_ERRORS[body?.error ?? "config"] ?? PANEL_ERRORS.config));
       return;
     }
-    setPanel((p) =>
-      p && (tenant ? { ...p, tenantModules: { ...p.tenantModules, [tenant]: body.modules! } } : { ...p, installation: body.modules! }),
-    );
+    if (!panel) return;
+    const next = tenant ? { ...panel, tenantModules: { ...panel.tenantModules, [tenant]: body.modules } } : { ...panel, installation: body.modules };
+    setPanel(next);
+    // this page follows at once: the installation's modules, intersected with the company's when working on one
+    const here = viewer?.tenant ? ownModules(next, viewer.tenant) : next.installation;
+    setViewerModules(here);
     notify(tr("Moduli salvati: gli utenti li vedono al prossimo caricamento della pagina."));
   };
 
@@ -95,7 +102,7 @@ export function SparkPanel() {
       {panel?.multiTenant && (
         <TenantsPage
           modules={installed}
-          modulesOf={(id) => (panel.tenantModules[id] ?? panel.tenantDefault ?? panel.installation).filter((x) => panel.installation.includes(x))}
+          modulesOf={(id) => ownModules(panel, id)}
           onModules={(id, list) => void save(list, id)}
         />
       )}

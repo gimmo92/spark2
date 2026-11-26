@@ -18,6 +18,8 @@ interface DataCtx {
   viewer: ViewerDTO | null;
   /** Replace everything with the seed data. */
   reset: () => void;
+  /** Spark panel: the modules just saved apply to this page without a reload (the server already enforces them). */
+  setViewerModules: (modules: string[]) => void;
 }
 
 const Ctx = createContext<DataCtx | null>(null);
@@ -196,10 +198,11 @@ export function DataProvider({ collections, seed, migrate, storagePrefix, onSave
   }, []);
 
   const reset = useCallback(() => setData(fill(collections, seed?.())), [collections, seed]);
+  const setViewerModules = useCallback((modules: string[]) => setViewer((v) => (v ? { ...v, modules } : v)), []);
 
   const value = useMemo(
-    () => ({ data, setCollection, hydrated, dataSource, dataMessage, viewer, reset }),
-    [data, setCollection, hydrated, dataSource, dataMessage, viewer, reset],
+    () => ({ data, setCollection, hydrated, dataSource, dataMessage, viewer, reset, setViewerModules }),
+    [data, setCollection, hydrated, dataSource, dataMessage, viewer, reset, setViewerModules],
   );
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
