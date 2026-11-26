@@ -19,4 +19,5 @@ export const EN: Record<string, string> = {
   "Job grading": "Job grading",
   "Salary review": "Salary review",
   "Salary bands": "Salary bands",
+  "Benchmarks": "Benchmarks",
 };

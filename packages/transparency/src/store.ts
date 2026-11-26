@@ -3,7 +3,8 @@
 import { useCallback } from "react";
 import { useCollection, type Doc } from "@spark/core";
 import type { AnalysisSnapshot, SavedJustification } from "./lib/analysis/CompensationAnalysis";
-import { PAY_ANALYSES, ROLE_WEIGHTS } from "./module";
+import { BENCHMARKS, PAY_ANALYSES, ROLE_WEIGHTS } from "./module";
+import type { BenchmarkDoc } from "./lib/benchmark";
 import type { RoleWeightDoc } from "./lib/roleWeights";
 
 /** A saved analysis: the normalised employees of one payroll file, with the justified deviations. */
@@ -52,6 +53,14 @@ export function useRoleWeights() {
     [update],
   );
   return { weights: byRole, upsert };
+}
+
+/** Saved market benchmarks, keyed by role title. */
+export function useBenchmarks() {
+  const [items, update] = useCollection<BenchmarkDoc>(BENCHMARKS);
+  const byRole = new Map(items.map((d) => [d.role, d]));
+  const upsert = useCallback((doc: BenchmarkDoc) => update((prev) => [doc, ...prev.filter((d) => d.id !== doc.id)]), [update]);
+  return { benchmarks: byRole, upsert };
 }
 
 export type { SavedJustification };

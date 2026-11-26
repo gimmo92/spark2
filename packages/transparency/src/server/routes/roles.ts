@@ -5,8 +5,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { z } from "zod";
 import { requireCaller, type CallerConfig } from "@spark/core/server";
 import { CRITERIA, normalizeScores, type RoleInput, type RoleScores } from "../../lib/roleWeights";
+import { MODEL, throttled } from "../ai";
 
-const MODEL = "claude-opus-5-5";
 const MAX_ROLES = 400;
 const BATCH = 40;
 
@@ -34,16 +34,6 @@ const Answer = z.object({
 });
 
 const text = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : undefined);
-
-/** Recent calls per tenant (best effort, per server instance): a weighting is not a chat. */
-const recent = new Map<string, number[]>();
-function throttled(key: string) {
-  const now = Date.now();
-  const list = (recent.get(key) ?? []).filter((t) => now - t < 10 * 60_000);
-  if (list.length >= 10) return true;
-  recent.set(key, [...list, now]);
-  return false;
-}
 
 async function weigh(client: Anthropic, roles: RoleInput[], offset: number) {
   const list = roles.map((r, i) => ({
@@ -97,7 +87,7 @@ export function createRoleWeightsRoute(config: CallerConfig) {
         description: text(raw.description, 300),
       });
     }
-    if (throttled(caller.tenant ?? "")) return NextResponse.json({ error: "rate" }, { status: 429 });
+    if (throttled(`roles:${caller.tenant ?? ""}`, 10)) return NextResponse.json({ error: "rate" }, { status: 429 });
 
     const client = new Anthropic();
     const batches: RoleInput[][] = [];

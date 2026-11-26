@@ -61,6 +61,7 @@ export default defineConfig({
       children: [
         { label: "Trasparenza salariale", href: "/trasparenza", permission: "transparency.view", module: "transparency" },
         { label: "Job grading", href: "/job-grading", permission: "transparency.view", module: "transparency" },
+        { label: "Benchmarks", href: "/benchmarks", permission: "transparency.view", module: "transparency" },
         { label: "Salary review", href: "/salary-review", locked: true },
         { label: "Salary bands", href: "/salary-bands", locked: true },
       ],
