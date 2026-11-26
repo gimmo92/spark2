@@ -1,10 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Modal, tr } from "@spark/core";
+import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { ArrowLeft } from "lucide-react";
+import { tr, useSettings } from "@spark/core";
+import { CompensationAnalysis } from "../lib/analysis/CompensationAnalysis";
+import { rolesOf } from "../lib/roleWeights";
+import { useBenchmarks, usePayAnalyses } from "../store";
 import { personPay } from "../lib/analysis/RgaComponents";
 import { SalaryMath } from "../lib/analysis/SalaryMath";
-import { marketBand, type BenchmarkStats, type MarketBand } from "../lib/benchmark";
+import { DEFAULT_SCOPE, benchmarkKey, cleanScope, marketBand, scopeParts, uncovered, type BenchmarkScope, type BenchmarkStats, type MarketBand } from "../lib/benchmark";
 import type { Employee } from "../lib/models/Employee";
 import { SALARY_METRICS } from "../lib/models/constants";
 import { eur, gap, num } from "./format";
@@ -26,10 +32,49 @@ function niceStep(span: number, target = 5) {
 }
 
 /**
+ * Page /benchmarks/dettaglio?analysis=…&role=…: one role of a saved analysis against its market
+ * benchmark (needs <Suspense> in the route: it reads the URL on the client).
+ */
+export function BenchmarkDetailPage({ backHref = "/benchmarks" }: { backHref?: string }) {
+  const params = useSearchParams();
+  const { analyses } = usePayAnalyses();
+  const { get, sectorOf } = useBenchmarks();
+  const [stored] = useSettings<BenchmarkScope>("benchmark", DEFAULT_SCOPE);
+  const scope = cleanScope(stored);
+  const doc = analyses.find((a) => a.id === params.get("analysis"));
+  const roleName = params.get("role") ?? "";
+  const info = useMemo(() => {
+    const people = doc ? (CompensationAnalysis.fromSnapshot(doc.snapshot)?.employees ?? []) : [];
+    return rolesOf(people).find((r) => r.role === roleName);
+  }, [doc, roleName]);
+  const sector = scope.sector || (doc ? sectorOf(doc.id) : undefined);
+  const stats = info && sector && !uncovered(info.role) ? get(benchmarkKey(info, scope, sector))?.stats : undefined;
+
+  return (
+    <div className="space-y-3.5">
+      <Link href={backHref} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-brand hover:underline">
+        <ArrowLeft className="h-3.5 w-3.5" /> {tr("Benchmarks")}
+      </Link>
+      {info && stats ? (
+        <BenchmarkDetail
+          role={info.role}
+          level={info.level}
+          people={info.people}
+          stats={stats}
+          scopeText={[doc!.name, ...scopeParts({ ...scope, sector }).map((p) => tr(p))].join(" · ")}
+        />
+      ) : (
+        <div className="card px-5 py-10 text-center text-[12.5px] text-muted">{tr("Benchmark non disponibile per questo ruolo.")}</div>
+      )}
+    </div>
+  );
+}
+
+/**
  * One role against its market benchmark: where each person's full-time base pay sits in the market
  * range (strip chart by gender over the Q1–Q3 band), the counts per band and a table.
  */
-export function BenchmarkDetail({ role, level, people, stats, scopeText, onClose }: { role: string; level?: string; people: Employee[]; stats: BenchmarkStats; scopeText: string; onClose: () => void }) {
+export function BenchmarkDetail({ role, level, people, stats, scopeText }: { role: string; level?: string; people: Employee[]; stats: BenchmarkStats; scopeText: string }) {
   const [hover, setHover] = useState<number | null>(null);
   const rows = useMemo(
     () =>
@@ -61,12 +106,15 @@ export function BenchmarkDetail({ role, level, people, stats, scopeText, onClose
   const hovered = hover == null ? null : rows[hover];
 
   return (
-    <Modal title={role} onClose={onClose} width="max-w-3xl">
-      <div className="space-y-4">
-        <p className="-mt-2 text-[12px] text-muted">
+    <div className="space-y-4">
+      <div>
+        <h1 className="text-[14px] font-semibold">{role}</h1>
+        <p className="mt-0.5 text-[12.5px] text-muted">
           {tr("{0} persone", [rows.length])}
           {level && ` · ${level}`} · {scopeText}
         </p>
+      </div>
+      <div className="card space-y-4 p-4">
 
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           {[
@@ -173,9 +221,10 @@ export function BenchmarkDetail({ role, level, people, stats, scopeText, onClose
           ])}
         </p>
 
-        <div className="max-h-[260px] overflow-y-auto rounded-xl border border-line">
+      </div>
+        <div className="card overflow-x-auto">
           <table className="w-full border-collapse text-left text-[12.5px]">
-            <thead className="sticky top-0 bg-white">
+            <thead>
               <tr className="border-b border-line text-[11px] font-bold uppercase text-[#9aa2b1]">
                 <th className="px-3 py-2">{tr("Persona")}</th>
                 <th className="px-3 py-2">{tr("Sesso")}</th>
@@ -202,7 +251,6 @@ export function BenchmarkDetail({ role, level, people, stats, scopeText, onClose
             </tbody>
           </table>
         </div>
-      </div>
-    </Modal>
+    </div>
   );
 }

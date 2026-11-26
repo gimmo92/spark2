@@ -11,7 +11,9 @@ import { defaultRgaSelection, personPay } from "../lib/analysis/RgaComponents";
 import type { Employee } from "../lib/models/Employee";
 import { SALARY_METRICS, type SalaryMetric } from "../lib/models/constants";
 import { EmployeePanel } from "./EmployeePanel";
-import { EqualValueView } from "./RoleWeights";
+import Link from "next/link";
+import { EqualValueView, useEqualValueBands } from "./RoleWeights";
+import { bandName, type EqualValueBand } from "../lib/roleWeights";
 import { eur, gap, gapTone, num, pct } from "./format";
 
 const METRICS: { id: SalaryMetric; label: string; hint: string }[] = [
@@ -57,6 +59,7 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
   const hasCdr = scoped.hasCostCenterData();
   const costCenters = useMemo(() => (hasCdr ? scoped.costCenters(metric, true, rga) : []), [scoped, metric, hasCdr]); // eslint-disable-line react-hooks/exhaustive-deps
   const payOf = useMemo(() => scoped.salaryOf(metric, true, false, rga), [scoped, metric]); // eslint-disable-line react-hooks/exhaustive-deps
+  const equal = useEqualValueBands(population, payOf);
   const critical = useMemo(
     () =>
       ccnl
@@ -79,7 +82,7 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
     { id: "ccnl", label: "Per livello CCNL" },
     { id: "qualifica", label: "Per qualifica" },
     { id: "cdr", label: "Per centro di costo", hidden: !hasCdr },
-    { id: "parivalore", label: "Pari valore" },
+    { id: "parivalore", label: "Per fascia di job grading" },
     { id: "dipendenti", label: "Dipendenti" },
   ];
   const metricDef = METRICS.find((m) => m.id === metric)!;
@@ -150,7 +153,19 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
       {view !== "dipendenti" && <p className="text-[12px] text-muted">{tr(metricDef.hint)} {tr("Gap = (media uomini − media donne) / media uomini: positivo se gli uomini sono pagati di più. Soglia della direttiva: 5%.")}</p>}
 
       {view === "dashboard" && (
-        <Dashboard dash={dash} critical={critical} metricLabel={metricDef.label} ccnl={ccnl} costCenters={costCenters} excluded={excluded} all={all} />
+        <Dashboard
+          dash={dash}
+          critical={critical}
+          metricLabel={metricDef.label}
+          ccnl={ccnl}
+          costCenters={costCenters}
+          bands={equal.bands}
+          bandsUnconfirmed={equal.unconfirmed}
+          onBands={() => setView("parivalore")}
+          jobGradingHref={jobGradingHref}
+          excluded={excluded}
+          all={all}
+        />
       )}
       {view === "ccnl" &&
         (ccnl.length ? (
@@ -216,6 +231,10 @@ function Dashboard({
   metricLabel,
   ccnl,
   costCenters,
+  bands,
+  bandsUnconfirmed,
+  onBands,
+  jobGradingHref,
   excluded,
   all,
 }: {
@@ -224,6 +243,10 @@ function Dashboard({
   metricLabel: string;
   ccnl: ReturnType<CompensationAnalysis["ccnlGroups"]>;
   costCenters: ComparisonRow[];
+  bands: EqualValueBand[];
+  bandsUnconfirmed: number;
+  onBands: () => void;
+  jobGradingHref: string;
   excluded: Record<number, string>;
   all: Employee[];
 }) {
@@ -262,6 +285,43 @@ function Dashboard({
           )}
         </div>
       </div>
+
+      {bands.length > 0 && (
+        <div className="card p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <p className="text-[13px] font-semibold">{tr("Gap per fascia di job grading")}</p>
+            <button type="button" onClick={onBands} className="text-[12px] font-semibold text-brand hover:underline">
+              {tr("Dettaglio per fascia")}
+            </button>
+          </div>
+          <p className="mt-0.5 text-[12px] text-muted">
+            {tr("Ruoli di pari valore secondo la pesatura del Job grading, anche di livelli CCNL diversi.")}
+            {bandsUnconfirmed > 0 && (
+              <>
+                {" "}
+                <Link href={jobGradingHref} className="font-semibold text-amber-700 hover:underline">
+                  {tr("{0} ruoli da confermare", [bandsUnconfirmed])}
+                </Link>
+              </>
+            )}
+          </p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {bands.map(({ band, row, roles }) => (
+              <div key={band} className="rounded-xl border border-line px-3 py-2">
+                <div className="flex items-baseline justify-between gap-2">
+                  <span className="text-[12.5px] font-semibold">{tr(bandName(band))}</span>
+                  <span className={`text-[14px] font-bold tabular-nums ${row.insufficientSample ? "text-muted" : gapTone(row.gapMean)}`}>
+                    {row.insufficientSample ? tr("campione ridotto") : gap(row.gapMean)}
+                  </span>
+                </div>
+                <p className="text-[11.5px] text-muted">
+                  {tr("{0} punti", [row.groupLabel])} · {tr("{0} ruoli", [roles.length])} · {tr("{0} U · {1} D", [row.nM, row.nF])}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="card p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -338,8 +398,20 @@ function Dashboard({
               groupsAboveThreshold: ccnl.flatMap((g) =>
                 g.levels.filter((l) => l.status === "red" && l.gapMean != null).map((l) => ({ label: g.ccnlLabel ? `${g.ccnlLabel} · ${l.groupLabel}` : l.groupLabel, gapMean: l.gapMean, nTotal: l.nTotal })),
               ),
-              includeFascia: false,
-              fasciaRows: [],
+              includeFascia: bands.length > 0,
+              fasciaRows: bands.map(({ band, row, roles }) => ({
+                fasciaId: bandName(band),
+                fasciaLabel: `${row.groupLabel} punti`,
+                levelLabel: (() => {
+                  const names = roles.map((r) => r.role).join(", ");
+                  return names.length > 60 ? `${names.slice(0, 57)}…` : names;
+                })(),
+                nM: row.nM,
+                nF: row.nF,
+                gap: row.gapMean,
+                insufficientSample: row.insufficientSample,
+                status: row.status,
+              })),
               includeCostCenter: costCenters.length > 0,
               costCenterRows: costCenters.map((r) => ({ label: r.groupLabel || r.costCenterLabel || "–", nTotal: r.nTotal, nM: r.nM, nF: r.nF, gapMean: r.gapMean, insufficientSample: r.insufficientSample, status: r.status })),
               justifications: justified,

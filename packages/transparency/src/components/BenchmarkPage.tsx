@@ -12,7 +12,6 @@ import { SALARY_METRICS } from "../lib/models/constants";
 import { rolesOf } from "../lib/roleWeights";
 import { useBenchmarks, usePayAnalyses } from "../store";
 import { useBenchmarkRunner } from "./benchmarkRunner";
-import { BenchmarkDetail } from "./BenchmarkDetail";
 import { eur, gap } from "./format";
 
 const selectCls = "rounded-lg border border-[#dfe3ea] bg-white px-2 py-1.5 text-[12.5px] outline-none focus:border-brand disabled:bg-canvas";
@@ -28,7 +27,7 @@ const mean = (values: (number | null)[]) => {
  * company size, sector, seniority), compared with the company's mean full-time base pay. Figures
  * are prepared in the background when an analysis is saved; missing ones are filled when the page opens.
  */
-export function BenchmarkPage({ transparencyHref = "/trasparenza" }: { transparencyHref?: string }) {
+export function BenchmarkPage({ transparencyHref = "/trasparenza", detailHref = "/benchmarks/dettaglio" }: { transparencyHref?: string; detailHref?: string }) {
   const { analyses } = usePayAnalyses();
   const { get, sectorOf } = useBenchmarks();
   const { run, isRunning } = useBenchmarkRunner();
@@ -39,7 +38,6 @@ export function BenchmarkPage({ transparencyHref = "/trasparenza" }: { transpare
   const setScope = (patch: Partial<BenchmarkScope>) => saveScope(cleanScope({ ...scope, ...patch }));
   const [id, setId] = useState("");
   const [failed, setFailed] = useState(false);
-  const [detail, setDetail] = useState<string | null>(null);
 
   const doc = analyses.find((a) => a.id === id) ?? analyses[0];
   const people = useMemo(() => (doc ? (CompensationAnalysis.fromSnapshot(doc.snapshot)?.employees ?? []) : []), [doc]);
@@ -241,14 +239,13 @@ export function BenchmarkPage({ transparencyHref = "/trasparenza" }: { transpare
                       <td className="px-3 py-1.5 pr-4 text-right">
                         {s && (
                           <Tooltip label={tr("Visualizza")}>
-                            <button
-                              type="button"
+                            <Link
+                              href={`${detailHref}?analysis=${encodeURIComponent(doc.id)}&role=${encodeURIComponent(r.role)}`}
                               aria-label={tr("Visualizza {0}", [r.role])}
-                              onClick={() => setDetail(r.role)}
                               className="grid h-8 w-8 place-items-center rounded-lg text-muted transition-colors hover:bg-brand-soft hover:text-brand"
                             >
                               <Eye className="h-4 w-4" />
-                            </button>
+                            </Link>
                           </Tooltip>
                         )}
                       </td>
@@ -258,20 +255,6 @@ export function BenchmarkPage({ transparencyHref = "/trasparenza" }: { transpare
               </tbody>
             </table>
           </div>
-          {(() => {
-            const r = detail ? roles.find((x) => x.role === detail) : undefined;
-            const s = r && benchOf(r)?.stats;
-            return r && s ? (
-              <BenchmarkDetail
-                role={r.role}
-                level={r.level}
-                people={r.people}
-                stats={s}
-                scopeText={scopeParts({ ...scope, sector: scope.sector || sector }).map((p) => tr(p)).join(" · ")}
-                onClose={() => setDetail(null)}
-              />
-            ) : null;
-          })()}
         </>
       )}
     </div>

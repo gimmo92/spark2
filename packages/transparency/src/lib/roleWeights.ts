@@ -20,6 +20,17 @@ export const CRITERIA: { id: Criterion; label: string; hint: string; weight: num
 
 export type RoleScores = Record<Criterion, number>;
 
+/** Weight of each criterion in the total (sum 100); the company can change them (settings doc "jobGrading"). */
+export type CriteriaWeights = Record<Criterion, number>;
+export const DEFAULT_WEIGHTS: CriteriaWeights = Object.fromEntries(CRITERIA.map((c) => [c.id, c.weight])) as CriteriaWeights;
+
+/** Valid weights (integers ≥ 0 summing to 100), else the defaults. */
+export function cleanWeights(v: unknown): CriteriaWeights {
+  const o = (v && typeof v === "object" ? v : {}) as Record<string, unknown>;
+  const w = Object.fromEntries(CRITERIA.map((c) => [c.id, Math.max(0, Math.round(Number(o[c.id]) || 0))])) as CriteriaWeights;
+  return CRITERIA.reduce((n, c) => n + w[c.id], 0) === 100 ? w : DEFAULT_WEIGHTS;
+}
+
 /** Saved weighting of one role (collection `roleWeights`, one record per role title). */
 export interface RoleWeightDoc extends Doc {
   role: string;
@@ -58,7 +69,7 @@ export const normalizeScores = (s: Partial<Record<Criterion, unknown>>): RoleSco
   Object.fromEntries(CRITERIA.map((c) => [c.id, clampScore(Number(s[c.id]) || 1)])) as RoleScores;
 
 /** Weighted total, 10–100 points. */
-export const roleScore = (s: RoleScores) => Math.round(CRITERIA.reduce((sum, c) => sum + (s[c.id] * c.weight) / 10, 0));
+export const roleScore = (s: RoleScores, w: CriteriaWeights = DEFAULT_WEIGHTS) => Math.round(CRITERIA.reduce((sum, c) => sum + (s[c.id] * w[c.id]) / 10, 0));
 
 const mostCommon = (values: (string | null | undefined)[]) => {
   const count = new Map<string, number>();
@@ -106,6 +117,8 @@ export function estimateScores(role: string, people: Employee[]): RoleScores {
 /** Equal-value bands: 10 points wide, from the top. */
 export const bandOf = (score: number) => Math.min(9, Math.max(0, Math.floor((score - 1) / 10)));
 export const bandRange = (band: number) => [band * 10 + 1, band * 10 + 10] as const;
+/** "Fascia 7 · 61–70 punti" (band 6): bands numbered from 1, higher = more value. */
+export const bandName = (band: number) => `Fascia ${band + 1}`;
 
 export interface EqualValueBand {
   band: number;

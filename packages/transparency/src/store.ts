@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback } from "react";
-import { useCollection, type Doc } from "@spark/core";
+import { useCollection, useSettings, type Doc } from "@spark/core";
 import type { AnalysisSnapshot, SavedJustification } from "./lib/analysis/CompensationAnalysis";
 import { BENCHMARKS, PAY_ANALYSES, ROLE_WEIGHTS } from "./module";
 import type { AnalysisSectorDoc, BenchmarkDoc } from "./lib/benchmark";
-import type { RoleWeightDoc } from "./lib/roleWeights";
+import { DEFAULT_WEIGHTS, cleanWeights, type CriteriaWeights, type RoleWeightDoc } from "./lib/roleWeights";
 
 /** A saved analysis: the normalised employees of one payroll file, with the justified deviations. */
 export interface PayAnalysisDoc extends Doc {
@@ -81,6 +81,14 @@ export function useBenchmarks() {
   // the cache stays (company knowledge); only the analysis' recognised sector goes
   const removeFor = useCallback((analysisId: string) => update((prev) => prev.filter((d) => d.id !== `sector:${analysisId}`)), [update]);
   return { get, sectorOf, add, removeFor };
+}
+
+/** Weights of the job-grading criteria chosen by the company (settings doc "jobGrading", sum 100). */
+export function useCriteriaWeights() {
+  const [stored, patch] = useSettings<{ weights: CriteriaWeights }>("jobGrading", { weights: DEFAULT_WEIGHTS });
+  const weights = cleanWeights(stored.weights);
+  const setWeights = useCallback((w: CriteriaWeights) => patch({ weights: w }), [patch]);
+  return { weights, setWeights };
 }
 
 export type { SavedJustification };

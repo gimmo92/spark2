@@ -246,7 +246,7 @@ export function downloadGapReportPdf(payload: GapReportPayload) {
     y = table(
       doc,
       y,
-      [["Fascia", "Punteggio", "Livelli", "M", "F", "Gap", "Stato"]],
+      [["Fascia di job grading", "Punteggio", "Ruoli", "M", "F", "Gap", "Stato"]],
       payload.fasciaRows.map((row) => [
         row.fasciaId,
         row.fasciaLabel,
