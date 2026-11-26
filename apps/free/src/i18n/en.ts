@@ -6,4 +6,5 @@ export const EN: Record<string, string> = {
   Valutazioni: "Reviews",
   OKR: "OKR",
   MBO: "MBO",
+  "Analisi di clima": "Climate survey",
 };

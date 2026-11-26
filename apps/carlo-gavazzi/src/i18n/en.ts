@@ -13,4 +13,6 @@ export const EN: Record<string, string> = {
   "Persona della scheda": "Sheet person",
   "non impostato (Modifica utente)": "not set (Edit user)",
   "La scheda non ha ancora obiettivi.": "The sheet has no objectives yet.",
+  "Analisi di clima": "Climate survey",
+  "Trasparenza retributiva": "Pay transparency",
 };

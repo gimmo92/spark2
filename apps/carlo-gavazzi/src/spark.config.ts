@@ -1,4 +1,4 @@
-import { ChartColumn, Info, Settings, Target, User } from "lucide-react";
+import { ChartColumn, Info, Scale, Settings, Target, Thermometer, User } from "lucide-react";
 import { defineConfig } from "@spark/core";
 import { createMboModule } from "@spark/mbo";
 import { EN } from "./i18n/en";
@@ -73,6 +73,9 @@ export default defineConfig({
         { label: "Forecast", href: "/mbo/forecast", permission: "mbo.forecast.view" },
       ],
     },
+    // other Spark modules, not in this installation
+    { label: "Trasparenza retributiva", href: "/trasparenza", icon: Scale, locked: true },
+    { label: "Analisi di clima", href: "/clima", icon: Thermometer, locked: true },
     { label: "Impostazioni", href: "/impostazioni", icon: Settings },
   ],
   dashboardTabs: [

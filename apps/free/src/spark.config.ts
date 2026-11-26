@@ -1,4 +1,4 @@
-import { BookOpen, ChartColumn, Goal, Info, Scale, Settings, Star, Target, User } from "lucide-react";
+import { BookOpen, ChartColumn, Goal, Info, Scale, Settings, Star, Target, Thermometer, User } from "lucide-react";
 import { defineConfig } from "@spark/core";
 import { mboModule } from "@spark/mbo";
 import { transparencyModule } from "@spark/transparency";
@@ -23,7 +23,6 @@ export default defineConfig({
   // what a new company gets (the rest is shown locked until staff switch it on in the Spark panel)
   tenantModules: ["transparency"],
   nav: [
-    { label: "Trasparenza retributiva", href: "/trasparenza", icon: Scale, permission: "transparency.view", module: "transparency" },
     { label: "Profilo", href: "/profilo", icon: Info },
     { label: "Dashboard", href: "/dashboard", icon: ChartColumn, locked: true },
     {
@@ -52,6 +51,8 @@ export default defineConfig({
     { label: "Competenze", href: "/competenze", icon: BookOpen, locked: true },
     { label: "Valutazioni", href: "/valutazioni", icon: Star, locked: true },
     { label: "OKR", href: "/okr", icon: Goal, locked: true },
+    { label: "Trasparenza retributiva", href: "/trasparenza", icon: Scale, permission: "transparency.view", module: "transparency" },
+    { label: "Analisi di clima", href: "/clima", icon: Thermometer, locked: true },
     { label: "Impostazioni", href: "/impostazioni", icon: Settings },
   ],
   dashboardTabs: [],
