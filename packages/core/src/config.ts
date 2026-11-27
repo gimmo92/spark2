@@ -119,6 +119,8 @@ export interface SparkConfig {
    * panel (default: every module on in the installation).
    */
   tenantModules?: string[];
+  /** Multi-tenant apps: the "Stai lavorando su X · Cambia azienda" bar shown to staff above every page (default true). */
+  tenantBar?: boolean;
   /** Tooltip of the `locked` menu entries (default "Non incluso nel tuo piano"). Italian, translated with tr(). */
   lockedHint?: string;
   /** localStorage key prefix for the browser-only fallback. */

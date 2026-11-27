@@ -13,6 +13,8 @@ import { EN } from "./i18n/en";
 export default defineConfig({
   appName: "Spark",
   multiTenant: true,
+  // no "working on company X" bar: staff switch company from the Spark panel
+  tenantBar: false,
   home: "/trasparenza",
   messages: { en: EN },
   // the rest of Spark is shown locked: what a company gets when it moves to a paid plan

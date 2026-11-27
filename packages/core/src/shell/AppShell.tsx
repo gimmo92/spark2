@@ -45,7 +45,7 @@ function DataBanner() {
 }
 
 /** Multi-tenant apps: staff pick a tenant first, then see which one they are working on. */
-function TenantGate({ multiTenant, children }: { multiTenant: boolean; children: React.ReactNode }) {
+function TenantGate({ multiTenant, showBar, children }: { multiTenant: boolean; showBar: boolean; children: React.ReactNode }) {
   const { viewer } = useCore();
   if (!multiTenant || !viewer?.staff) return <>{children}</>;
   if (!viewer.tenant)
@@ -54,6 +54,7 @@ function TenantGate({ multiTenant, children }: { multiTenant: boolean; children:
         <NoTenant />
       </Suspense>
     );
+  if (!showBar) return <>{children}</>;
   return (
     <>
       <TenantBar name={viewer.tenantName} />
@@ -119,7 +120,7 @@ export function AppShell({ config, children }: { config: SparkConfig; children: 
           </header>
           <main className="px-4 py-5 lg:px-6 lg:py-4 print:p-0">
             <DataBanner />
-            <TenantGate multiTenant={!!config.multiTenant}>
+            <TenantGate multiTenant={!!config.multiTenant} showBar={config.tenantBar !== false}>
               <Suspense fallback={null}>
                 <RouteGuard>{children}</RouteGuard>
               </Suspense>
