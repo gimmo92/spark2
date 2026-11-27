@@ -51,7 +51,7 @@ export default defineConfig({
         { label: "Job grading", href: "/job-grading", permission: "transparency.view", module: "transparency" },
         { label: "Benchmarks", href: "/benchmarks", permission: "transparency.view", module: "transparency" },
         { label: "Salary review", href: "/salary-review", locked: true },
-        { label: "Salary bands", href: "/salary-bands", locked: true },
+        { label: "Salary bands", href: "/salary-bands", permission: "transparency.view", module: "transparency" },
       ],
     },
     { label: "Competenze", href: "/competenze", icon: BookOpen, muted: true },
