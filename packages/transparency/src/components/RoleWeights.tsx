@@ -87,7 +87,6 @@ function WeightsEditor({ canManage }: { canManage: boolean }) {
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-0 flex-1 basis-60">
           <p className="text-[12.5px] font-semibold">{tr("Pesi dei fattori")}</p>
-          <p className="mt-0.5 text-[12px] text-muted">{tr("Quanto conta ogni fattore nel punteggio totale. La somma deve fare 100.")}</p>
         </div>
         {CRITERIA.map((c) => (
           <label key={c.id} className="w-[110px]">
@@ -171,11 +170,6 @@ export function RoleWeightsView({ people, canManage }: { people: Employee[]; can
       <div className="card flex flex-wrap items-start gap-3 px-4 py-3">
         <div className="min-w-0 flex-1">
           <p className="text-[13.5px] font-semibold">{tr("Pesatura dei ruoli")}</p>
-          <p className="mt-0.5 max-w-3xl text-[12px] text-muted">
-            {tr(
-              "Ogni ruolo riceve da 1 a 10 punti su competenze, responsabilità, impegno e condizioni di lavoro; il totale pesato, da 10 a 100, colloca i ruoli nelle fasce di pari valore (10 punti l'una). All'AI vanno solo titoli, livelli e qualifiche: mai nomi o retribuzioni.",
-            )}
-          </p>
           <p className="mt-1 text-[12px] font-semibold">
             {tr("{0} ruoli · {1} confermati · {2} da rivedere", [rows.length, rows.length - pending.length, pending.length])}
           </p>
@@ -308,9 +302,6 @@ export function EqualValueView({
 
   return (
     <div className="space-y-3">
-      <p className="text-[12px] text-muted">
-        {tr("Ruoli di livelli CCNL diversi con un punteggio simile svolgono lavoro di pari valore: il confronto uomo / donna si fa dentro ogni fascia di 10 punti.")}
-      </p>
       {unconfirmed > 0 && (
         <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] font-semibold text-amber-900">
           <span className="flex-1">{tr("{0} ruoli su {1} hanno una pesatura non confermata: le fasce sono provvisorie.", [unconfirmed, roles])}</span>

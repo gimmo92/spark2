@@ -402,7 +402,6 @@ function SchedaEditor({ scheda }: { scheda?: Scheda }) {
         {items.length === 0 ? (
           <div className="mt-4 rounded-xl border border-dashed border-[#dfe3ea] px-4 py-8 text-center">
             <p className="text-[13px] font-semibold">{tr("Nessun obiettivo nella scheda")}</p>
-            <p className="mt-0.5 text-[12px] text-muted">{tr("Selezionali dall'elenco oppure creane uno nuovo.")}</p>
           </div>
         ) : (
           <div className="mt-4 space-y-2">

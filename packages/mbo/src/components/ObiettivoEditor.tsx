@@ -307,7 +307,6 @@ function ObiettivoEditor({ def }: { def?: ObjectiveDef }) {
         {selectedIds.length === 0 ? (
           <div className="mt-4 rounded-xl border border-dashed border-[#dfe3ea] px-4 py-8 text-center">
             <p className="text-[13px] font-semibold">{tr("Nessuna scheda assegnata")}</p>
-            <p className="mt-0.5 text-[12px] text-muted">{tr("Seleziona una o più schede per impostare peso e livelli target/payout.")}</p>
           </div>
         ) : (
           <div className="mt-4 space-y-2">

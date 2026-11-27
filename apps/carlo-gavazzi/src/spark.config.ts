@@ -67,6 +67,7 @@ export default defineConfig({
       label: "Compensation",
       icon: Banknote,
       children: [
+        { label: "Caricamento dati", href: "/caricamento-dati", locked: true },
         { label: "Trasparenza salariale", href: "/trasparenza", locked: true },
         { label: "Job grading", href: "/job-grading", locked: true },
         { label: "Benchmarks", href: "/benchmarks", locked: true },

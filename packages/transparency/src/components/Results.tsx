@@ -2,16 +2,15 @@
 
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AlertTriangle, Check, ChevronDown, FileDown, Plus, Save, Search, SlidersHorizontal } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, FileDown, Search } from "lucide-react";
 import { Field, GhostButton, Modal, PrimaryButton, inputCls, localeTag, tr, useOrg } from "@spark/core";
-import { CompensationAnalysis, canonicalEmployeeId, type SavedJustification } from "../lib/analysis/CompensationAnalysis";
+import { CompensationAnalysis } from "../lib/analysis/CompensationAnalysis";
 import { GapGroupAnalyzer, type ComparisonRow } from "../lib/analysis/GapGroupAnalyzer";
 import { downloadGapReportPdf } from "../lib/analysis/GapReportPdf";
 import { LevelTaxonomy } from "../lib/analysis/LevelTaxonomy";
 import { RGA_COMPONENTS, RGA_LABELS, defaultRgaSelection, personPay, type RgaSelection } from "../lib/analysis/RgaComponents";
 import type { Employee } from "../lib/models/Employee";
 import { SALARY_METRICS, type SalaryMetric } from "../lib/models/constants";
-import { EmployeePanel } from "./EmployeePanel";
 import { ExpandToggle, GroupPeople, type PersonOpener } from "./GroupPeople";
 import Link from "next/link";
 import { EqualValueView, useEqualValueBands } from "./RoleWeights";
@@ -29,24 +28,19 @@ type View = ResultsView;
 
 interface Props {
   analysis: CompensationAnalysis;
-  fileName: string;
-  savedName?: string;
-  saved: boolean;
-  canManage: boolean;
-  onSave: (name: string, justifications: SavedJustification[]) => void;
-  onNew: () => void;
-  onEditMapping?: () => void;
+  /** Name of the loaded data (Caricamento dati). */
+  name: string;
   /** Page of the role weighting (Job grading), linked from the equal-value view. */
   jobGradingHref?: string;
-  /** Saved analysis: people open on their own page (employeeHref), otherwise in a panel. */
-  analysisId?: string;
+  /** Loaded data id: people open on their page (employeeHref), where justifications are saved. */
+  analysisId: string;
   employeeHref?: string;
   initialView?: ResultsView;
   onView?: (view: ResultsView) => void;
 }
 
 /** Results of one analysis: EU dashboard, gaps by CCNL level / qualification / cost centre, employees. */
-export function Results({ analysis, fileName, savedName, saved, canManage, onSave, onNew, onEditMapping, jobGradingHref = "/job-grading", analysisId, employeeHref = "/trasparenza/dipendente", initialView, onView }: Props) {
+export function Results({ analysis, name, jobGradingHref = "/job-grading", analysisId, employeeHref = "/trasparenza/dipendente", initialView, onView }: Props) {
   const all = analysis.employees;
   const [view, setViewState] = useState<View>(initialView ?? "dashboard");
   const setView = (v: View) => {
@@ -56,10 +50,8 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
   const router = useRouter();
   const [metric, setMetric] = useState<SalaryMetric>(SALARY_METRICS.base);
   const [company, setCompany] = useState("");
-  const [excluded, setExcluded] = useState<Record<number, string>>(() => CompensationAnalysis.exclusionMap(all, analysis.justifications));
-  const [person, setPerson] = useState<Employee | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [dirty, setDirty] = useState(false);
+  // justified people (saved on their page) are left out of the gap figures and listed in the report
+  const excluded = useMemo(() => CompensationAnalysis.exclusionMap(all, analysis.justifications), [all, analysis]);
 
   // voices of total / variable pay the user includes (Spark/TEA template only)
   const [selection, setSelection] = useState<RgaSelection>(defaultRgaSelection);
@@ -75,11 +67,8 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
   const qualifications = useMemo(() => scoped.qualificationGroups(metric, true, rga), [scoped, metric, rgaKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const hasCdr = scoped.hasCostCenterData();
   const costCenters = useMemo(() => (hasCdr ? scoped.costCenters(metric, true, rga) : []), [scoped, metric, hasCdr, rgaKey]); // eslint-disable-line react-hooks/exhaustive-deps
-  // saved analysis: a person opens on their page; otherwise in the panel
-  const opener: PersonOpener = analysisId
-    ? { href: (e) => `${employeeHref}?analisi=${encodeURIComponent(analysisId)}&dip=${e.index}` }
-    : { onOpen: (e) => setPerson(e) };
-  const openPerson = (e: Employee) => (opener.href ? router.push(opener.href(e)) : setPerson(e));
+  const opener: PersonOpener = { href: (e) => `${employeeHref}?analisi=${encodeURIComponent(analysisId)}&dip=${e.index}` };
+  const openPerson = (e: Employee) => router.push(opener.href!(e));
   const payOf = useMemo(() => scoped.salaryOf(metric, true, false, rga), [scoped, metric, rgaKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const equal = useEqualValueBands(population, payOf);
   const roleRows = useMemo(() => GapGroupAnalyzer.byRole(population, payOf).sort((a, b) => b.nTotal - a.nTotal), [population, payOf]);
@@ -91,14 +80,6 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
     [ccnl],
   );
 
-  const justifications = (): SavedJustification[] =>
-    Object.entries(excluded)
-      .map(([index, note]) => {
-        const p = all.find((e) => String(e.index) === index);
-        const employeeId = canonicalEmployeeId(p?.employeeId);
-        return employeeId ? { employeeId, name: p?.name ?? null, note } : null;
-      })
-      .filter((x): x is SavedJustification => !!x);
 
   const tabs: { id: View; label: string; hidden?: boolean }[] = [
     { id: "dashboard", label: "Dashboard UE" },
@@ -115,26 +96,12 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
     <div className="space-y-3">
       <div className="card flex flex-wrap items-center gap-3 px-4 py-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13.5px] font-semibold">{savedName ?? fileName}</p>
+          <p className="truncate text-[13.5px] font-semibold">{name}</p>
           <p className="text-[12px] text-muted">
             {tr("{0} dipendenti", [all.length])}
             {Object.keys(excluded).length > 0 && ` · ${tr("{0} esclusi con giustificazione", [Object.keys(excluded).length])}`}
-            {saved && !dirty && ` · ${tr("salvata nello storico")}`}
           </p>
         </div>
-        {onEditMapping && (
-          <GhostButton onClick={onEditMapping} className="flex items-center gap-1.5">
-            <SlidersHorizontal className="h-3.5 w-3.5" /> {tr("Colonne")}
-          </GhostButton>
-        )}
-        <GhostButton onClick={onNew} className="flex items-center gap-1.5">
-          <Plus className="h-3.5 w-3.5" /> {tr("Nuova analisi")}
-        </GhostButton>
-        {canManage && (!saved || dirty) && (
-          <PrimaryButton onClick={() => (saved ? (onSave(savedName ?? fileName, justifications()), setDirty(false)) : setSaving(true))} className="flex items-center gap-1.5">
-            <Save className="h-3.5 w-3.5" /> {saved ? tr("Salva modifiche") : tr("Salva nello storico")}
-          </PrimaryButton>
-        )}
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -178,7 +145,6 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
             ))}
         </div>
       </div>
-      {view !== "dipendenti" && <p className="text-[12px] text-muted">{tr(metricDef.hint)} {tr("Gap = (media uomini − media donne) / media uomini: positivo se gli uomini sono pagati di più. Soglia della direttiva: 5%.")}</p>}
 
       {view === "dashboard" && (
         <Dashboard
@@ -207,35 +173,6 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
       {view === "parivalore" && <EqualValueView people={population} getSalary={payOf} weighHref={jobGradingHref} opener={opener} rga={rga} />}
       {view === "dipendenti" && <Employees people={company ? all.filter((e) => e.company === company) : all} excluded={excluded} onOpen={openPerson} />}
 
-      {person && (
-        <EmployeePanel
-          person={person}
-          peers={all.filter((e) => !excluded[e.index] || e.index === person.index)}
-          note={excluded[person.index] ?? ""}
-          canManage={canManage}
-          onNote={(note) => {
-            setExcluded((prev) => {
-              const next = { ...prev };
-              if (note) next[person.index] = note;
-              else delete next[person.index];
-              return next;
-            });
-            setDirty(true);
-          }}
-          onClose={() => setPerson(null)}
-        />
-      )}
-      {saving && (
-        <SaveModal
-          defaultName={fileName.replace(/\.[^.]+$/, "")}
-          onClose={() => setSaving(false)}
-          onSave={(name) => {
-            onSave(name, justifications());
-            setSaving(false);
-            setDirty(false);
-          }}
-        />
-      )}
     </div>
   );
 }
@@ -324,10 +261,8 @@ function Dashboard({
             </button>
           </div>
           <p className="mt-0.5 text-[12px] text-muted">
-            {tr("Ruoli di pari valore secondo la pesatura del Job grading, anche di livelli CCNL diversi.")}
             {bandsUnconfirmed > 0 && (
               <>
-                {" "}
                 <Link href={jobGradingHref} className="font-semibold text-amber-700 hover:underline">
                   {tr("{0} ruoli da confermare", [bandsUnconfirmed])}
                 </Link>
@@ -355,7 +290,6 @@ function Dashboard({
       <div className="card p-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <p className="text-[13px] font-semibold">{tr("Quartili retributivi")}</p>
-          <p className="text-[12px] text-muted">{tr("Dal 25% meno pagato (Q1) al 25% più pagato (Q4): quanti uomini e donne ci sono in ogni fascia.")}</p>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
           {dash.quartiles.map((q) => (
@@ -396,7 +330,6 @@ function Dashboard({
         <FileDown className="h-5 w-5 text-brand" />
         <div className="min-w-0 flex-1">
           <p className="text-[13px] font-semibold">{tr("Report sul divario retributivo")}</p>
-          <p className="text-[12px] text-muted">{tr("PDF con indicatori, quartili, livelli CCNL e giustificazioni, pronto per la comunicazione prevista dalla direttiva.")}</p>
         </div>
         <PrimaryButton onClick={() => setReport(true)}>{tr("Scarica PDF")}</PrimaryButton>
       </div>
@@ -670,37 +603,5 @@ function Employees({ people, excluded, onOpen }: { people: Employee[]; excluded:
         {!shown.length && <p className="px-4 py-6 text-center text-[12.5px] text-muted">{tr("Nessun dipendente trovato.")}</p>}
       </div>
     </div>
-  );
-}
-
-function SaveModal({ defaultName, onClose, onSave }: { defaultName: string; onClose: () => void; onSave: (name: string) => void }) {
-  const [name, setName] = useState(defaultName);
-  return (
-    <Modal
-      title="Salva nello storico"
-      onClose={onClose}
-      width="max-w-md"
-      footer={
-        <>
-          <GhostButton onClick={onClose}>{tr("Annulla")}</GhostButton>
-          <PrimaryButton disabled={!name.trim()} onClick={() => onSave(name.trim())}>
-            {tr("Salva")}
-          </PrimaryButton>
-        </>
-      }
-    >
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (name.trim()) onSave(name.trim());
-        }}
-        className="space-y-2"
-      >
-        <Field label="Nome dell'analisi">
-          <input autoFocus className={inputCls} value={name} onChange={(e) => setName(e.target.value)} />
-        </Field>
-        <p className="text-[12px] text-muted">{tr("Si salvano i dati retributivi dei dipendenti, visibili solo a chi ha il permesso sulla trasparenza retributiva.")}</p>
-      </form>
-    </Modal>
   );
 }

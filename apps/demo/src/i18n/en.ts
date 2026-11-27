@@ -18,4 +18,5 @@ export const EN: Record<string, string> = {
   "Salary review": "Salary review",
   "Salary bands": "Salary bands",
   "Benchmarks": "Benchmarks",
+  "Caricamento dati": "Data upload",
 };

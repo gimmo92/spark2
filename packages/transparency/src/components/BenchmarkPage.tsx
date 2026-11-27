@@ -76,7 +76,6 @@ export function BenchmarkPage({ transparencyHref = "/trasparenza", detailHref = 
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-[14px] font-semibold">{tr("Benchmarks")}</h1>
-          <p className="mt-0.5 max-w-3xl text-[12.5px] text-muted">{tr("Range di mercato per ruolo (RAL annua lorda a tempo pieno), confrontati con la RAL media a tempo pieno dell'azienda.")}</p>
         </div>
         {analyses.length > 1 && (
           <label className="flex items-center gap-2 text-[12.5px] text-muted">

@@ -2,6 +2,7 @@
 export * from "./module";
 export * from "./store";
 export * from "./components/TransparencyPage";
+export * from "./components/DataUploadPage";
 export * from "./components/Results";
 export * from "./components/EmployeePanel";
 export * from "./components/EmployeePage";

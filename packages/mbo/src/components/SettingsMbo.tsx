@@ -45,7 +45,6 @@ export function SettingsMbo() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-[14px] font-bold">{tr("Preset target / payout")}</h2>
-            <p className="mt-0.5 max-w-xl text-[12.5px] text-muted">{tr("Schemi di livelli riutilizzabili. Negli obiettivi li selezioni dal menu “Preset target / payout” per compilare livelli e modalità di calcolo.")}</p>
           </div>
           <button
             type="button"
@@ -251,7 +250,6 @@ function ThresholdSettings() {
         </span>
         <div className="min-w-0 flex-1">
           <h2 className="text-[14px] font-bold">{tr("Obiettivo soglia globale")}</h2>
-          <p className="mt-0.5 max-w-2xl text-[12.5px] text-muted">{tr("Vale per tutte le schede: se non raggiunge il primo livello target, nessuna scheda matura payout. Ogni scheda può avere in più una propria soglia, impostata nelle sue opzioni avanzate.")}</p>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,340px)_180px_1fr] sm:items-end">
             <Block label={tr("Obiettivo soglia globale")}>

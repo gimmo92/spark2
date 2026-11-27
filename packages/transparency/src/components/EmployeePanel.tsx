@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { FileText } from "lucide-react";
-import { Field, GhostButton, Modal, PrimaryButton, inputCls, tr } from "@spark/core";
+import { Field, GhostButton, PrimaryButton, inputCls, tr } from "@spark/core";
 import { LevelTaxonomy } from "../lib/analysis/LevelTaxonomy";
 import { assessPayLetter, downloadPayLetter, type PayLetterScope } from "../lib/analysis/PayLetter";
 import { yearsOfService } from "../lib/analysis/RoleAnalyzer";
@@ -124,9 +124,6 @@ export function PayLetterSection({ person, peers }: { person: Employee; peers: E
       <p className="flex items-center gap-1.5 text-[13px] font-semibold">
         <FileText className="h-4 w-4 text-brand" /> {tr("Comunicazione retributiva individuale")}
       </p>
-      <p className="mt-0.5 text-[12px] text-muted">
-        {tr("PDF per il diritto di informazione (art. 7): posizionamento nella categoria, medie e mediane per genere, divario su retribuzione base, variabile e totale.")}
-      </p>
       <div className="mt-2 grid gap-2 sm:grid-cols-[1fr_160px_auto] sm:items-end">
         <Field label="Periodo di riferimento">
           <input className={inputCls} value={period} onChange={(e) => setPeriod(e.target.value)} />
@@ -161,9 +158,6 @@ export function JustificationSection({ note, onNote }: { note: string; onNote: (
   return (
     <section className="rounded-xl border border-line p-3">
       <p className="text-[13px] font-semibold">{tr("Giustificazione dello scostamento")}</p>
-      <p className="mt-0.5 text-[12px] text-muted">
-        {tr("Motivi oggettivi e neutri rispetto al genere (anzianità, competenze, prestazione). La persona esce dal calcolo dei divari e la nota compare nel report.")}
-      </p>
       <textarea className={`${inputCls} mt-2 min-h-[70px]`} value={draft} onChange={(e) => setDraft(e.target.value)} />
       <div className="mt-2 flex justify-end gap-2">
         {note && (
@@ -181,35 +175,5 @@ export function JustificationSection({ note, onNote }: { note: string; onNote: (
         </PrimaryButton>
       </div>
     </section>
-  );
-}
-
-/**
- * One employee in a panel (analysis not saved yet): profile, pay composition, justification and the
- * individual pay information letter. Saved analyses open the employee's page instead.
- */
-export function EmployeePanel({
-  person,
-  peers,
-  note,
-  canManage,
-  onNote,
-  onClose,
-}: {
-  person: Employee;
-  peers: Employee[];
-  note: string;
-  canManage: boolean;
-  onNote: (note: string) => void;
-  onClose: () => void;
-}) {
-  return (
-    <Modal title={person.name || person.employeeId || tr("Dipendente")} onClose={onClose} width="max-w-3xl">
-      <div className="space-y-4">
-        <EmployeeProfile person={person} />
-        <PayLetterSection person={person} peers={peers} />
-        {canManage && <JustificationSection note={note} onNote={onNote} />}
-      </div>
-    </Modal>
   );
 }

@@ -23,7 +23,6 @@ export function JobGradingPage({ transparencyHref = "/trasparenza" }: { transpar
       <div className="flex flex-wrap items-center gap-3">
         <div className="min-w-0 flex-1">
           <h1 className="text-[14px] font-semibold">{tr("Job grading")}</h1>
-          <p className="mt-0.5 text-[12.5px] text-muted">{tr("Pesatura dei ruoli per individuare il lavoro di pari valore (art. 4 della direttiva UE 2023/970).")}</p>
         </div>
         {analyses.length > 1 && (
           <label className="flex items-center gap-2 text-[12.5px] text-muted">

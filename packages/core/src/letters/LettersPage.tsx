@@ -88,7 +88,6 @@ export function LettersPage() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-[18px] font-bold leading-tight">{tr("Gestione lettere")}</h1>
-          <p className="mt-0.5 text-[12.5px] text-muted">{tr("Modelli sulla carta intestata dell'azienda, compilati con i dati di ogni persona")}</p>
         </div>
         <PrimaryButton onClick={() => create()}>
           <Plus className="h-3.5 w-3.5" strokeWidth={3} />{" "}{tr("Nuovo modello")}</PrimaryButton>
@@ -367,7 +366,6 @@ function Preview({ template }: { template: LetterTemplate }) {
       <div className="flex flex-wrap items-end gap-3">
         <div className="min-w-0">
           <h2 className="text-[14px] font-bold">{tr("Anteprima")}</h2>
-          <p className="text-[12px] text-muted">{tr("La lettera compilata con i dati della persona scelta (anche con le modifiche non salvate)")}</p>
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2">
           <div className="w-[260px]">

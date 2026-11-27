@@ -180,7 +180,6 @@ export function Forecast() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-[18px] font-bold leading-tight">{tr("Forecast MBO")}</h1>
-          <p className="mt-0.5 text-[12.5px] text-muted">{tr("Stima il risultato degli obiettivi e guarda l'effetto su payout e costo dei bonus. Le stime non modificano le schede.")}</p>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[12px] text-muted">{tr("Scenario:")}{" "}<span className="font-semibold text-ink">{tr(sc.name)}</span>
@@ -370,7 +369,6 @@ export function Forecast() {
                 <div className="flex flex-wrap items-center justify-between gap-3 px-5 pt-5">
                   <div>
                     <h2 className="text-[13px] font-bold">{tr("Payout per scheda")}</h2>
-                    <p className="mt-0.5 text-[11.5px] text-muted">{tr("Bonus a target per assegnatario: modificabile per ogni scheda.")}</p>
                   </div>
                   <label className="flex items-center gap-2 text-[12px] font-semibold text-muted">{tr("Bonus a target predefinito")}<span className="relative">
                       <input

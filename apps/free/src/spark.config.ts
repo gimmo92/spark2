@@ -48,6 +48,7 @@ export default defineConfig({
       label: "Compensation",
       icon: Banknote,
       children: [
+        { label: "Caricamento dati", href: "/caricamento-dati", permission: "transparency.manage", module: "transparency" },
         { label: "Trasparenza salariale", href: "/trasparenza", permission: "transparency.view", module: "transparency" },
         { label: "Job grading", href: "/job-grading", permission: "transparency.view", module: "transparency" },
         { label: "Benchmarks", href: "/benchmarks", permission: "transparency.view", module: "transparency" },

@@ -68,18 +68,12 @@ export function SparkPanel() {
         <h1 className="flex items-center gap-2 text-[14px] font-semibold">
           <ShieldCheck className="h-4 w-4 text-brand" /> {tr("Pannello Spark")}
         </h1>
-        <p className="mt-0.5 text-[12.5px] text-muted">{tr("Riservato al team Spark: moduli di questa installazione e aziende che la usano.")}</p>
       </div>
       {error && <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] font-semibold text-amber-900">{tr(error)}</div>}
 
       {panel && (
         <section className="card p-4">
           <p className="text-[13px] font-semibold">{tr("Moduli dell'installazione")}</p>
-          <p className="mt-0.5 text-[12px] text-muted">
-            {panel.multiTenant
-              ? tr("Moduli disponibili in questa app. Ogni azienda usa solo quelli attivi qui e scelti per lei qui sotto.")
-              : tr("Un modulo spento compare bloccato nel menu e i suoi dati non sono più accessibili (restano salvati).")}
-          </p>
           <ul className="mt-2 divide-y divide-line">
             {panel.modules.map((m) => {
               const on = panel.installation.includes(m.id);
