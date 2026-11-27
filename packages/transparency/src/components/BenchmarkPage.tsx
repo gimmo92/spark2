@@ -9,7 +9,7 @@ import { CompensationAnalysis } from "../lib/analysis/CompensationAnalysis";
 import { LevelTaxonomy } from "../lib/analysis/LevelTaxonomy";
 import { personPay } from "../lib/analysis/RgaComponents";
 import { SalaryMath } from "../lib/analysis/SalaryMath";
-import { benchmarkKey, marketBand, scopeParts, uncovered, type BenchmarkDoc } from "../lib/benchmark";
+import { benchmarkKey, marketBand, uncovered, type BenchmarkDoc } from "../lib/benchmark";
 import type { Employee } from "../lib/models/Employee";
 import { SALARY_METRICS } from "../lib/models/constants";
 import { rolesOf } from "../lib/roleWeights";
@@ -75,11 +75,6 @@ export function BenchmarkPage({ uploadHref = "/caricamento-dati", detailHref = "
   }, [missingKey]);
 
   const roleHref = (role: string) => (doc ? `${detailHref}?analysis=${encodeURIComponent(doc.id)}&role=${encodeURIComponent(role)}` : "#");
-  const updated = allRoles
-    .map((r) => benchOf(r)?.fetchedAt)
-    .filter((x): x is string => !!x)
-    .sort()
-    .pop();
   const pending = loading || (!!missing.length && canManage && !failed);
 
   return (
@@ -131,11 +126,6 @@ export function BenchmarkPage({ uploadHref = "/caricamento-dati", detailHref = "
                 </button>
               ))}
             </div>
-            <p className="text-[11.5px] text-muted">
-              {tr("Benchmark di mercato Spark")}
-              {updated && ` · ${tr("aggiornato al {0}", [new Date(updated).toLocaleDateString(localeTag(), { day: "numeric", month: "long", year: "numeric" })])}`}
-              {` · ${scopeParts({ ...scope, sector }).map((p) => tr(p)).join(" · ")}`}
-            </p>
           </div>
           {failed && (
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[12.5px] font-semibold text-amber-900">
