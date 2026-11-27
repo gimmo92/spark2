@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { ArrowLeft, X } from "lucide-react";
 import { Badge, GhostButton, PrimaryButton, Tooltip, tr, useAccess, useData } from "@spark/core";
 import { CompensationAnalysis } from "../lib/analysis/CompensationAnalysis";
-import { roleTitle, rolesOf } from "../lib/roleWeights";
+import { rolesOf } from "../lib/roleWeights";
 import { useBenchmarks, usePayAnalyses } from "../store";
 import { personPay } from "../lib/analysis/RgaComponents";
 import { SalaryMath } from "../lib/analysis/SalaryMath";
@@ -18,7 +18,8 @@ import { SALARY_METRICS } from "../lib/models/constants";
 import { eur, gap, num } from "./format";
 
 /** Categorical slots 1–2 of the validated reference palette (blue / orange, CVD-safe on white). */
-const COLOR = { M: "#257de0", F: "#f47230" } as const;
+/** Categorical slot 1 of the validated reference palette. */
+const DOT = "#257de0";
 const BAND_LABEL: Record<MarketBand, string> = { sotto: "Sotto il Q1", q1: "Tra Q1 e mediana", q3: "Tra mediana e Q3", sopra: "Sopra il Q3" };
 
 const W = 640;
@@ -34,10 +35,10 @@ function niceStep(span: number, target = 5) {
 }
 
 /**
- * Page /benchmarks/dettaglio?analysis=…&role=…: one role against its market benchmark. The role is
- * widened to its equivalent titles (proposed once and stored, so the same role always gets the same
- * set; editable and saved by the user), with its own comparison scope (starts from the company
- * default). The route needs <Suspense> (it reads the URL on the client).
+ * Page /benchmarks/dettaglio?analysis=…&role=…: one role against its market benchmark, with its
+ * market synonyms (proposed once and stored, so the same role always gets the same set; editable and
+ * saved by the user; used on the market side: estimate today, market search later) and its own
+ * comparison scope (starts from the company default). The route needs <Suspense>.
  */
 export function BenchmarkDetailPage({ backHref = "/benchmarks?tab=ruoli" }: { backHref?: string }) {
   const params = useSearchParams();
@@ -55,21 +56,14 @@ export function BenchmarkDetailPage({ backHref = "/benchmarks?tab=ruoli" }: { ba
   const roleName = params.get("role") ?? "";
   const people = useMemo(() => (doc ? (CompensationAnalysis.fromSnapshot(doc.snapshot)?.employees ?? []) : []), [doc]);
   const info = useMemo(() => rolesOf(people).find((r) => r.role === roleName), [people, roleName]);
-  // every job title in the company's uploaded data: the candidates for equivalent titles
-  const candidates = useMemo(() => {
-    const set = new Set<string>();
-    for (const a of analyses) for (const e of CompensationAnalysis.fromSnapshot(a.snapshot)?.employees ?? []) if (roleTitle(e)) set.add(roleTitle(e));
-    set.delete(roleName);
-    return [...set].sort((a, b) => a.localeCompare(b, "it"));
-  }, [analyses, roleName]);
 
   const family = familyOf(roleName);
-  // first time: propose the equivalent titles and store them (coherent from then on)
+  // first time: propose the market synonyms and store them (coherent from then on)
   const needFamily = !!info && !family && canManage && !familyFailed;
   useEffect(() => {
     if (!needFamily) return;
     let alive = true;
-    fetch("/api/transparency/equivalents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: roleName, candidates }) })
+    fetch("/api/transparency/equivalents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: roleName, level: info?.level, qualification: info?.qualification }) })
       .then(async (r) => {
         const body = (await r.json().catch(() => ({}))) as { titles?: string[] };
         if (!alive) return;
@@ -86,10 +80,6 @@ export function BenchmarkDetailPage({ backHref = "/benchmarks?tab=ruoli" }: { ba
   const titles = useMemo(() => (titlesKey ? titlesKey.split("|") : []), [titlesKey]);
   const familyReady = !!family || familyFailed || !canManage;
 
-  const widened = useMemo(() => {
-    const set = new Set([roleName, ...titles]);
-    return people.filter((e) => set.has(roleTitle(e)));
-  }, [people, roleName, titles]);
   const aliases = useMemo(() => ({ [roleName]: titles }), [roleName, titles]);
   const sector = scope.sector || (doc ? sectorOf(doc.id) : undefined);
   const none = !!info && uncovered(info.role);
@@ -117,8 +107,6 @@ export function BenchmarkDetailPage({ backHref = "/benchmarks?tab=ruoli" }: { ba
           role={roleName}
           family={family}
           loading={!familyReady}
-          candidates={candidates}
-          counts={(t) => people.filter((e) => roleTitle(e) === t).length}
           canManage={canManage}
           onSave={(list) => {
             setFamily({ id: familyId(roleName), kind: "family", role: roleName, titles: [...list].sort((a, b) => a.localeCompare(b, "it")), source: "manuale", updatedAt: new Date().toISOString(), updatedBy: email });
@@ -142,9 +130,9 @@ export function BenchmarkDetailPage({ backHref = "/benchmarks?tab=ruoli" }: { ba
       )}
       {info && cached?.stats ? (
         <BenchmarkDetail
-          role={titles.length ? `${info.role} (+${titles.length})` : info.role}
+          role={info.role}
           level={info.level}
-          people={widened}
+          people={info.people}
           stats={cached.stats}
           scopeText={[doc!.name, ...scopeParts({ ...scope, sector }).map((p) => tr(p))].join(" · ")}
         />
@@ -159,29 +147,30 @@ export function BenchmarkDetailPage({ backHref = "/benchmarks?tab=ruoli" }: { ba
   );
 }
 
-/** "Ruoli inclusi nel confronto": the role plus its equivalent titles, editable and saved. */
+/** "Ruoli inclusi nel confronto": the role plus its market synonyms, editable and saved. */
 function RoleFamily({
   role,
   family,
   loading,
-  candidates,
-  counts,
   canManage,
   onSave,
 }: {
   role: string;
   family?: RoleFamilyDoc;
   loading: boolean;
-  candidates: string[];
-  counts: (title: string) => number;
   canManage: boolean;
   onSave: (titles: string[]) => void;
 }) {
   const saved = family?.titles ?? [];
   const [draft, setDraft] = useState<string[] | null>(null);
+  const [typed, setTyped] = useState("");
   const list = draft ?? saved;
   const changed = draft != null && [...draft].sort().join("|") !== [...saved].sort().join("|");
-  const available = candidates.filter((c) => !list.includes(c));
+  const addTyped = () => {
+    const t = typed.trim().slice(0, 120);
+    if (t && t.toLowerCase() !== role.toLowerCase() && !list.some((x) => x.toLowerCase() === t.toLowerCase())) setDraft([...list, t]);
+    setTyped("");
+  };
   const chip = "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px]";
   return (
     <div className="card px-4 py-3">
@@ -211,11 +200,11 @@ function RoleFamily({
       ) : (
         <div className="mt-2 flex flex-wrap items-center gap-1.5">
           <span className={`${chip} border-brand bg-brand-soft font-semibold text-brand`}>
-            {role} <span className="tabular-nums opacity-70">{counts(role)}</span>
+            {role}
           </span>
           {list.map((t) => (
             <span key={t} className={`${chip} border-[#dfe3ea] bg-white`}>
-              {t} <span className="tabular-nums text-muted">{counts(t)}</span>
+              {t}
               {canManage && (
                 <Tooltip label={tr("Togli dal confronto")}>
                   <button
@@ -231,20 +220,21 @@ function RoleFamily({
             </span>
           ))}
           {!list.length && <span className="text-[12px] text-muted">{tr("Nessun titolo equivalente")}</span>}
-          {canManage && available.length > 0 && (
-            <select
+          {canManage && (
+            <input
               aria-label={tr("Aggiungi un titolo equivalente")}
-              value=""
-              onChange={(e) => e.target.value && setDraft([...list, e.target.value])}
-              className="rounded-full border border-dashed border-[#c6ccd6] bg-white px-2.5 py-1 text-[12px] text-muted outline-none focus:border-brand"
-            >
-              <option value="">{tr("+ Aggiungi titolo")}</option>
-              {available.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  addTyped();
+                }
+              }}
+              onBlur={addTyped}
+              placeholder={tr("+ Aggiungi titolo")}
+              className="w-44 rounded-full border border-dashed border-[#c6ccd6] bg-white px-2.5 py-1 text-[12px] outline-none placeholder:text-muted focus:border-brand"
+            />
           )}
         </div>
       )}
@@ -254,7 +244,7 @@ function RoleFamily({
 
 /**
  * One role against its market benchmark: where each person's full-time base pay sits in the market
- * range (strip chart by gender over the Q1–Q3 band), the counts per band and a table.
+ * range (strip chart over the Q1–Q3 band), the counts per band and a table.
  */
 export function BenchmarkDetail({ role, level, people, stats, scopeText }: { role: string; level?: string; people: Employee[]; stats: BenchmarkStats; scopeText: string }) {
   const [hover, setHover] = useState<number | null>(null);
@@ -262,15 +252,12 @@ export function BenchmarkDetail({ role, level, people, stats, scopeText }: { rol
     () =>
       people
         .map((p) => ({ p, pay: personPay(p, SALARY_METRICS.base) }))
-        .filter((x): x is { p: Employee; pay: number } => x.pay != null && x.pay > 0 && (x.p.gender === "M" || x.p.gender === "F"))
+        .filter((x): x is { p: Employee; pay: number } => x.pay != null && x.pay > 0)
         .map((x) => ({ ...x, ratio: x.pay / stats.median, band: marketBand(x.pay, stats) }))
         .sort((a, b) => b.pay - a.pay),
     [people, stats],
   );
-  const avg = (g?: "M" | "F") => {
-    const v = rows.filter((r) => !g || r.p.gender === g).map((r) => r.pay);
-    return v.length ? SalaryMath.mean(v) : null;
-  };
+  const avg = () => (rows.length ? SalaryMath.mean(rows.map((r) => r.pay)) : null);
   const all = avg();
   const counts = (["sotto", "q1", "q3", "sopra"] as MarketBand[]).map((b) => ({ band: b, n: rows.filter((r) => r.band === b).length }));
 
@@ -282,8 +269,7 @@ export function BenchmarkDetail({ role, level, people, stats, scopeText }: { rol
   const x = (v: number) => PAD_L + ((v - lo) / (hi - lo || 1)) * (W - PAD_L - PAD_R);
   const ticks: number[] = [];
   for (let t = lo; t <= hi + 1e-6; t += step) ticks.push(t);
-  const groups = (["M", "F"] as const).filter((g) => rows.some((r) => r.p.gender === g));
-  const H = 28 + groups.length * ROW + 26;
+  const H = 28 + ROW + 26;
   const rowY = (i: number) => 28 + i * ROW + ROW / 2;
   const hovered = hover == null ? null : rows[hover];
 
@@ -315,12 +301,10 @@ export function BenchmarkDetail({ role, level, people, stats, scopeText }: { rol
 
         <div className="relative">
           <div className="mb-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11.5px] text-muted">
-            {groups.map((g) => (
-              <span key={g} className="inline-flex items-center gap-1.5">
-                <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: COLOR[g] }} />
-                {g === "M" ? tr("Uomini") : tr("Donne")}
-              </span>
-            ))}
+            <span className="inline-flex items-center gap-1.5">
+              <span className="inline-block h-2.5 w-2.5 rounded-full" style={{ background: DOT }} />
+              {tr("Dipendenti")}
+            </span>
             <span className="inline-flex items-center gap-1.5">
               <span className="inline-block h-2.5 w-5 rounded-sm bg-[#e3ecfb]" />
               {tr("Mercato Q1–Q3")}
@@ -347,29 +331,23 @@ export function BenchmarkDetail({ role, level, people, stats, scopeText }: { rol
             <text x={x(stats.median)} y={7} textAnchor="middle" fontSize="10.5" fontWeight={700} fill="#191919">
               {tr("mediana {0}", [`${Math.round(stats.median / 1000)}k`])}
             </text>
-            {/* people, one row per gender */}
-            {groups.map((g, gi) => (
-              <g key={g}>
-                <text x={PAD_L - 10} y={rowY(gi) + 4} textAnchor="end" fontSize="11.5" fill="#666666">
-                  {g === "M" ? tr("Uomini") : tr("Donne")}
-                </text>
-                {rows.map((r, i) =>
-                  r.p.gender !== g ? null : (
-                    <circle
-                      key={i}
-                      cx={x(r.pay)}
-                      cy={rowY(gi) + ((i % 5) - 2) * 4}
-                      r={hover === i ? 6 : 4.5}
-                      fill={COLOR[g]}
-                      stroke="#ffffff"
-                      strokeWidth={2}
-                      onMouseEnter={() => setHover(i)}
-                      onMouseLeave={() => setHover(null)}
-                      className="cursor-default"
-                    />
-                  ),
-                )}
-              </g>
+            {/* people */}
+            <text x={PAD_L - 10} y={rowY(0) + 4} textAnchor="end" fontSize="11.5" fill="#666666">
+              {tr("Dipendenti")}
+            </text>
+            {rows.map((r, i) => (
+              <circle
+                key={i}
+                cx={x(r.pay)}
+                cy={rowY(0) + ((i % 5) - 2) * 4}
+                r={hover === i ? 6 : 4.5}
+                fill={DOT}
+                stroke="#ffffff"
+                strokeWidth={2}
+                onMouseEnter={() => setHover(i)}
+                onMouseLeave={() => setHover(null)}
+                className="cursor-default"
+              />
             ))}
           </svg>
           {hovered && (
@@ -394,14 +372,6 @@ export function BenchmarkDetail({ role, level, people, stats, scopeText }: { rol
             </div>
           ))}
         </div>
-        <p className="text-[12px] text-muted">
-          {tr("Uomini: media {0} ({1} rispetto alla mediana) · Donne: media {2} ({3})", [
-            eur(avg("M")),
-            avg("M") ? gap(((avg("M")! - stats.median) / stats.median) * 100) : "n/d",
-            eur(avg("F")),
-            avg("F") ? gap(((avg("F")! - stats.median) / stats.median) * 100) : "n/d",
-          ])}
-        </p>
 
       </div>
         <div className="card overflow-x-auto">
@@ -409,7 +379,6 @@ export function BenchmarkDetail({ role, level, people, stats, scopeText }: { rol
             <thead>
               <tr className="border-b border-line text-[11px] font-bold uppercase text-[#9aa2b1]">
                 <th className="px-3 py-2">{tr("Persona")}</th>
-                <th className="px-3 py-2">{tr("Sesso")}</th>
                 <th className="px-3 py-2 text-right">{tr("RAL a tempo pieno")}</th>
                 <th className="px-3 py-2 text-right">{tr("Compa-ratio")}</th>
                 <th className="px-3 py-2">{tr("Posizione")}</th>
@@ -419,12 +388,6 @@ export function BenchmarkDetail({ role, level, people, stats, scopeText }: { rol
               {rows.map((r, i) => (
                 <tr key={i} className="border-b border-line last:border-0" onMouseEnter={() => setHover(i)} onMouseLeave={() => setHover(null)}>
                   <td className="px-3 py-1.5 font-semibold">{r.p.name || r.p.employeeId || "—"}</td>
-                  <td className="px-3 py-1.5">
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="inline-block h-2 w-2 rounded-full" style={{ background: COLOR[r.p.gender as "M" | "F"] }} />
-                      {r.p.gender === "F" ? tr("Donna") : tr("Uomo")}
-                    </span>
-                  </td>
                   <td className="px-3 py-1.5 text-right tabular-nums">{eur(r.pay)}</td>
                   <td className="px-3 py-1.5 text-right tabular-nums">{num(r.ratio, 2)}</td>
                   <td className="px-3 py-1.5 text-muted">{tr(BAND_LABEL[r.band])}</td>

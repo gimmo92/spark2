@@ -148,7 +148,7 @@ export function BenchmarkPage({ uploadHref = "/caricamento-dati", detailHref = "
   );
 }
 
-/** Company pay against the market: compa-ratio, position in the market range, by gender and CCNL level. */
+/** Company pay against the market: compa-ratio, position in the market range, by CCNL level. */
 function Dashboard({ people, benchOf, pending, roleHref }: { people: Employee[]; benchOf: BenchOf; pending: boolean; roleHref: (role: string) => string }) {
   const roles = rolesOf(people).map((r) => {
     const stats = benchOf(r)?.stats ?? null;
@@ -167,8 +167,6 @@ function Dashboard({ people, benchOf, pending, roleHref }: { people: Employee[];
   const ratio = (list: typeof rows) => (list.length ? SalaryMath.mean(list.map((x) => x.ratio)) : null);
   const share = (b: string) => (rows.length ? (rows.filter((x) => x.band === b).length / rows.length) * 100 : null);
   const cr = ratio(rows);
-  const crM = ratio(rows.filter((x) => x.e.gender === "M"));
-  const crF = ratio(rows.filter((x) => x.e.gender === "F"));
   const ranked = covered.filter((r) => r.diff != null).sort((a, b) => a.diff! - b.diff!);
   const byLevel = new Map<string, typeof rows>();
   for (const x of rows) {
@@ -200,24 +198,7 @@ function Dashboard({ people, benchOf, pending, roleHref }: { people: Employee[];
         ))}
       </div>
 
-      <div className="grid gap-3 lg:grid-cols-3">
-        <div className="card px-4 py-3">
-          <p className="text-[13px] font-semibold">{tr("Uomini e donne rispetto al mercato")}</p>
-          <table className="mt-2 w-full text-[12.5px]">
-            <tbody>
-              {[
-                { label: "Uomini", v: crM },
-                { label: "Donne", v: crF },
-              ].map((x) => (
-                <tr key={x.label} className="border-b border-line last:border-0">
-                  <td className="py-1.5 text-muted">{tr(x.label)}</td>
-                  <td className="py-1.5 text-right font-semibold tabular-nums">{x.v == null ? "–" : num(x.v, 2)}</td>
-                  <td className={`py-1.5 pl-3 text-right tabular-nums ${toneOf(x.v == null ? null : x.v - 1)}`}>{x.v == null ? "" : gap((x.v - 1) * 100)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+      <div className="grid gap-3 lg:grid-cols-2">
         {[
           { title: "Ruoli più sotto il mercato", list: ranked.slice(0, 5) },
           { title: "Ruoli più sopra il mercato", list: ranked.slice(-5).reverse() },
@@ -290,8 +271,7 @@ function RoleList({ people, benchOf, pending, roleHref }: { people: Employee[]; 
   const roles = rolesOf(filtered)
     .filter((r) => !needle || r.role.toLowerCase().includes(needle))
     .map((r) => {
-      const pay = (g?: "M" | "F") => mean(r.people.filter((p) => !g || p.gender === g).map(base));
-      return { ...r, avg: pay(), avgM: pay("M"), avgF: pay("F") };
+      return { ...r, avg: mean(r.people.map(base)) };
     });
 
   const filters: { key: "level" | "qualification" | "cdr" | "company"; label: string; all: string }[] = [
@@ -358,9 +338,6 @@ function RoleList({ people, benchOf, pending, roleHref }: { people: Employee[]; 
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     <p className="font-semibold">{eur(r.avg)}</p>
-                    <p className="text-[11px] text-muted">
-                      {tr("U")} {eur(r.avgM)} · {tr("D")} {eur(r.avgF)}
-                    </p>
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">
                     {s ? (
