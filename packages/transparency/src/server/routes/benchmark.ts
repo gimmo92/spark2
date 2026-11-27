@@ -12,7 +12,7 @@ const SYSTEM = `Sei un esperto di retribuzioni del mercato del lavoro italiano (
 Per ogni ruolo stimi la retribuzione annua lorda (RAL) di mercato in euro, a tempo pieno, esclusi variabile e benefit, nel perimetro indicato:
 area geografica (tutta Italia, macro-area, regione o città: tieni conto delle differenze territoriali), dimensione dell'azienda, settore e seniority.
 Restituisci cinque valori crescenti: minimo, primo quartile, mediana, terzo quartile, massimo del mercato per quel ruolo in quel perimetro.
-Usa il titolo del ruolo, il livello e il contratto CCNL (i minimi tabellari sono un pavimento) e la qualifica. Se la seniority è "dal livello CCNL", deducila dal livello.
+Usa il titolo del ruolo (e i suoi titoli equivalenti, se indicati: sono lo stesso lavoro), il livello e il contratto CCNL (i minimi tabellari sono un pavimento) e la qualifica. Se la seniority è "dal livello CCNL", deducila dal livello.
 Se il settore non è indicato, riconoscilo dall'insieme dei ruoli e dei contratti (es. assicurativo, tecnologia, servizi ambientali), usalo per le stime e restituiscilo in "settore" (due o tre parole, in italiano).
 Restituisci un elemento per ogni ruolo ricevuto, con lo stesso "index".`;
 
@@ -47,6 +47,7 @@ async function estimate(client: ReturnType<typeof claude>, roles: BenchmarkInput
   const list = roles.map((r, i) => ({
     index: offset + i,
     ruolo: r.role,
+    ...(r.aliases?.length && { titoli_equivalenti: r.aliases }),
     ...(r.level && { livello: r.level }),
     ...(r.ccnl && { ccnl: r.ccnl }),
     ...(r.qualification && { qualifica: r.qualification }),
@@ -84,7 +85,8 @@ export function createBenchmarkRoute(config: CallerConfig) {
     for (const raw of body.roles as Record<string, unknown>[]) {
       const role = text(raw?.role, 120);
       if (!role) return NextResponse.json({ error: "body" }, { status: 400 });
-      roles.push({ role, level: text(raw.level, 60), ccnl: text(raw.ccnl, 80), qualification: text(raw.qualification, 60) });
+      const aliases = Array.isArray(raw.aliases) ? raw.aliases.map((a) => text(a, 120)).filter((a): a is string => !!a).slice(0, 30) : undefined;
+      roles.push({ role, ...(aliases?.length && { aliases }), level: text(raw.level, 60), ccnl: text(raw.ccnl, 80), qualification: text(raw.qualification, 60) });
     }
     const scope = cleanScope(body.scope);
     if (throttled(`bench:${caller.tenant ?? ""}`, 20)) return NextResponse.json({ error: "rate" }, { status: 429 });

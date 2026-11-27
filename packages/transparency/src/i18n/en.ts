@@ -409,4 +409,13 @@ export const EN: Record<string, string> = {
   "Tutti i centri di costo": "All cost centres",
   "Cerca ruolo": "Search role",
   "Nessun ruolo con questi filtri.": "No roles with these filters.",
+  "Ruoli inclusi nel confronto": "Roles included in the comparison",
+  "Configurazione salvata": "Saved configuration",
+  "Proposta automatica": "Automatic proposal",
+  "Salva configurazione": "Save configuration",
+  "Togli dal confronto": "Remove from the comparison",
+  "Togli {0} dal confronto": "Remove {0} from the comparison",
+  "Nessun titolo equivalente": "No equivalent titles",
+  "Aggiungi un titolo equivalente": "Add an equivalent title",
+  "+ Aggiungi titolo": "+ Add title",
 };

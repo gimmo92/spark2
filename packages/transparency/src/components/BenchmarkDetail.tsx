@@ -3,14 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
-import { tr, useAccess } from "@spark/core";
+import { ArrowLeft, X } from "lucide-react";
+import { Badge, GhostButton, PrimaryButton, Tooltip, tr, useAccess, useData } from "@spark/core";
 import { CompensationAnalysis } from "../lib/analysis/CompensationAnalysis";
-import { rolesOf } from "../lib/roleWeights";
+import { roleTitle, rolesOf } from "../lib/roleWeights";
 import { useBenchmarks, usePayAnalyses } from "../store";
 import { personPay } from "../lib/analysis/RgaComponents";
 import { SalaryMath } from "../lib/analysis/SalaryMath";
-import { benchmarkKey, marketBand, scopeParts, uncovered, type BenchmarkScope, type BenchmarkStats, type MarketBand } from "../lib/benchmark";
+import { benchmarkKey, familyId, marketBand, scopeParts, uncovered, type BenchmarkScope, type BenchmarkStats, type MarketBand, type RoleFamilyDoc } from "../lib/benchmark";
 import { BenchmarkScopeControls } from "./BenchmarkScopeControls";
 import { useBenchmarkRunner } from "./benchmarkRunner";
 import type { Employee } from "../lib/models/Employee";
@@ -34,39 +34,76 @@ function niceStep(span: number, target = 5) {
 }
 
 /**
- * Page /benchmarks/dettaglio?analysis=…&role=…: one role of an analysis against its market benchmark,
- * with its own comparison scope (starts from the company default; another scope is computed for this
- * role only). The route needs <Suspense> (it reads the URL on the client).
+ * Page /benchmarks/dettaglio?analysis=…&role=…: one role against its market benchmark. The role is
+ * widened to its equivalent titles (proposed once and stored, so the same role always gets the same
+ * set; editable and saved by the user), with its own comparison scope (starts from the company
+ * default). The route needs <Suspense> (it reads the URL on the client).
  */
 export function BenchmarkDetailPage({ backHref = "/benchmarks?tab=ruoli" }: { backHref?: string }) {
   const params = useSearchParams();
   const { analyses } = usePayAnalyses();
-  const { get, sectorOf } = useBenchmarks();
+  const { get, sectorOf, familyOf, setFamily } = useBenchmarks();
   const { run, scope: defaultScope, isRunning } = useBenchmarkRunner();
   const { allowed } = useAccess();
+  const email = useData().viewer?.email;
   const canManage = allowed("transparency.manage");
   const [own, setOwn] = useState<BenchmarkScope | null>(null);
   const scope = own ?? defaultScope;
   const [failed, setFailed] = useState(false);
+  const [familyFailed, setFamilyFailed] = useState(false);
   const doc = analyses.find((a) => a.id === params.get("analysis"));
   const roleName = params.get("role") ?? "";
-  const info = useMemo(() => {
-    const people = doc ? (CompensationAnalysis.fromSnapshot(doc.snapshot)?.employees ?? []) : [];
-    return rolesOf(people).find((r) => r.role === roleName);
-  }, [doc, roleName]);
+  const people = useMemo(() => (doc ? (CompensationAnalysis.fromSnapshot(doc.snapshot)?.employees ?? []) : []), [doc]);
+  const info = useMemo(() => rolesOf(people).find((r) => r.role === roleName), [people, roleName]);
+  // every job title in the company's uploaded data: the candidates for equivalent titles
+  const candidates = useMemo(() => {
+    const set = new Set<string>();
+    for (const a of analyses) for (const e of CompensationAnalysis.fromSnapshot(a.snapshot)?.employees ?? []) if (roleTitle(e)) set.add(roleTitle(e));
+    set.delete(roleName);
+    return [...set].sort((a, b) => a.localeCompare(b, "it"));
+  }, [analyses, roleName]);
+
+  const family = familyOf(roleName);
+  // first time: propose the equivalent titles and store them (coherent from then on)
+  const needFamily = !!info && !family && canManage && !familyFailed;
+  useEffect(() => {
+    if (!needFamily) return;
+    let alive = true;
+    fetch("/api/transparency/equivalents", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ role: roleName, candidates }) })
+      .then(async (r) => {
+        const body = (await r.json().catch(() => ({}))) as { titles?: string[] };
+        if (!alive) return;
+        if (r.ok && body.titles) setFamily({ id: familyId(roleName), kind: "family", role: roleName, titles: body.titles, source: "auto", updatedAt: new Date().toISOString(), updatedBy: email });
+        else setFamilyFailed(true);
+      })
+      .catch(() => alive && setFamilyFailed(true));
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needFamily, roleName]);
+  const titlesKey = (family?.titles ?? []).join("|");
+  const titles = useMemo(() => (titlesKey ? titlesKey.split("|") : []), [titlesKey]);
+  const familyReady = !!family || familyFailed || !canManage;
+
+  const widened = useMemo(() => {
+    const set = new Set([roleName, ...titles]);
+    return people.filter((e) => set.has(roleTitle(e)));
+  }, [people, roleName, titles]);
+  const aliases = useMemo(() => ({ [roleName]: titles }), [roleName, titles]);
   const sector = scope.sector || (doc ? sectorOf(doc.id) : undefined);
   const none = !!info && uncovered(info.role);
-  const cached = info && sector && !none ? get(benchmarkKey(info, scope, sector)) : undefined;
-  const loading = !!doc && isRunning(doc.id, scope);
+  const cached = info && sector && !none ? get(benchmarkKey({ ...info, aliases: titles }, scope, sector)) : undefined;
+  const loading = !!doc && isRunning(doc.id, scope, aliases);
 
-  // this role in this scope not computed yet: compute it (short pause while the scope is being edited)
-  const need = !!doc && !!info && !none && !cached && canManage && !loading && !failed;
-  const needKey = need ? JSON.stringify(scope) : "";
+  // this role (with its titles) in this scope not computed yet: compute it (short pause while editing)
+  const need = !!doc && !!info && familyReady && !none && !cached && canManage && !loading && !failed;
+  const needKey = need ? `${JSON.stringify(scope)}|${titlesKey}` : "";
   useEffect(() => {
     if (!needKey || !doc || !info) return;
-    const t = setTimeout(() => void run(doc.id, info.people, scope).then((r) => setFailed(r === "error")), 700);
+    const t = setTimeout(() => void run(doc.id, info.people, scope, aliases).then((r) => setFailed(r === "error")), 700);
     return () => clearTimeout(t);
-    // the key covers analysis, role and scope
+    // the key covers analysis, role, titles and scope
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [needKey]);
 
@@ -76,14 +113,28 @@ export function BenchmarkDetailPage({ backHref = "/benchmarks?tab=ruoli" }: { ba
         <ArrowLeft className="h-3.5 w-3.5" /> {tr("Benchmarks")}
       </Link>
       {info && (
+        <RoleFamily
+          role={roleName}
+          family={family}
+          loading={!familyReady}
+          candidates={candidates}
+          counts={(t) => people.filter((e) => roleTitle(e) === t).length}
+          canManage={canManage}
+          onSave={(list) => {
+            setFamily({ id: familyId(roleName), kind: "family", role: roleName, titles: [...list].sort((a, b) => a.localeCompare(b, "it")), source: "manuale", updatedAt: new Date().toISOString(), updatedBy: email });
+            setFailed(false);
+          }}
+        />
+      )}
+      {info && (
         <div className="card px-4 py-3">
           <p className="mb-2 text-[12.5px] font-semibold">{tr("Perimetro del confronto")}</p>
           <BenchmarkScopeControls
             scope={scope}
             disabled={!canManage}
             sectorHint={doc ? sectorOf(doc.id) : undefined}
-            onChange={(s) => {
-              setOwn(s);
+            onChange={(next) => {
+              setOwn(next);
               setFailed(false);
             }}
           />
@@ -91,17 +142,110 @@ export function BenchmarkDetailPage({ backHref = "/benchmarks?tab=ruoli" }: { ba
       )}
       {info && cached?.stats ? (
         <BenchmarkDetail
-          role={info.role}
+          role={titles.length ? `${info.role} (+${titles.length})` : info.role}
           level={info.level}
-          people={info.people}
+          people={widened}
           stats={cached.stats}
           scopeText={[doc!.name, ...scopeParts({ ...scope, sector }).map((p) => tr(p))].join(" · ")}
         />
-      ) : info && !none && (loading || need) ? (
+      ) : info && !none && (loading || need || !familyReady) ? (
         <div className="card h-56 animate-pulse" aria-label={tr("Caricamento…")} />
       ) : (
         <div className="card px-5 py-10 text-center text-[12.5px] text-muted">
           {failed ? tr("Dati di mercato non disponibili al momento.") : none || cached ? tr("Dati insufficienti per questo ruolo") : tr("Benchmark non disponibile per questo ruolo.")}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** "Ruoli inclusi nel confronto": the role plus its equivalent titles, editable and saved. */
+function RoleFamily({
+  role,
+  family,
+  loading,
+  candidates,
+  counts,
+  canManage,
+  onSave,
+}: {
+  role: string;
+  family?: RoleFamilyDoc;
+  loading: boolean;
+  candidates: string[];
+  counts: (title: string) => number;
+  canManage: boolean;
+  onSave: (titles: string[]) => void;
+}) {
+  const saved = family?.titles ?? [];
+  const [draft, setDraft] = useState<string[] | null>(null);
+  const list = draft ?? saved;
+  const changed = draft != null && [...draft].sort().join("|") !== [...saved].sort().join("|");
+  const available = candidates.filter((c) => !list.includes(c));
+  const chip = "inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-[12px]";
+  return (
+    <div className="card px-4 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <p className="text-[12.5px] font-semibold">{tr("Ruoli inclusi nel confronto")}</p>
+        {family && <Badge tone={family.source === "manuale" ? "navy" : "grey"}>{family.source === "manuale" ? tr("Configurazione salvata") : tr("Proposta automatica")}</Badge>}
+        {canManage && changed && (
+          <div className="ml-auto flex gap-2">
+            <GhostButton onClick={() => setDraft(null)}>{tr("Annulla")}</GhostButton>
+            <PrimaryButton
+              onClick={() => {
+                onSave(list);
+                setDraft(null);
+              }}
+            >
+              {tr("Salva configurazione")}
+            </PrimaryButton>
+          </div>
+        )}
+      </div>
+      {loading ? (
+        <div className="mt-2 flex gap-2">
+          {[0, 1, 2].map((i) => (
+            <span key={i} className="h-7 w-32 animate-pulse rounded-full bg-canvas" />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          <span className={`${chip} border-brand bg-brand-soft font-semibold text-brand`}>
+            {role} <span className="tabular-nums opacity-70">{counts(role)}</span>
+          </span>
+          {list.map((t) => (
+            <span key={t} className={`${chip} border-[#dfe3ea] bg-white`}>
+              {t} <span className="tabular-nums text-muted">{counts(t)}</span>
+              {canManage && (
+                <Tooltip label={tr("Togli dal confronto")}>
+                  <button
+                    type="button"
+                    aria-label={tr("Togli {0} dal confronto", [t])}
+                    onClick={() => setDraft(list.filter((x) => x !== t))}
+                    className="grid h-4 w-4 place-items-center rounded-full text-muted hover:bg-canvas hover:text-ink"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </Tooltip>
+              )}
+            </span>
+          ))}
+          {!list.length && <span className="text-[12px] text-muted">{tr("Nessun titolo equivalente")}</span>}
+          {canManage && available.length > 0 && (
+            <select
+              aria-label={tr("Aggiungi un titolo equivalente")}
+              value=""
+              onChange={(e) => e.target.value && setDraft([...list, e.target.value])}
+              className="rounded-full border border-dashed border-[#c6ccd6] bg-white px-2.5 py-1 text-[12px] text-muted outline-none focus:border-brand"
+            >
+              <option value="">{tr("+ Aggiungi titolo")}</option>
+              {available.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       )}
     </div>

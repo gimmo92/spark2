@@ -100,6 +100,23 @@ export interface BenchmarkDoc extends Doc {
   fetchedBy?: string;
 }
 
+/**
+ * Titles counted as the same job as a role (collection `benchmarks`, id `family:<title>`): proposed
+ * automatically once and stored, so the same role always gets the same set; a person can change it
+ * and save it ("manuale").
+ */
+export interface RoleFamilyDoc extends Doc {
+  kind: "family";
+  role: string;
+  /** Equivalent titles, without the role itself, sorted. */
+  titles: string[];
+  source: "auto" | "manuale";
+  updatedAt: string;
+  updatedBy?: string;
+}
+
+export const familyId = (role: string) => `family:${norm(role)}`;
+
 /** Sector recognised from an analysis' roles (same collection, id `sector:<analysisId>`). */
 export interface AnalysisSectorDoc extends Doc {
   kind: "sector";
@@ -120,9 +137,10 @@ function fnv(s: string) {
 }
 
 /** Cache key of a role's benchmark in a scope with an effective sector. */
-export function benchmarkKey(r: { role: string; level?: string; ccnl?: string }, scope: BenchmarkScope, sector?: string) {
+export function benchmarkKey(r: { role: string; level?: string; ccnl?: string; aliases?: string[] }, scope: BenchmarkScope, sector?: string) {
   const s = cleanScope(scope);
-  const parts = [r.role, r.level, r.ccnl, sector ?? s.sector, s.area, s.region, s.city, s.size, s.seniority].map(norm);
+  const aliases = [...new Set((r.aliases ?? []).map(norm).filter(Boolean))].sort().join(",");
+  const parts = [r.role, r.level, r.ccnl, sector ?? s.sector, s.area, s.region, s.city, s.size, s.seniority, ...(aliases ? [`aka:${aliases}`] : [])].map(norm);
   return `bm-${fnv(parts.join("|")).toString(36)}-${norm(r.role).replace(/[^a-z0-9]+/g, "-").slice(0, 40)}`;
 }
 
@@ -139,6 +157,8 @@ export const marketBand = (pay: number, s: BenchmarkStats): MarketBand => (pay <
 /** What the model sees about a role: no names, no company pay. */
 export interface BenchmarkInput {
   role: string;
+  /** Other titles of the same job (Ruoli inclusi nel confronto). */
+  aliases?: string[];
   level?: string;
   ccnl?: string;
   qualification?: string;

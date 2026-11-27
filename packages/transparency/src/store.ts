@@ -4,7 +4,7 @@ import { useCallback } from "react";
 import { useCollection, useSettings, type Doc } from "@spark/core";
 import type { AnalysisSnapshot, SavedJustification } from "./lib/analysis/CompensationAnalysis";
 import { BENCHMARKS, PAY_ANALYSES, ROLE_WEIGHTS } from "./module";
-import type { AnalysisSectorDoc, BenchmarkDoc } from "./lib/benchmark";
+import { familyId, type AnalysisSectorDoc, type BenchmarkDoc, type RoleFamilyDoc } from "./lib/benchmark";
 import { DEFAULT_WEIGHTS, cleanWeights, type CriteriaWeights, type RoleWeightDoc } from "./lib/roleWeights";
 
 /** A saved analysis: the normalised employees of one payroll file, with the justified deviations. */
@@ -60,12 +60,17 @@ export function useRoleWeights() {
  * recognised for each analysis.
  */
 export function useBenchmarks() {
-  const [items, update] = useCollection<BenchmarkDoc | AnalysisSectorDoc>(BENCHMARKS);
+  const [items, update] = useCollection<BenchmarkDoc | AnalysisSectorDoc | RoleFamilyDoc>(BENCHMARKS);
   const byId = new Map(items.map((d) => [d.id, d]));
   const get = (key: string) => {
     const d = byId.get(key);
-    return d && d.kind !== "sector" ? (d as BenchmarkDoc) : undefined;
+    return d && (d.kind === "role" || d.kind === undefined) ? (d as BenchmarkDoc) : undefined;
   };
+  const familyOf = (role: string) => {
+    const d = byId.get(familyId(role));
+    return d?.kind === "family" ? (d as RoleFamilyDoc) : undefined;
+  };
+  const setFamily = useCallback((doc: RoleFamilyDoc) => update((prev) => [doc, ...prev.filter((d) => d.id !== doc.id)]), [update]);
   const sectorOf = (analysisId: string) => (byId.get(`sector:${analysisId}`) as AnalysisSectorDoc | undefined)?.sector;
   /** Adds docs; an existing benchmark is never replaced, so figures stay stable. */
   const add = useCallback(
@@ -80,7 +85,7 @@ export function useBenchmarks() {
   );
   // the cache stays (company knowledge); only the analysis' recognised sector goes
   const removeFor = useCallback((analysisId: string) => update((prev) => prev.filter((d) => d.id !== `sector:${analysisId}`)), [update]);
-  return { get, sectorOf, add, removeFor };
+  return { get, sectorOf, add, removeFor, familyOf, setFamily };
 }
 
 /** Weights of the job-grading criteria chosen by the company (settings doc "jobGrading", sum 100). */

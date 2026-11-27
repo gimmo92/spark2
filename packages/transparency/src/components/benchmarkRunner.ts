@@ -31,12 +31,14 @@ export function useBenchmarkRunner() {
   const busy = useSyncExternalStore(subscribe, snapshot, () => "");
 
   const run = useCallback(
-    async (analysisId: string, people: Employee[], scopeArg?: BenchmarkScope): Promise<"ok" | "error"> => {
+    async (analysisId: string, people: Employee[], scopeArg?: BenchmarkScope, aliases?: Record<string, string[]>): Promise<"ok" | "error"> => {
       const scope = cleanScope(scopeArg ?? defaultScope);
-      const key = runKey(analysisId, scope);
+      const key = runKey(analysisId, scope) + (aliases ? `|${JSON.stringify(aliases)}` : "");
       if (running.has(key)) return "ok";
       const known = scope.sector || sectorOf(analysisId);
-      const roles = rolesOf(people).filter((r) => !uncovered(r.role));
+      const roles = rolesOf(people)
+        .filter((r) => !uncovered(r.role) && (!aliases || r.role in aliases))
+        .map((r) => ({ ...r, aliases: aliases?.[r.role] }));
       // with the sector still unknown every role goes: the answer also recognises the sector
       const todo = known ? roles.filter((r) => !get(benchmarkKey(r, scope, known))) : roles;
       if (!todo.length) return "ok";
@@ -46,7 +48,7 @@ export function useBenchmarkRunner() {
         const r = await fetch("/api/transparency/benchmark", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ scope: { ...scope, sector: known }, roles: todo.map(({ role, level, ccnl, qualification }) => ({ role, level, ccnl, qualification })) }),
+          body: JSON.stringify({ scope: { ...scope, sector: known }, roles: todo.map(({ role, aliases: aka, level, ccnl, qualification }) => ({ role, aliases: aka, level, ccnl, qualification })) }),
         });
         const body = (await r.json().catch(() => ({}))) as { roles?: { role: string; stats: BenchmarkStats | null }[]; sector?: string; source?: string };
         if (!r.ok || !body.roles) return "error";
@@ -89,6 +91,7 @@ export function useBenchmarkRunner() {
   return {
     run,
     scope: defaultScope,
-    isRunning: (analysisId: string, scope?: BenchmarkScope) => busy.split("\n").includes(runKey(analysisId, scope ?? defaultScope)),
+    isRunning: (analysisId: string, scope?: BenchmarkScope, aliases?: Record<string, string[]>) =>
+      busy.split("\n").includes(runKey(analysisId, scope ?? defaultScope) + (aliases ? `|${JSON.stringify(aliases)}` : "")),
   };
 }

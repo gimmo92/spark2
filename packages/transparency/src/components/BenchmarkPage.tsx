@@ -40,7 +40,7 @@ type BenchOf = (r: { role: string; level?: string; ccnl?: string }) => Benchmark
  */
 export function BenchmarkPage({ uploadHref = "/caricamento-dati", detailHref = "/benchmarks/dettaglio" }: { uploadHref?: string; detailHref?: string }) {
   const { analyses } = usePayAnalyses();
-  const { get, sectorOf } = useBenchmarks();
+  const { get, sectorOf, familyOf } = useBenchmarks();
   const { run, scope, isRunning } = useBenchmarkRunner();
   const { allowed } = useAccess();
   const canManage = allowed("transparency.manage");
@@ -59,16 +59,18 @@ export function BenchmarkPage({ uploadHref = "/caricamento-dati", detailHref = "
 
   const people = useMemo(() => (doc ? (CompensationAnalysis.fromSnapshot(doc.snapshot)?.employees ?? []) : []), [doc]);
   const sector = scope.sector || (doc ? sectorOf(doc.id) : undefined);
-  const benchOf: BenchOf = (r) => (sector && !uncovered(r.role) ? get(benchmarkKey(r, scope, sector)) : undefined);
+  // a role uses the equivalent titles stored for it (same figures as on its page)
+  const benchOf: BenchOf = (r) => (sector && !uncovered(r.role) ? get(benchmarkKey({ ...r, aliases: familyOf(r.role)?.titles }, scope, sector)) : undefined);
   const allRoles = useMemo(() => rolesOf(people), [people]);
-  const loading = !!doc && isRunning(doc.id);
+  const aliases = Object.fromEntries(allRoles.map((r) => [r.role, familyOf(r.role)?.titles ?? []]));
+  const loading = !!doc && isRunning(doc.id, undefined, aliases);
   const missing = allRoles.filter((r) => !uncovered(r.role) && !benchOf(r));
 
   // roles without figures for the default scope are filled automatically
   const missingKey = doc && canManage && !loading && !failed && missing.length ? `${doc.id}|${missing.length}|${JSON.stringify(scope)}` : "";
   useEffect(() => {
     if (!missingKey || !doc) return;
-    const t = setTimeout(() => void run(doc.id, people).then((res) => setFailed(res === "error")), 600);
+    const t = setTimeout(() => void run(doc.id, people, undefined, aliases).then((res) => setFailed(res === "error")), 600);
     return () => clearTimeout(t);
     // the key covers analysis, missing roles and scope
     // eslint-disable-next-line react-hooks/exhaustive-deps

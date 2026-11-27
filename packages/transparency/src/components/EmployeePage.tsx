@@ -37,7 +37,7 @@ const stats = (values: number[]) => (values.length ? { mean: SalaryMath.mean(val
 export function EmployeePage({ backHref = "/trasparenza", benchmarkHref = "/benchmarks/dettaglio" }: { backHref?: string; benchmarkHref?: string }) {
   const params = useSearchParams();
   const { analyses, save } = usePayAnalyses();
-  const { get, sectorOf } = useBenchmarks();
+  const { get, sectorOf, familyOf } = useBenchmarks();
   const { allowed } = useAccess();
   const { notify } = useCore();
   const canManage = allowed("transparency.manage");
@@ -81,7 +81,7 @@ export function EmployeePage({ backHref = "/trasparenza", benchmarkHref = "/benc
   // market benchmark of the role (company cache, effective sector of this analysis)
   const roleInfo = rolesOf([person])[0];
   const sector = scope.sector || sectorOf(doc.id);
-  const market = roleInfo && sector && !uncovered(roleInfo.role) ? get(benchmarkKey(roleInfo, scope, sector))?.stats : undefined;
+  const market = roleInfo && sector && !uncovered(roleInfo.role) ? get(benchmarkKey({ ...roleInfo, aliases: familyOf(roleInfo.role)?.titles }, scope, sector))?.stats : undefined;
   const ownBase = pay(person, SALARY_METRICS.base);
 
   const setNote = (note: string) => {
