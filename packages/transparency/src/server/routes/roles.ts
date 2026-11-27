@@ -13,7 +13,7 @@ Valuti ruoli aziendali per stabilire quali svolgono "lavoro di pari valore" (art
 ${CRITERIA.map((c) => `- ${c.id}: ${c.label} (${c.hint})`).join("\n")}
 
 Per ogni ruolo dai un punteggio intero da 1 (minimo) a 10 (massimo) su ciascun criterio, confrontando i ruoli tra loro sulla stessa scala.
-Basati sul contenuto del lavoro (titolo, livello e contratto CCNL, qualifica, descrizione se presente), mai sulla retribuzione o su chi lo svolge.
+Basati sul contenuto del lavoro (titolo, livello e contratto CCNL, qualifica, job description e competenze richieste se presenti), mai sulla retribuzione o su chi lo svolge.
 Se un titolo è ambiguo, usa livello e qualifica per stimare il contenuto e dillo nella motivazione.
 Motivazione: una frase in italiano, al massimo 25 parole, sui fattori che pesano di più.
 Restituisci un elemento per ogni ruolo ricevuto, con lo stesso "index".`;
@@ -42,6 +42,7 @@ async function weigh(client: ReturnType<typeof claude>, roles: RoleInput[], offs
     ...(r.ccnl && { ccnl: r.ccnl }),
     ...(r.qualification && { qualifica: r.qualification }),
     ...(r.description && { descrizione: r.description }),
+    ...(r.skills?.length && { competenze_richieste: r.skills }),
   }));
   const message = await client.beta.messages.parse({
     model: AI_MODEL,
@@ -82,7 +83,8 @@ export function createRoleWeightsRoute(config: CallerConfig) {
         level: text(raw.level, 60),
         ccnl: text(raw.ccnl, 80),
         qualification: text(raw.qualification, 60),
-        description: text(raw.description, 300),
+        description: text(raw.description, 1200),
+        skills: Array.isArray(raw.skills) ? raw.skills.map((x) => text(x, 80)).filter((x): x is string => !!x).slice(0, 10) : undefined,
       });
     }
     if (throttled(`roles:${caller.tenant ?? ""}`, 10)) return NextResponse.json({ error: "rate" }, { status: 429 });

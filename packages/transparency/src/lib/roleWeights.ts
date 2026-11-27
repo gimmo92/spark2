@@ -51,6 +51,18 @@ export interface RoleInput {
   ccnl?: string;
   qualification?: string;
   description?: string;
+  /** Required skills (from the role profile). */
+  skills?: string[];
+}
+
+/** Job description and required skills of a role (collection `roleProfiles`), AI-written or edited by HR. */
+export interface RoleProfileDoc extends Doc {
+  role: string;
+  description: string;
+  skills: string[];
+  source: "ai" | "manuale";
+  updatedAt: string;
+  updatedBy?: string;
 }
 
 export const roleTitle = (e: Pick<Employee, "role">) => String(e.role ?? "").trim();

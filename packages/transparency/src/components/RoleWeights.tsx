@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { Fragment, useMemo, useState } from "react";
-import { CheckCheck, Loader2, RotateCcw, Sparkles } from "lucide-react";
-import { Badge, GhostButton, PrimaryButton, Tooltip, tr, useData } from "@spark/core";
+import { CheckCheck, FileText, Loader2, RotateCcw, Sparkles } from "lucide-react";
+import { Badge, GhostButton, PrimaryButton, Tooltip, inputCls, tr, useData } from "@spark/core";
 import type { ComparisonRow } from "../lib/analysis/GapGroupAnalyzer";
 import type { Employee } from "../lib/models/Employee";
 import {
@@ -18,10 +18,11 @@ import {
   roleScore,
   rolesOf,
   type CriteriaWeights,
+  type RoleProfileDoc,
   type RoleScores,
   type RoleWeightDoc,
 } from "../lib/roleWeights";
-import { useCriteriaWeights, useRoleWeights } from "../store";
+import { useCriteriaWeights, useRoleProfiles, useRoleWeights } from "../store";
 import { eur, gap, gapTone } from "./format";
 import { ExpandToggle, GroupPeople, type PersonOpener } from "./GroupPeople";
 import type { RgaSelection } from "../lib/analysis/RgaComponents";
@@ -141,7 +142,32 @@ export function RoleWeightsView({ people, canManage }: { people: Employee[]; can
   const save = (role: string, scores: RoleScores, patch: Partial<RoleWeightDoc>) =>
     ({ id: roleId(role), role, scores, source: "manuale", confirmed: true, updatedAt: new Date().toISOString(), updatedBy: email, ...patch }) as RoleWeightDoc;
 
+  const { profiles, upsert: upsertProfiles } = useRoleProfiles();
+  const [enriching, setEnriching] = useState(false);
+  const [openProfile, setOpenProfile] = useState<string | null>(null);
+  const withoutProfile = rows.filter((r) => !profiles.get(r.role));
   const pending = rows.filter((r) => r.status !== "confermato");
+
+  /** Job descriptions and required skills written by the AI for the roles without a profile. */
+  const enrich = async () => {
+    const todo = withoutProfile.length ? withoutProfile : rows;
+    setEnriching(true);
+    setMessage(null);
+    const r = await fetch("/api/transparency/role-profiles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ roles: todo.map(({ role, level, ccnl, qualification, description }) => ({ role, level, ccnl, qualification, description })) }),
+    }).catch(() => null);
+    const body = (await r?.json().catch(() => ({}))) as { roles?: { role: string; description: string; skills: string[] }[]; error?: string };
+    setEnriching(false);
+    if (!r?.ok || !body.roles) {
+      setMessage({ text: tr(AI_ERRORS[body?.error ?? "ai"] ?? AI_ERRORS.ai), tone: "warn" });
+      return;
+    }
+    const now = new Date().toISOString();
+    upsertProfiles(body.roles.map((x) => ({ id: roleId(x.role), role: x.role, description: x.description, skills: x.skills, source: "ai", updatedAt: now, updatedBy: email })));
+    setMessage({ text: tr("{0} profili scritti dall'AI: la proposta dei punteggi li userà.", [body.roles.length]), tone: "ok" });
+  };
   const proposals = rows.filter((r) => r.status === "ai");
 
   const propose = async () => {
@@ -151,7 +177,13 @@ export function RoleWeightsView({ people, canManage }: { people: Employee[]; can
     const r = await fetch("/api/transparency/roles", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ roles: todo.map(({ role, n, level, ccnl, qualification, description }) => ({ role, n, level, ccnl, qualification, description })) }),
+      // the role profile (job description, required skills) makes the weighting more accurate
+      body: JSON.stringify({
+        roles: todo.map(({ role, n, level, ccnl, qualification, description }) => {
+          const p = profiles.get(role);
+          return { role, n, level, ccnl, qualification, description: p?.description || description, skills: p?.skills };
+        }),
+      }),
     }).catch(() => null);
     const body = (await r?.json().catch(() => ({}))) as { roles?: { role: string; scores: RoleScores; rationale: string }[]; error?: string };
     setBusy(false);
@@ -172,6 +204,7 @@ export function RoleWeightsView({ people, canManage }: { people: Employee[]; can
           <p className="text-[13.5px] font-semibold">{tr("Pesatura dei ruoli")}</p>
           <p className="mt-1 text-[12px] font-semibold">
             {tr("{0} ruoli · {1} confermati · {2} da rivedere", [rows.length, rows.length - pending.length, pending.length])}
+            <span className="font-normal text-muted"> · {tr("{0} con profilo", [rows.length - withoutProfile.length])}</span>
           </p>
         </div>
         {canManage && (
@@ -184,6 +217,10 @@ export function RoleWeightsView({ people, canManage }: { people: Employee[]; can
                 <CheckCheck className="h-3.5 w-3.5" /> {tr("Conferma le proposte")}
               </GhostButton>
             )}
+            <GhostButton disabled={enriching} onClick={() => void enrich()} className="flex items-center gap-1.5">
+              {enriching ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+              {withoutProfile.length ? tr("Arricchisci profili con AI ({0})", [withoutProfile.length]) : tr("Riscrivi i profili con AI")}
+            </GhostButton>
             <PrimaryButton disabled={busy} onClick={() => void propose()} className="flex items-center gap-1.5">
               {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
               {pending.length ? tr("Proponi con AI ({0})", [pending.length]) : tr("Ripesa tutto con AI")}
@@ -220,7 +257,8 @@ export function RoleWeightsView({ people, canManage }: { people: Employee[]; can
               const [lo, hi] = bandRange(bandOf(r.score));
               const s = STATUS[r.status];
               return (
-                <tr key={r.role} className="border-b border-line align-top text-[12.5px] last:border-0 hover:bg-[#f8fafd]">
+                <Fragment key={r.role}>
+                <tr className="border-b border-line align-top text-[12.5px] last:border-0 hover:bg-[#f8fafd]">
                   <td className="max-w-[320px] px-3 py-2 pl-4">
                     <p className="font-semibold">{r.role}</p>
                     <p className="text-[11.5px] text-muted">
@@ -229,6 +267,15 @@ export function RoleWeightsView({ people, canManage }: { people: Employee[]; can
                       {r.qualification && ` · ${r.qualification}`}
                     </p>
                     {r.doc?.rationale && <p className="mt-0.5 text-[11.5px] text-faint">{r.doc.rationale}</p>}
+                    <button
+                      type="button"
+                      aria-expanded={openProfile === r.role}
+                      onClick={() => setOpenProfile(openProfile === r.role ? null : r.role)}
+                      className="mt-0.5 inline-flex items-center gap-1 text-[11.5px] font-semibold text-brand hover:underline"
+                    >
+                      <FileText className="h-3 w-3" />
+                      {profiles.get(r.role) ? tr("Profilo · {0} competenze", [profiles.get(r.role)!.skills.length]) : tr("Aggiungi profilo")}
+                    </button>
                   </td>
                   {CRITERIA.map((c) => (
                     <td key={c.id} className="px-2 py-2 text-center">
@@ -266,11 +313,60 @@ export function RoleWeightsView({ people, canManage }: { people: Employee[]; can
                     )}
                   </td>
                 </tr>
+                {openProfile === r.role && (
+                  <tr className="border-b border-line bg-[#fafbfd]">
+                    <td colSpan={CRITERIA.length + 4} className="px-4 py-3">
+                      <ProfileEditor
+                        key={r.role}
+                        role={r.role}
+                        profile={profiles.get(r.role)}
+                        canManage={canManage}
+                        onSave={(p) => {
+                          upsertProfiles([{ id: roleId(r.role), role: r.role, ...p, source: "manuale", updatedAt: new Date().toISOString(), updatedBy: email }]);
+                          setOpenProfile(null);
+                        }}
+                      />
+                    </td>
+                  </tr>
+                )}
+                </Fragment>
               );
             })}
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/** Job description and required skills of a role, edited by HR. */
+function ProfileEditor({ role, profile, canManage, onSave }: { role: string; profile?: RoleProfileDoc; canManage: boolean; onSave: (p: { description: string; skills: string[] }) => void }) {
+  const [description, setDescription] = useState(profile?.description ?? "");
+  const [skills, setSkills] = useState((profile?.skills ?? []).join("\n"));
+  const list = skills
+    .split("\n")
+    .map((x) => x.trim())
+    .filter(Boolean);
+  return (
+    <div className="grid gap-3 md:grid-cols-[2fr_1fr]">
+      <label className="block">
+        <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-muted">
+          {tr("Job description")} · {role}
+          {profile && <span className="ml-1.5 normal-case">{profile.source === "ai" ? tr("(scritta dall'AI)") : tr("(modificata)")}</span>}
+        </span>
+        <textarea disabled={!canManage} className={`${inputCls} min-h-[110px]`} value={description} onChange={(e) => setDescription(e.target.value)} />
+      </label>
+      <label className="block">
+        <span className="mb-1 block text-[11px] font-bold uppercase tracking-wide text-muted">{tr("Competenze richieste (una per riga)")}</span>
+        <textarea disabled={!canManage} className={`${inputCls} min-h-[110px]`} value={skills} onChange={(e) => setSkills(e.target.value)} />
+      </label>
+      {canManage && (
+        <div className="flex justify-end md:col-span-2">
+          <PrimaryButton disabled={!description.trim() && !list.length} onClick={() => onSave({ description: description.trim(), skills: list.slice(0, 10) })}>
+            {tr("Salva profilo")}
+          </PrimaryButton>
+        </div>
+      )}
     </div>
   );
 }

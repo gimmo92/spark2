@@ -3,9 +3,9 @@
 import { useCallback } from "react";
 import { useCollection, useSettings, type Doc } from "@spark/core";
 import type { AnalysisSnapshot, SavedJustification } from "./lib/analysis/CompensationAnalysis";
-import { BENCHMARKS, PAY_ANALYSES, ROLE_WEIGHTS } from "./module";
+import { BENCHMARKS, PAY_ANALYSES, ROLE_PROFILES, ROLE_WEIGHTS } from "./module";
 import { familyId, type AnalysisSectorDoc, type BenchmarkDoc, type RoleFamilyDoc } from "./lib/benchmark";
-import { DEFAULT_WEIGHTS, cleanWeights, type CriteriaWeights, type RoleWeightDoc } from "./lib/roleWeights";
+import { DEFAULT_WEIGHTS, cleanWeights, type CriteriaWeights, type RoleProfileDoc, type RoleWeightDoc } from "./lib/roleWeights";
 
 /** A saved analysis: the normalised employees of one payroll file, with the justified deviations. */
 export interface PayAnalysisDoc extends Doc {
@@ -94,6 +94,21 @@ export function useCriteriaWeights() {
   const weights = cleanWeights(stored.weights);
   const setWeights = useCallback((w: CriteriaWeights) => patch({ weights: w }), [patch]);
   return { weights, setWeights };
+}
+
+/** Role profiles (job description, required skills), keyed by role title. */
+export function useRoleProfiles() {
+  const [items, update] = useCollection<RoleProfileDoc>(ROLE_PROFILES);
+  const byRole = new Map(items.map((d) => [d.role, d]));
+  const upsert = useCallback(
+    (docs: RoleProfileDoc[]) =>
+      update((prev) => {
+        const ids = new Set(docs.map((d) => d.id));
+        return [...docs, ...prev.filter((d) => !ids.has(d.id))];
+      }),
+    [update],
+  );
+  return { profiles: byRole, upsert };
 }
 
 export type { SavedJustification };
