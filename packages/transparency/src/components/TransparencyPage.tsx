@@ -1,14 +1,15 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Download, FileSpreadsheet, FolderOpen, Trash2, Upload } from "lucide-react";
-import { GhostButton, Modal, PrimaryButton, Tooltip, localeTag, tr, useAccess, useCore } from "@spark/core";
+import { GhostButton, Modal, PrimaryButton, Tooltip, localeTag, tr, useAccess, useCore, useData } from "@spark/core";
 import { CompensationAnalysis, type SavedJustification } from "../lib/analysis/CompensationAnalysis";
 import { MAPPING_REQUIRED_ROLES, MAPPING_UI_SECTIONS, getRoleLabel, type ColumnMapping, type ColumnRole } from "../lib/columnRoles";
 import { parseExcelFromFile, WorkbookParseError, type ParsedWorkbook } from "../lib/parseWorkbook";
 import { checkSchema, TEA_V2_EXPECTED_HEADERS, type SchemaCheckResult } from "../lib/provaTrasparenzaAdapter";
 import { usePayAnalyses } from "../store";
-import { Results } from "./Results";
+import { Results, type ResultsView } from "./Results";
 import { useBenchmarkRunner } from "./benchmarkRunner";
 import { useBenchmarks } from "../store";
 
@@ -17,9 +18,13 @@ type Step =
   | { kind: "mapping"; file: ParsedWorkbook & { fileName: string }; schema: SchemaCheckResult; mapping: ColumnMapping }
   | { kind: "results"; analysis: CompensationAnalysis; fileName: string; docId?: string; name?: string; file?: ParsedWorkbook & { fileName: string }; schema?: SchemaCheckResult; mapping?: ColumnMapping };
 
+const VIEWS: ResultsView[] = ["dashboard", "ccnl", "qualifica", "ruolo", "cdr", "parivalore", "dipendenti"];
+
 /**
  * Trasparenza retributiva: upload the Spark payroll template, check the columns, see the gender pay
  * gaps (EU directive 2023/970) and the single employees' reports; analyses are saved in the history.
+ * The open saved analysis and view live in the URL (?analisi=…&vista=…), so coming back from an
+ * employee's page reopens them. The route needs <Suspense> (it reads the URL on the client).
  */
 export function TransparencyPage() {
   const [tab, setTab] = useState<"analisi" | "storico">("analisi");
@@ -29,6 +34,14 @@ export function TransparencyPage() {
   const { notify, viewer } = useCore();
   const canManage = allowed("transparency.manage");
   const { run: runBenchmarks } = useBenchmarkRunner();
+  const { hydrated } = useData();
+  const params = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const urlView = params.get("vista") as ResultsView | null;
+  const initialView = urlView && VIEWS.includes(urlView) ? urlView : undefined;
+  const remember = (id: string | null, view?: ResultsView) =>
+    router.replace(id ? `${pathname}?analisi=${encodeURIComponent(id)}${view ? `&vista=${view}` : ""}` : pathname, { scroll: false });
   const { removeFor } = useBenchmarks();
 
   const open = (id: string) => {
@@ -40,7 +53,19 @@ export function TransparencyPage() {
     }
     setStep({ kind: "results", analysis, fileName: doc.fileName, docId: doc.id, name: doc.name });
     setTab("analisi");
+    if (params.get("analisi") !== id) remember(id);
   };
+
+  // reopen the analysis in the URL (e.g. back from an employee's page) once the data is loaded
+  const urlId = params.get("analisi");
+  const restored = useRef(false);
+  useEffect(() => {
+    if (restored.current || !hydrated || !urlId) return;
+    restored.current = true;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-off restore from the URL after the data store loads
+    if (step.kind === "upload" && analyses.some((a) => a.id === urlId)) open(urlId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hydrated, urlId]);
 
   const persist = (s: Extract<Step, { kind: "results" }>, name: string, justifications: SavedJustification[]) => {
     s.analysis.justifications = justifications;
@@ -54,6 +79,7 @@ export function TransparencyPage() {
       snapshot: { ...snapshot, savedName: name || s.fileName },
     });
     setStep({ ...s, docId: id, name: name || s.fileName });
+    remember(id);
     notify(s.docId ? tr("Analisi aggiornata") : tr("Analisi salvata nello storico"));
     // market benchmarks of the roles are ready by the time the Benchmarks page is opened
     if (!s.docId) void runBenchmarks(id, s.analysis.employees);
@@ -88,7 +114,10 @@ export function TransparencyPage() {
           onRemove={(id) => {
             remove(id);
             removeFor(id);
-            if (step.kind === "results" && step.docId === id) setStep({ kind: "upload" });
+            if (step.kind === "results" && step.docId === id) {
+              setStep({ kind: "upload" });
+              remember(null);
+            }
             notify(tr("Analisi eliminata"));
           }}
         />
@@ -133,7 +162,13 @@ export function TransparencyPage() {
           saved={!!step.docId}
           canManage={canManage}
           onSave={(name, justifications) => persist(step, name, justifications)}
-          onNew={() => setStep({ kind: "upload" })}
+          onNew={() => {
+            setStep({ kind: "upload" });
+            remember(null);
+          }}
+          analysisId={step.docId}
+          initialView={step.docId && step.docId === urlId ? initialView : undefined}
+          onView={(v) => step.docId && remember(step.docId, v)}
           onEditMapping={step.file && step.schema && step.mapping ? () => setStep({ kind: "mapping", file: step.file!, schema: step.schema!, mapping: step.mapping! }) : undefined}
         />
       )}

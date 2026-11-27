@@ -1,7 +1,8 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Employee } from "../models/Employee";
-import { MIN_GENDER_SAMPLE } from "../models/constants";
+import { MIN_GENDER_SAMPLE, SALARY_METRICS } from "../models/constants";
+import { defaultRgaSelection, personPay } from "./RgaComponents";
 import { LevelTaxonomy } from "./LevelTaxonomy";
 import { yearsOfService } from "./RoleAnalyzer";
 import { SalaryMath } from "./SalaryMath";
@@ -9,6 +10,21 @@ import { SalaryMath } from "./SalaryMath";
 const MARGIN = 14;
 
 export type PayLetterScope = "company" | "annex" | "group" | "level";
+
+/** One pay component of the category: means and medians by gender, gaps, the requester's value. */
+export interface PayLetterComponent {
+  label: string;
+  own: number | null;
+  meanM: number | null;
+  meanF: number | null;
+  medianM: number | null;
+  medianF: number | null;
+  gapMean: number | null;
+  gapMedian: number | null;
+  /** Median of the whole category and the requester's deviation from it (%). */
+  median: number | null;
+  vsMedianPct: number | null;
+}
 
 export type PayLetterAssessment =
   | { ok: false; reason: "category" }
@@ -56,6 +72,10 @@ export type PayLetterAssessment =
       scope: PayLetterScope;
       perimeterText: string;
       minPerGender: number;
+      /** Base, variable and total pay of the category (means, medians, gender gaps). */
+      components: PayLetterComponent[];
+      /** Quartile of the requester's base pay in the category (1 = lowest 25%). */
+      quartile: 1 | 2 | 3 | 4;
     };
 
 function ccnlOf(person: Employee): string {
@@ -220,6 +240,43 @@ export function assessPayLetter(
     ? null
     : SalaryMath.genderPayGapPct(avgMenHourly, avgWomenHourly);
 
+  const rga = defaultRgaSelection();
+  const parts: { label: string; of: (p: Employee) => number | null }[] = [
+    { label: "Retribuzione base (RAL FTE)", of: pay },
+    { label: "Componenti variabili", of: (p) => personPay(p, SALARY_METRICS.variabile, rga) },
+    { label: "Retribuzione totale", of: (p) => personPay(p, SALARY_METRICS.totale, rga) },
+  ];
+  const med = (values: number[]) => (values.length ? SalaryMath.median(values) : null);
+  const components: PayLetterComponent[] = parts.map(({ label, of }) => {
+    const vals = (g?: "M" | "F") =>
+      compared
+        .filter((peer) => !g || peer.gender === g)
+        .map(of)
+        .filter((value): value is number => value != null && value > 0);
+    const [m, f, all] = [vals("M"), vals("F"), vals()];
+    const meanM = mean(m);
+    const meanF = mean(f);
+    const medianM = med(m);
+    const medianF = med(f);
+    const median = med(all);
+    const own = of(person);
+    return {
+      label,
+      own: own != null && own > 0 ? own : null,
+      meanM,
+      meanF,
+      medianM,
+      medianF,
+      gapMean: meanM != null && meanF != null ? SalaryMath.genderPayGapPct(meanM, meanF) : null,
+      gapMedian: medianM != null && medianF != null ? SalaryMath.genderPayGapPct(medianM, medianF) : null,
+      median,
+      vsMedianPct: own != null && own > 0 && median ? ((own - median) / median) * 100 : null,
+    };
+  });
+  const sortedBase = compared.map(pay).filter((value): value is number => value != null).sort((a, b) => a - b);
+  const below = sortedBase.filter((value) => value < ownFte).length;
+  const quartile = (Math.min(4, Math.floor((below / Math.max(1, sortedBase.length)) * 4) + 1) as 1 | 2 | 3 | 4);
+
   return {
     ok: true,
     personName: person.name || "—",
@@ -255,6 +312,8 @@ export function assessPayLetter(
     scope,
     perimeterText: payLetterPerimeter(scope, ccnl),
     minPerGender,
+    components,
+    quartile,
   };
 }
 
@@ -407,8 +466,53 @@ export function downloadPayLetter(letter: Exclude<PayLetterAssessment, { ok: fal
     headStyles: { fillColor: [45, 62, 80] },
   });
   y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+
+  const amount = (value: number | null) => (value == null ? "n/d" : euro(value));
+  if (y > 230) {
+    doc.addPage();
+    y = 20;
+  }
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("3. Posizionamento nella categoria e divario di genere", MARGIN, y);
+  y += 6;
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
+  const quartileText = ["nel 25% con la retribuzione base più bassa", "tra il 25% e il 50%", "tra il 50% e il 75%", "nel 25% con la retribuzione base più alta"][letter.quartile - 1];
+  const position = doc.splitTextToSize(
+    `La retribuzione base del richiedente si colloca nel ${letter.quartile}° quartile della categoria (${quartileText}). Medie e mediane per genere della categoria, per componente retributiva:`,
+    pageWidth - MARGIN * 2
+  );
+  doc.text(position, MARGIN, y);
+  y += position.length * 4 + 2;
+  autoTable(doc, {
+    startY: y,
+    margin: { left: MARGIN, right: MARGIN },
+    head: [["Componente", "Richiedente", "Mediana categoria", "Scost. da mediana", "Media U", "Media D", "Gap medio", "Mediana U", "Mediana D", "Gap mediano"]],
+    body: letter.components.map((c) => [
+      c.label,
+      amount(c.own),
+      amount(c.median),
+      deviation(c.vsMedianPct),
+      amount(c.meanM),
+      amount(c.meanF),
+      SalaryMath.formatSignedGap(c.gapMean),
+      amount(c.medianM),
+      amount(c.medianF),
+      SalaryMath.formatSignedGap(c.gapMedian),
+    ]),
+    styles: { fontSize: 7 },
+    headStyles: { fillColor: [45, 62, 80] },
+  });
+  y = (doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  const gapNote = doc.splitTextToSize(
+    "Gap = (valore uomini − valore donne) / valore uomini: positivo se gli uomini percepiscono di più. Retribuzione totale: base FTE più componenti variabili e voci annue continuative.",
+    pageWidth - MARGIN * 2
+  );
+  doc.text(gapNote, MARGIN, y);
+  y += gapNote.length * 4 + 4;
   const closing = doc.splitTextToSize(
     "I confronti utilizzano esclusivamente medie aggregate della categoria; non sono riportate retribuzioni nominali di altri dipendenti.",
     pageWidth - MARGIN * 2

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { CheckCheck, Loader2, RotateCcw, Sparkles } from "lucide-react";
 import { Badge, GhostButton, PrimaryButton, Tooltip, tr, useData } from "@spark/core";
 import type { ComparisonRow } from "../lib/analysis/GapGroupAnalyzer";
@@ -23,6 +23,8 @@ import {
 } from "../lib/roleWeights";
 import { useCriteriaWeights, useRoleWeights } from "../store";
 import { eur, gap, gapTone } from "./format";
+import { ExpandToggle, GroupPeople, type PersonOpener } from "./GroupPeople";
+import type { RgaSelection } from "../lib/analysis/RgaComponents";
 
 const AI_ERRORS: Record<string, string> = {
   ai_config: "Servizio AI non configurato: manca la chiave ANTHROPIC_API_KEY sul server.",
@@ -286,8 +288,21 @@ function StatusDot({ row }: { row: ComparisonRow }) {
 }
 
 /** Gender pay gap per equal-value band, across CCNL levels. */
-export function EqualValueView({ people, getSalary, weighHref }: { people: Employee[]; getSalary: (p: Employee) => number | null; weighHref: string }) {
+export function EqualValueView({
+  people,
+  getSalary,
+  weighHref,
+  opener,
+  rga,
+}: {
+  people: Employee[];
+  getSalary: (p: Employee) => number | null;
+  weighHref: string;
+  opener: PersonOpener;
+  rga?: RgaSelection | null;
+}) {
   const { bands, roles, unconfirmed } = useEqualValueBands(people, getSalary);
+  const [open, setOpen] = useState<Record<number, boolean>>({});
 
   if (!roles) return <div className="card px-5 py-10 text-center text-[12.5px] text-muted">{tr("Il file non ha la colonna del ruolo: senza ruoli non si possono formare le fasce di pari valore.")}</div>;
 
@@ -320,10 +335,12 @@ export function EqualValueView({ people, getSalary, weighHref }: { people: Emplo
           </thead>
           <tbody>
             {bands.map(({ band, row, roles }) => (
-              <tr key={band} className="border-b border-line align-top text-[12.5px] last:border-0 hover:bg-[#f8fafd]">
-                <td className="whitespace-nowrap px-3 py-[8px] pl-4">
+              <Fragment key={band}>
+              <tr className="border-b border-line align-top text-[12.5px] last:border-0 hover:bg-[#f8fafd]">
+                <td className="whitespace-nowrap px-3 py-[8px] pl-3">
+                  <ExpandToggle open={!!open[band]} label={tr(bandName(band))} onClick={() => setOpen((o) => ({ ...o, [band]: !o[band] }))} />
                   <span className="font-semibold">{tr(bandName(band))}</span>
-                  <span className="block text-[11.5px] text-muted">{tr("{0} punti", [row.groupLabel])}</span>
+                  <span className="block pl-6 text-[11.5px] text-muted">{tr("{0} punti", [row.groupLabel])}</span>
                 </td>
                 <td className="max-w-[360px] px-3 py-[8px] text-[12px] text-muted">{roles.map((r) => `${r.role} (${r.n})`).join(", ")}</td>
                 <td className="px-3 py-[8px] text-right tabular-nums">{row.nM}</td>
@@ -335,6 +352,14 @@ export function EqualValueView({ people, getSalary, weighHref }: { people: Emplo
                   <StatusDot row={row} />
                 </td>
               </tr>
+              {open[band] && (
+                <tr className="border-b border-line">
+                  <td colSpan={8} className="p-0">
+                    <GroupPeople people={row.people} opener={opener} rga={rga} />
+                  </td>
+                </tr>
+              )}
+              </Fragment>
             ))}
           </tbody>
         </table>

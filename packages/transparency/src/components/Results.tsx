@@ -1,16 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { AlertTriangle, FileDown, Plus, Save, Search, SlidersHorizontal } from "lucide-react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, Check, ChevronDown, FileDown, Plus, Save, Search, SlidersHorizontal } from "lucide-react";
 import { Field, GhostButton, Modal, PrimaryButton, inputCls, localeTag, tr, useOrg } from "@spark/core";
 import { CompensationAnalysis, canonicalEmployeeId, type SavedJustification } from "../lib/analysis/CompensationAnalysis";
-import type { ComparisonRow } from "../lib/analysis/GapGroupAnalyzer";
+import { GapGroupAnalyzer, type ComparisonRow } from "../lib/analysis/GapGroupAnalyzer";
 import { downloadGapReportPdf } from "../lib/analysis/GapReportPdf";
 import { LevelTaxonomy } from "../lib/analysis/LevelTaxonomy";
-import { defaultRgaSelection, personPay } from "../lib/analysis/RgaComponents";
+import { RGA_COMPONENTS, RGA_LABELS, defaultRgaSelection, personPay, type RgaSelection } from "../lib/analysis/RgaComponents";
 import type { Employee } from "../lib/models/Employee";
 import { SALARY_METRICS, type SalaryMetric } from "../lib/models/constants";
 import { EmployeePanel } from "./EmployeePanel";
+import { ExpandToggle, GroupPeople, type PersonOpener } from "./GroupPeople";
 import Link from "next/link";
 import { EqualValueView, useEqualValueBands } from "./RoleWeights";
 import { bandName, type EqualValueBand } from "../lib/roleWeights";
@@ -22,7 +24,8 @@ const METRICS: { id: SalaryMetric; label: string; hint: string }[] = [
   { id: SALARY_METRICS.variabile, label: "Componenti variabili", hint: "Solo le voci variabili annue." },
 ];
 
-type View = "dashboard" | "ccnl" | "qualifica" | "cdr" | "parivalore" | "dipendenti";
+export type ResultsView = "dashboard" | "ccnl" | "qualifica" | "ruolo" | "cdr" | "parivalore" | "dipendenti";
+type View = ResultsView;
 
 interface Props {
   analysis: CompensationAnalysis;
@@ -35,12 +38,22 @@ interface Props {
   onEditMapping?: () => void;
   /** Page of the role weighting (Job grading), linked from the equal-value view. */
   jobGradingHref?: string;
+  /** Saved analysis: people open on their own page (employeeHref), otherwise in a panel. */
+  analysisId?: string;
+  employeeHref?: string;
+  initialView?: ResultsView;
+  onView?: (view: ResultsView) => void;
 }
 
 /** Results of one analysis: EU dashboard, gaps by CCNL level / qualification / cost centre, employees. */
-export function Results({ analysis, fileName, savedName, saved, canManage, onSave, onNew, onEditMapping, jobGradingHref = "/job-grading" }: Props) {
+export function Results({ analysis, fileName, savedName, saved, canManage, onSave, onNew, onEditMapping, jobGradingHref = "/job-grading", analysisId, employeeHref = "/trasparenza/dipendente", initialView, onView }: Props) {
   const all = analysis.employees;
-  const [view, setView] = useState<View>("dashboard");
+  const [view, setViewState] = useState<View>(initialView ?? "dashboard");
+  const setView = (v: View) => {
+    setViewState(v);
+    onView?.(v);
+  };
+  const router = useRouter();
   const [metric, setMetric] = useState<SalaryMetric>(SALARY_METRICS.base);
   const [company, setCompany] = useState("");
   const [excluded, setExcluded] = useState<Record<number, string>>(() => CompensationAnalysis.exclusionMap(all, analysis.justifications));
@@ -48,18 +61,28 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
 
-  const rga = metric === SALARY_METRICS.totale ? defaultRgaSelection() : null;
+  // voices of total / variable pay the user includes (Spark/TEA template only)
+  const [selection, setSelection] = useState<RgaSelection>(defaultRgaSelection);
+  const hasVoices = useMemo(() => all.some((e) => e.paySchema === "tea"), [all]);
+  const rga = metric === SALARY_METRICS.base ? null : hasVoices ? selection : metric === SALARY_METRICS.totale ? defaultRgaSelection() : null;
+  const rgaKey = JSON.stringify(rga);
   const companies = useMemo(() => analysis.companyOptions(), [analysis]);
   // employees with a justified deviation are left out of the gap figures
   const population = useMemo(() => all.filter((e) => !excluded[e.index] && (!company || e.company === company)), [all, excluded, company]);
   const scoped = useMemo(() => new CompensationAnalysis(population), [population]);
-  const dash = useMemo(() => scoped.dashboard(metric, true, rga), [scoped, metric]); // eslint-disable-line react-hooks/exhaustive-deps
-  const ccnl = useMemo(() => scoped.ccnlGroups(metric, true, rga), [scoped, metric]); // eslint-disable-line react-hooks/exhaustive-deps
-  const qualifications = useMemo(() => scoped.qualificationGroups(metric, true, rga), [scoped, metric]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dash = useMemo(() => scoped.dashboard(metric, true, rga), [scoped, metric, rgaKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const ccnl = useMemo(() => scoped.ccnlGroups(metric, true, rga), [scoped, metric, rgaKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const qualifications = useMemo(() => scoped.qualificationGroups(metric, true, rga), [scoped, metric, rgaKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const hasCdr = scoped.hasCostCenterData();
-  const costCenters = useMemo(() => (hasCdr ? scoped.costCenters(metric, true, rga) : []), [scoped, metric, hasCdr]); // eslint-disable-line react-hooks/exhaustive-deps
-  const payOf = useMemo(() => scoped.salaryOf(metric, true, false, rga), [scoped, metric]); // eslint-disable-line react-hooks/exhaustive-deps
+  const costCenters = useMemo(() => (hasCdr ? scoped.costCenters(metric, true, rga) : []), [scoped, metric, hasCdr, rgaKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  // saved analysis: a person opens on their page; otherwise in the panel
+  const opener: PersonOpener = analysisId
+    ? { href: (e) => `${employeeHref}?analisi=${encodeURIComponent(analysisId)}&dip=${e.index}` }
+    : { onOpen: (e) => setPerson(e) };
+  const openPerson = (e: Employee) => (opener.href ? router.push(opener.href(e)) : setPerson(e));
+  const payOf = useMemo(() => scoped.salaryOf(metric, true, false, rga), [scoped, metric, rgaKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const equal = useEqualValueBands(population, payOf);
+  const roleRows = useMemo(() => GapGroupAnalyzer.byRole(population, payOf).sort((a, b) => b.nTotal - a.nTotal), [population, payOf]);
   const critical = useMemo(
     () =>
       ccnl
@@ -81,6 +104,7 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
     { id: "dashboard", label: "Dashboard UE" },
     { id: "ccnl", label: "Per livello CCNL" },
     { id: "qualifica", label: "Per qualifica" },
+    { id: "ruolo", label: "Per ruolo" },
     { id: "cdr", label: "Per centro di costo", hidden: !hasCdr },
     { id: "parivalore", label: "Per fascia di job grading" },
     { id: "dipendenti", label: "Dipendenti" },
@@ -114,6 +138,31 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        {view !== "dipendenti" && (
+          <select value={metric} onChange={(e) => setMetric(e.target.value as SalaryMetric)} className="rounded-lg border border-[#dfe3ea] bg-white px-2 py-1.5 text-[12.5px] font-semibold outline-none focus:border-brand">
+            {METRICS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {tr(m.label)}
+              </option>
+            ))}
+          </select>
+        )}
+        {view !== "dipendenti" && metric !== SALARY_METRICS.base && hasVoices && (
+          <VoicesPicker variable={metric === SALARY_METRICS.variabile} value={selection} onChange={setSelection} />
+        )}
+        {companies.length > 1 && (
+          <select value={company} onChange={(e) => setCompany(e.target.value)} className="rounded-lg border border-[#dfe3ea] bg-white px-2 py-1.5 text-[12.5px] outline-none focus:border-brand">
+            <option value="">{tr("Tutte le società")}</option>
+            {companies.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
         <div className="flex flex-wrap rounded-lg bg-canvas p-0.5 text-[12.5px] font-semibold">
           {tabs
             .filter((t) => !t.hidden)
@@ -127,27 +176,6 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
                 {tr(t.label)}
               </button>
             ))}
-        </div>
-        <div className="ml-auto flex flex-wrap items-center gap-2">
-          {companies.length > 1 && (
-            <select value={company} onChange={(e) => setCompany(e.target.value)} className="rounded-lg border border-[#dfe3ea] bg-white px-2 py-1.5 text-[12.5px] outline-none focus:border-brand">
-              <option value="">{tr("Tutte le società")}</option>
-              {companies.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          )}
-          {view !== "dipendenti" && (
-            <select value={metric} onChange={(e) => setMetric(e.target.value as SalaryMetric)} className="rounded-lg border border-[#dfe3ea] bg-white px-2 py-1.5 text-[12.5px] font-semibold outline-none focus:border-brand">
-              {METRICS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {tr(m.label)}
-                </option>
-              ))}
-            </select>
-          )}
         </div>
       </div>
       {view !== "dipendenti" && <p className="text-[12px] text-muted">{tr(metricDef.hint)} {tr("Gap = (media uomini − media donne) / media uomini: positivo se gli uomini sono pagati di più. Soglia della direttiva: 5%.")}</p>}
@@ -169,14 +197,15 @@ export function Results({ analysis, fileName, savedName, saved, canManage, onSav
       )}
       {view === "ccnl" &&
         (ccnl.length ? (
-          ccnl.map((g) => <GroupTable key={g.ccnlKey} title={g.ccnlLabel || tr("CCNL non indicato")} label="Livello" rows={g.levels} />)
+          ccnl.map((g) => <GroupTable key={g.ccnlKey} title={g.ccnlLabel || tr("CCNL non indicato")} label="Livello" rows={g.levels} opener={opener} rga={rga} />)
         ) : (
           <Empty />
         ))}
-      {view === "qualifica" && <GroupTable label="Qualifica" rows={qualifications} />}
-      {view === "cdr" && <GroupTable label="Centro di costo" rows={costCenters} />}
-      {view === "parivalore" && <EqualValueView people={population} getSalary={payOf} weighHref={jobGradingHref} />}
-      {view === "dipendenti" && <Employees people={company ? all.filter((e) => e.company === company) : all} excluded={excluded} onOpen={setPerson} />}
+      {view === "qualifica" && <GroupTable label="Qualifica" rows={qualifications} opener={opener} rga={rga} />}
+      {view === "ruolo" && <GroupTable label="Ruolo" rows={roleRows} opener={opener} rga={rga} />}
+      {view === "cdr" && <GroupTable label="Centro di costo" rows={costCenters} opener={opener} rga={rga} />}
+      {view === "parivalore" && <EqualValueView people={population} getSalary={payOf} weighHref={jobGradingHref} opener={opener} rga={rga} />}
+      {view === "dipendenti" && <Employees people={company ? all.filter((e) => e.company === company) : all} excluded={excluded} onOpen={openPerson} />}
 
       {person && (
         <EmployeePanel
@@ -455,13 +484,71 @@ function ReportModal({ defaultCompany, onClose, onDownload }: { defaultCompany: 
   );
 }
 
+/** Voices of total (or variable) pay included in the analysis, as checkboxes in a dropdown. */
+function VoicesPicker({ variable, value, onChange }: { variable: boolean; value: RgaSelection; onChange: (v: RgaSelection) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+  const items = RGA_COMPONENTS.filter((c) => !variable || c.id !== "ral");
+  const on = items.filter((c) => value[c.id]).length;
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className="flex items-center gap-1.5 rounded-lg border border-[#dfe3ea] bg-white px-2.5 py-1.5 text-[12.5px] outline-none hover:border-[#c6ccd6] focus:border-brand"
+      >
+        {tr("Voci incluse")} <span className="font-semibold tabular-nums">{on}/{items.length}</span>
+        <ChevronDown className={`h-3.5 w-3.5 text-muted transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute left-0 z-30 mt-1 w-72 rounded-xl border border-line bg-white p-1.5 shadow-lg">
+          <div className="flex items-center justify-between px-2 pb-1 pt-0.5 text-[11.5px]">
+            <span className="font-bold uppercase tracking-wide text-muted">{variable ? tr("Componenti variabili") : tr("Retribuzione totale")}</span>
+            <button type="button" onClick={() => onChange(defaultRgaSelection())} className="font-semibold text-brand hover:underline">
+              {tr("Predefinite")}
+            </button>
+          </div>
+          {items.map((c) => {
+            const checked = value[c.id];
+            return (
+              <button
+                key={c.id}
+                type="button"
+                role="menuitemcheckbox"
+                aria-checked={checked}
+                onClick={() => onChange({ ...value, [c.id]: !checked })}
+                className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[12.5px] hover:bg-canvas"
+              >
+                <span className={`grid h-4 w-4 shrink-0 place-items-center rounded border ${checked ? "border-brand bg-brand text-white" : "border-[#c6ccd6] bg-white"}`}>
+                  {checked && <Check className="h-3 w-3" strokeWidth={3} />}
+                </span>
+                {tr(RGA_LABELS[c.id])}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function StatusDot({ row }: { row: ComparisonRow }) {
   if (row.insufficientSample) return <span className="text-[11.5px] text-muted">{tr("campione ridotto")}</span>;
   const c = row.status === "red" ? "bg-red-500" : row.status === "yellow" ? "bg-amber-400" : "bg-emerald-500";
   return <span className={`inline-block h-2 w-2 rounded-full ${c}`} />;
 }
 
-function GroupTable({ title, label, rows }: { title?: string; label: string; rows: ComparisonRow[] }) {
+function GroupTable({ title, label, rows, opener, rga }: { title?: string; label: string; rows: ComparisonRow[]; opener: PersonOpener; rga: RgaSelection | null }) {
+  const [open, setOpen] = useState<Record<string, boolean>>({});
   if (!rows.length) return <Empty />;
   return (
     <div className="card overflow-x-auto">
@@ -481,8 +568,12 @@ function GroupTable({ title, label, rows }: { title?: string; label: string; row
         </thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={r.groupKey} className="border-b border-line text-[12.5px] last:border-0 hover:bg-[#f8fafd]">
-              <td className="px-3 py-[8px] pl-4 font-semibold">{r.groupLabel}</td>
+            <Fragment key={r.groupKey}>
+            <tr className="border-b border-line text-[12.5px] last:border-0 hover:bg-[#f8fafd]">
+              <td className="px-3 py-[8px] pl-3 font-semibold">
+                <ExpandToggle open={!!open[r.groupKey]} label={r.groupLabel} onClick={() => setOpen((o) => ({ ...o, [r.groupKey]: !o[r.groupKey] }))} />
+                {r.groupLabel}
+              </td>
               <td className="px-3 py-[8px] text-right tabular-nums">{r.nM}</td>
               <td className="px-3 py-[8px] text-right tabular-nums">{r.nF}</td>
               <td className="px-3 py-[8px] text-right tabular-nums">{eur(r.avgM)}</td>
@@ -493,6 +584,14 @@ function GroupTable({ title, label, rows }: { title?: string; label: string; row
                 <StatusDot row={r} />
               </td>
             </tr>
+            {open[r.groupKey] && (
+              <tr className="border-b border-line">
+                <td colSpan={8} className="p-0">
+                  <GroupPeople people={r.people} opener={opener} rga={rga} />
+                </td>
+              </tr>
+            )}
+            </Fragment>
           ))}
         </tbody>
       </table>

@@ -19,6 +19,24 @@ export const RGA_COMPONENTS = [
 ] as const;
 
 export type RgaComponentId = (typeof RGA_COMPONENTS)[number]["id"];
+
+/** Italian names of the pay voices (translated where rendered). */
+export const RGA_LABELS: Record<RgaComponentId, string> = {
+  ral: "RAL a tempo pieno",
+  mboBase: "MBO a target",
+  mboPaid: "MBO erogato",
+  pdr: "Premio di risultato a target",
+  pdrPaid: "Premio di risultato erogato",
+  fringe: "Fringe benefit",
+  welfare: "Welfare aziendale",
+  meal: "Buoni pasto",
+  overtime: "Straordinari",
+  allowances: "Indennità variabili",
+  oneOff: "Una tantum",
+  incentives: "Incentivi",
+  liberal: "Erogazioni liberali",
+  other: "Altre voci annue",
+};
 export type RgaSelection = Record<RgaComponentId, boolean>;
 
 export function defaultRgaSelection(): RgaSelection {
@@ -42,6 +60,10 @@ export function rgaAmount(person: Employee, selection: RgaSelection): number {
   }, 0);
 }
 
+/**
+ * Pay of a person for a metric. With a selection of voices (Spark/TEA template): total = the voices
+ * switched on; variable = the voices switched on except the RAL.
+ */
 export function personPay(
   person: Employee,
   metric: SalaryMetric,
@@ -49,6 +71,10 @@ export function personPay(
 ): number | null {
   if (metric === SALARY_METRICS.totale && rga) {
     const amount = rgaAmount(person, rga);
+    return amount > 0 ? amount : null;
+  }
+  if (metric === SALARY_METRICS.variabile && rga && person.paySchema === "tea") {
+    const amount = rgaAmount(person, { ...rga, ral: false });
     return amount > 0 ? amount : null;
   }
   return person.comparisonValue(metric, { fte: true });

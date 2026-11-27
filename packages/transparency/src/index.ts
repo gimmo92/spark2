@@ -4,6 +4,7 @@ export * from "./store";
 export * from "./components/TransparencyPage";
 export * from "./components/Results";
 export * from "./components/EmployeePanel";
+export * from "./components/EmployeePage";
 export * from "./components/RoleWeights";
 export * from "./components/JobGradingPage";
 export * from "./components/BenchmarkPage";
