@@ -9,6 +9,9 @@ export interface SparkPanelDTO {
   tenantModules: Record<string, string[]>;
   /** `SparkConfig.tenantModules`: what a company gets until staff choose (undefined = the installation's). */
   tenantDefault?: string[];
+  /** Menu entries (hrefs) switched off for the installation / for each company. */
+  installationHidden: string[];
+  tenantHidden: Record<string, string[]>;
 }
 
 export const PANEL_ERRORS: Record<string, string> = {

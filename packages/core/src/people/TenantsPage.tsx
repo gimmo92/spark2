@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { ArrowRightLeft, Building2, Check, LogIn, Plus } from "lucide-react";
-import { Badge, Field, GhostButton, Modal, PrimaryButton, inputCls } from "../ui/ui";
+import { ArrowRightLeft, Building2, Check, ListChecks, LogIn, Plus } from "lucide-react";
+import { Badge, Field, GhostButton, Modal, PrimaryButton, Tooltip, inputCls } from "../ui/ui";
+import { FeatureToggles, type Feature } from "../spark/FeatureToggles";
 import { localeTag, tr } from "../i18n/i18n";
 import { TENANT_ERRORS, type TenantDTO } from "./tenants";
 
@@ -77,12 +78,20 @@ export function TenantsPage({
   modules,
   modulesOf,
   onModules,
+  features,
+  hiddenOf,
+  onHidden,
 }: {
   /** Modules on in the installation, offered per company. */
   modules: { id: string; label: string }[];
   modulesOf: (tenant: string) => string[];
   onModules: (tenant: string, modules: string[]) => void;
+  /** Menu entries of the installation's modules, switchable per company. */
+  features: Feature[];
+  hiddenOf: (tenant: string) => string[];
+  onHidden: (tenant: string, hidden: string[]) => void;
 }) {
+  const [entries, setEntries] = useState<TenantDTO | null>(null);
   const [tenants, setTenants] = useState<TenantDTO[] | null>(null);
   const [current, setCurrent] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -175,6 +184,16 @@ export function TenantsPage({
                   <td className="px-3 py-[9px] text-[12.5px] text-muted">{new Date(t.created_at).toLocaleDateString(localeTag())}</td>
                   <td className="px-3 py-[9px] text-right text-[12.5px] font-semibold tabular-nums">{t.users}</td>
                   <td className="px-3 py-[5px] pr-4 text-right">
+                    <Tooltip label={tr("Voci di menu")}>
+                      <button
+                        type="button"
+                        aria-label={tr("Voci di menu di {0}", [t.name])}
+                        onClick={() => setEntries(t)}
+                        className="mr-1 inline-grid h-7 w-7 place-items-center rounded-md align-middle text-[#6c7486] hover:bg-brand-soft hover:text-brand"
+                      >
+                        <ListChecks className="h-4 w-4" />
+                      </button>
+                    </Tooltip>
                     <button
                       type="button"
                       onClick={() => void switchTenant(t.id)}
@@ -190,6 +209,24 @@ export function TenantsPage({
         </div>
       )}
 
+      {entries && (
+        <Modal title={tr("Voci di menu di {0}", [entries.name])} onClose={() => setEntries(null)} width="max-w-lg">
+          <div className="space-y-3">
+            {modules
+              .filter((m) => modulesOf(entries.id).includes(m.id))
+              .map((m) => {
+                const own = features.filter((f) => f.module === m.id);
+                return own.length ? (
+                  <div key={m.id}>
+                    <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-muted">{tr(m.label)}</p>
+                    <FeatureToggles features={own} hidden={hiddenOf(entries.id)} onChange={(hidden) => onHidden(entries.id, hidden)} />
+                  </div>
+                ) : null;
+              })}
+            {!modules.some((m) => modulesOf(entries.id).includes(m.id)) && <p className="text-[12.5px] text-muted">{tr("Nessun modulo attivo per questa azienda.")}</p>}
+          </div>
+        </Modal>
+      )}
       {creating && (
         <NewTenantModal
           onClose={() => setCreating(false)}

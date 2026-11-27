@@ -23,10 +23,12 @@ export function createSparkRoute(config: AppConfig) {
       const stored = await readModules(!!config.multiTenant);
       const body: SparkPanelDTO = {
         modules: config.modules.map((m) => ({ id: m.id, label: m.label ?? m.id })),
-        installation: (stored.installation ?? ids).filter((id) => ids.includes(id)),
+        installation: (stored.installation.enabled ?? ids).filter((id) => ids.includes(id)),
         multiTenant: !!config.multiTenant,
-        tenantModules: Object.fromEntries(stored.tenants),
+        tenantModules: Object.fromEntries([...stored.tenants].filter(([, t]) => t.enabled).map(([id, t]) => [id, t.enabled!])),
         tenantDefault: config.tenantModules,
+        installationHidden: stored.installation.hidden,
+        tenantHidden: Object.fromEntries([...stored.tenants].map(([id, t]) => [id, t.hidden])),
       };
       return NextResponse.json(body);
     } catch (e) {
@@ -34,14 +36,17 @@ export function createSparkRoute(config: AppConfig) {
     }
   }
 
-  /** `{ modules }` for the installation, `{ tenant, modules }` for one company (multi-tenant apps). */
+  /** `{ modules, hidden }` for the installation, `{ tenant, modules, hidden }` for one company (multi-tenant apps). */
   async function PUT(request: NextRequest) {
     const auth = await requireStaff();
     if (auth instanceof NextResponse) return auth;
-    const body = (await request.json().catch(() => null)) as { modules?: unknown; tenant?: unknown } | null;
+    const body = (await request.json().catch(() => null)) as { modules?: unknown; hidden?: unknown; tenant?: unknown } | null;
     const list = body?.modules;
     if (!Array.isArray(list) || list.some((x) => typeof x !== "string" || !ids.includes(x))) return NextResponse.json({ error: "body" }, { status: 400 });
     const modules = ids.filter((id) => list.includes(id));
+    const rawHidden = Array.isArray(body?.hidden) ? body.hidden : [];
+    if (rawHidden.length > 200 || rawHidden.some((x) => typeof x !== "string" || !x.startsWith("/") || x.length > 200)) return NextResponse.json({ error: "body" }, { status: 400 });
+    const hidden = [...new Set(rawHidden as string[])];
     const tenant = typeof body?.tenant === "string" && body.tenant ? body.tenant : undefined;
     try {
       if (tenant) {
@@ -49,14 +54,14 @@ export function createSparkRoute(config: AppConfig) {
         const { data, error } = await getSupabaseAdmin().from("tenants").select("id").eq("id", tenant).maybeSingle();
         if (error) throw error;
         if (!data) return NextResponse.json({ error: "missing" }, { status: 404 });
-        await writeModules(modules, auth.email, tenant);
+        await writeModules(modules, hidden, auth.email, tenant);
       } else {
-        await writeModules(modules, auth.email, config.multiTenant ? "" : undefined);
+        await writeModules(modules, hidden, auth.email, config.multiTenant ? "" : undefined);
       }
     } catch (e) {
       return NextResponse.json({ error: "table", detail: code(e) }, { status: 503 });
     }
-    return NextResponse.json({ ok: true, modules });
+    return NextResponse.json({ ok: true, modules, hidden });
   }
 
   return { GET, PUT };

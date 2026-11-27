@@ -17,6 +17,8 @@ export interface ViewerDTO {
   staff?: boolean;
   /** Modules on for this user (installation, and company in multi-tenant apps). Undefined = all. */
   modules?: string[];
+  /** Menu entries (hrefs) switched off in the Spark panel: shown locked. */
+  hiddenFeatures?: string[];
   /** Multi-tenant app: the tenant whose data is shown ("" = none picked yet). */
   tenant?: string;
   tenantName?: string;

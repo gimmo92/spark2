@@ -19,6 +19,7 @@ const info = (v: Caller): ViewerDTO => ({
   isAdmin: v.isAdmin,
   staff: v.staff,
   modules: v.modules,
+  hiddenFeatures: v.hidden,
   ...(v.tenant !== undefined ? { tenant: v.tenant, tenantName: v.tenantName } : {}),
 });
 

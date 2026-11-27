@@ -117,11 +117,13 @@ export function SparkProvider({ config, children }: { config: SparkConfig; child
 
 /** Below the data store: the config with only the modules the server says are on (Spark panel). */
 function ModuleScope({ value, children }: { value: CoreCtx; children: React.ReactNode }) {
-  const enabled = useData().viewer?.modules;
+  const viewer = useData().viewer;
+  const enabled = viewer?.modules;
   const key = enabled?.join(",");
+  const hiddenKey = (viewer?.hiddenFeatures ?? []).join(",");
   const scoped = useMemo(
-    () => (key === undefined ? value : { ...value, config: applyModules(value.config, key ? key.split(",") : []) }),
-    [value, key],
+    () => (key === undefined ? value : { ...value, config: applyModules(value.config, key ? key.split(",") : [], hiddenKey ? hiddenKey.split(",") : []) }),
+    [value, key, hiddenKey],
   );
   return <Ctx.Provider value={scoped}>{children}</Ctx.Provider>;
 }

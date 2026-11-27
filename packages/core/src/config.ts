@@ -143,21 +143,36 @@ export function enabledModules(config: Pick<SparkConfig, "modules" | "multiTenan
  * The config as seen by a caller with only `enabled` modules: other modules are dropped (their
  * permissions, letter variables, collections) and their menu entries and tabs are locked.
  */
-export function applyModules(config: SparkConfig, enabled: string[]): SparkConfig {
-  const off = (m?: string) => !!m && !enabled.includes(m);
+export function applyModules(config: SparkConfig, enabled: string[], hidden: string[] = []): SparkConfig {
+  const off = (m?: string, href?: string) => (!!m && !enabled.includes(m)) || (!!href && hidden.includes(href));
   return {
     ...config,
     modules: config.modules.filter((m) => enabled.includes(m.id)),
     nav: config.nav.map((i) =>
-      off(i.module)
+      off(i.module, "href" in i ? i.href : undefined)
         ? { ...i, locked: true }
         : "children" in i
-          ? { ...i, children: i.children.map((c) => (off(c.module) ? { ...c, locked: true } : c)) }
+          ? { ...i, children: i.children.map((c) => (off(c.module, c.href) ? { ...c, locked: true } : c)) }
           : i,
     ),
-    dashboardTabs: config.dashboardTabs.map((t) => (off(t.module) ? { ...t, locked: true } : t)),
-    settingsTabs: config.settingsTabs.map((t) => (off(t.module) ? { ...t, locked: true } : t)),
+    dashboardTabs: config.dashboardTabs.map((t) => (off(t.module, t.href) ? { ...t, locked: true } : t)),
+    settingsTabs: config.settingsTabs.map((t) => (off(t.module, t.href) ? { ...t, locked: true } : t)),
   };
+}
+
+/** Menu entries of the modules (label, href, module), switchable one by one in the Spark panel. */
+export function moduleFeatures(config: Pick<SparkConfig, "nav" | "dashboardTabs" | "settingsTabs">) {
+  const out: { module: string; href: string; label: string; group?: string }[] = [];
+  for (const i of config.nav) {
+    if ("children" in i) {
+      for (const c of i.children) {
+        const m = c.module ?? i.module;
+        if (m) out.push({ module: m, href: c.href, label: c.label, group: i.label });
+      }
+    } else if (i.module) out.push({ module: i.module, href: i.href, label: i.label });
+  }
+  for (const t of [...config.dashboardTabs, ...config.settingsTabs]) if (t.module) out.push({ module: t.module, href: t.href, label: t.label });
+  return out;
 }
 
 /** Collections owned by the core. */
