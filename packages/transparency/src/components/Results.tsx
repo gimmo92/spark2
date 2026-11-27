@@ -159,6 +159,8 @@ export function Results({ analysis, name, jobGradingHref = "/job-grading", analy
           jobGradingHref={jobGradingHref}
           excluded={excluded}
           all={all}
+          opener={opener}
+          rga={rga}
         />
       )}
       {view === "ccnl" &&
@@ -203,6 +205,8 @@ function Dashboard({
   jobGradingHref,
   excluded,
   all,
+  opener,
+  rga,
 }: {
   dash: ReturnType<CompensationAnalysis["dashboard"]>;
   critical: { label: string; gap: number; n: number }[];
@@ -215,9 +219,15 @@ function Dashboard({
   jobGradingHref: string;
   excluded: Record<number, string>;
   all: Employee[];
+  opener: PersonOpener;
+  rga: RgaSelection | null;
 }) {
   const org = useOrg();
   const [report, setReport] = useState(false);
+  const [openQ, setOpenQ] = useState<number | null>(null);
+  const byIndex = useMemo(() => new Map(all.map((e) => [e.index, e])), [all]);
+  const quartilePeople = (q: number) =>
+    (dash.quartiles.find((x) => x.quartile === q)?.people ?? []).map((p) => byIndex.get(p.index)).filter((e): e is Employee => !!e);
   if (!dash.nTotaleAnalizzati) return <div className="card px-5 py-10 text-center text-[12.5px] text-muted">{tr("Nessun dipendente con sesso e retribuzione validi.")}</div>;
   const maxQ = Math.max(1, ...dash.quartiles.map((q) => Math.max(q.maschile, q.femminile)));
 
@@ -312,9 +322,24 @@ function Dashboard({
               <p className="mt-2 text-[11.5px] text-muted">
                 {tr("Media U")} {eur(q.avgMaschile)} · {tr("D")} {eur(q.avgFemminile)}
               </p>
+              <button
+                type="button"
+                aria-expanded={openQ === q.quartile}
+                onClick={() => setOpenQ(openQ === q.quartile ? null : q.quartile)}
+                className="mt-1.5 inline-flex items-center gap-1 text-[12px] font-semibold text-brand hover:underline"
+              >
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform ${openQ === q.quartile ? "rotate-180" : ""}`} />
+                {openQ === q.quartile ? tr("Nascondi dipendenti") : tr("Dipendenti ({0})", [q.totale])}
+              </button>
             </div>
           ))}
         </div>
+        {openQ != null && (
+          <div className="mt-3 overflow-hidden rounded-xl border border-line">
+            <p className="border-b border-line bg-white px-4 py-2 text-[12.5px] font-semibold">{tr("Dipendenti del Q{0}", [openQ])}</p>
+            <GroupPeople people={quartilePeople(openQ)} opener={opener} rga={rga} />
+          </div>
+        )}
         <p className="mt-2 flex items-center gap-3 text-[11.5px] text-muted">
           <span className="flex items-center gap-1">
             <span className="h-2 w-2 rounded-sm bg-[#1e5fe0]" /> {tr("Uomini")}

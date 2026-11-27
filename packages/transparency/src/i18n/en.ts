@@ -389,4 +389,7 @@ export const EN: Record<string, string> = {
   "Carica dati": "Upload data",
   "Questi dati sono in un formato precedente: caricali di nuovo.": "This data is in an older format: upload it again.",
   "Nome dei dati": "Data name",
+  "Nascondi dipendenti": "Hide employees",
+  "Dipendenti ({0})": "Employees ({0})",
+  "Dipendenti del Q{0}": "Employees in Q{0}",
 };
