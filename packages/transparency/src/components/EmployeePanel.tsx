@@ -8,6 +8,7 @@ import { assessPayLetter, downloadPayLetter, type PayLetterScope } from "../lib/
 import { yearsOfService } from "../lib/analysis/RoleAnalyzer";
 import { teaPayComposition } from "../lib/analysis/TeaPayComposition";
 import type { Employee } from "../lib/models/Employee";
+import { PAY_LETTER_MIN_PER_GENDER } from "../lib/models/constants";
 import { eur, num } from "./format";
 
 const SCOPE_LABELS: Record<PayLetterScope, string> = {
@@ -99,7 +100,7 @@ export function EmployeeProfile({ person }: { person: Employee }) {
 /** Individual pay information letter (art. 7): PDF with the person's position in their category. */
 export function PayLetterSection({ person, peers }: { person: Employee; peers: Employee[] }) {
   const [period, setPeriod] = useState(`Anno ${new Date().getFullYear()}`);
-  const [minSample, setMinSample] = useState(5);
+  const [minSample, setMinSample] = useState(PAY_LETTER_MIN_PER_GENDER);
   const [message, setMessage] = useState<{ text: string; next?: PayLetterScope } | null>(null);
 
   const letter = (scope: PayLetterScope = "company") => {

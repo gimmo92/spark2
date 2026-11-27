@@ -1,7 +1,7 @@
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
 import { Employee } from "../models/Employee";
-import { MIN_GENDER_SAMPLE, SALARY_METRICS } from "../models/constants";
+import { PAY_LETTER_MIN_PER_GENDER, SALARY_METRICS } from "../models/constants";
 import { defaultRgaSelection, personPay } from "./RgaComponents";
 import { LevelTaxonomy } from "./LevelTaxonomy";
 import { yearsOfService } from "./RoleAnalyzer";
@@ -187,7 +187,7 @@ export function assessPayLetter(
 ): PayLetterAssessment {
   const now = options.now ?? new Date();
   const periodLabel = options.periodLabel?.trim() || `Anno ${now.getFullYear()}`;
-  const minPerGender = options.minPerGender ?? MIN_GENDER_SAMPLE;
+  const minPerGender = options.minPerGender ?? PAY_LETTER_MIN_PER_GENDER;
   const level = LevelTaxonomy.normalize(person?.level) || "";
   const ccnl = ccnlOf(person);
   if (!person || !level || !ccnl || pay(person) == null) {
