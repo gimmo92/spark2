@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Fragment, useMemo, useState } from "react";
-import { localeTag, tr, useAccess, useOrg, useSettings } from "@spark/core";
+import { Badge, GhostButton, PrimaryButton, localeTag, tr, useAccess, useCore, useOrg, useSettings } from "@spark/core";
 import { CompensationAnalysis } from "../lib/analysis/CompensationAnalysis";
 import { LevelTaxonomy } from "../lib/analysis/LevelTaxonomy";
 import { personPay } from "../lib/analysis/RgaComponents";
@@ -65,7 +65,13 @@ export function SalaryBandsPage({ uploadHref = "/caricamento-dati", employeeHref
   const { allowed } = useAccess();
   const canManage = allowed("transparency.manage");
   const [stored, patch] = useSettings<BandSettings>("salaryBands", DEFAULTS);
-  const settings = { approach: APPROACHES.some((a) => a.id === stored.approach) ? stored.approach : DEFAULTS.approach, spread: Math.min(50, Math.max(1, Number(stored.spread) || DEFAULTS.spread)) };
+  const { notify } = useCore();
+  const saved: BandSettings = { approach: APPROACHES.some((a) => a.id === stored.approach) ? stored.approach : DEFAULTS.approach, spread: Math.min(50, Math.max(1, Number(stored.spread) || DEFAULTS.spread)) };
+  // changes are a preview until "Salva approccio"
+  const [draft, setDraft] = useState<BandSettings | null>(null);
+  const settings = draft ?? saved;
+  const dirty = !!draft && (draft.approach !== saved.approach || draft.spread !== saved.spread);
+  const edit = (p: Partial<BandSettings>) => setDraft({ ...settings, ...p });
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -167,7 +173,7 @@ export function SalaryBandsPage({ uploadHref = "/caricamento-dati", employeeHref
               <select
                 disabled={!canManage}
                 value={settings.approach}
-                onChange={(e) => patch({ approach: e.target.value as Approach })}
+                onChange={(e) => edit({ approach: e.target.value as Approach })}
                 className="rounded-lg border border-[#dfe3ea] bg-white px-2 py-1.5 text-[12.5px] font-semibold outline-none focus:border-brand disabled:bg-canvas"
               >
                 {APPROACHES.map((a) => (
@@ -187,12 +193,28 @@ export function SalaryBandsPage({ uploadHref = "/caricamento-dati", employeeHref
                     max={50}
                     disabled={!canManage}
                     value={settings.spread}
-                    onChange={(e) => patch({ spread: Math.min(50, Math.max(1, Math.round(Number(e.target.value) || 1))) })}
+                    onChange={(e) => edit({ spread: Math.min(50, Math.max(1, Math.round(Number(e.target.value) || 1))) })}
                     className="w-full rounded-lg border border-[#dfe3ea] bg-white py-1.5 pl-2 pr-6 text-[12.5px] tabular-nums outline-none focus:border-brand disabled:bg-canvas"
                   />
                   <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center text-[11.5px] text-muted">%</span>
                 </span>
               </label>
+            )}
+            {canManage && dirty ? (
+              <div className="flex items-center gap-2">
+                <GhostButton onClick={() => setDraft(null)}>{tr("Annulla")}</GhostButton>
+                <PrimaryButton
+                  onClick={() => {
+                    patch(settings);
+                    setDraft(null);
+                    notify(tr("Approccio salvato"));
+                  }}
+                >
+                  {tr("Salva approccio")}
+                </PrimaryButton>
+              </div>
+            ) : (
+              <Badge tone={dirty ? "grey" : "navy"}>{tr("Approccio salvato")}</Badge>
             )}
             <div className="ml-auto flex gap-4 text-[12.5px]">
               <span>

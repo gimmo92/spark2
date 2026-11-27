@@ -4,6 +4,9 @@ import { inputCls, tr } from "@spark/core";
 import { AREAS, REGIONS, SENIORITIES, SIZES, cleanScope, type BenchmarkScope } from "../lib/benchmark";
 
 const selectCls = "rounded-lg border border-[#dfe3ea] bg-white px-2 py-1.5 text-[12.5px] outline-none focus:border-brand disabled:bg-canvas";
+/** Options without market data (shown disabled). */
+const NO_DATA = { size: ["grande"], seniority: ["junior"] };
+
 const labelCls = "mb-1 block text-[11px] font-bold uppercase tracking-wide text-muted";
 
 /** Scope of a benchmark comparison: geography (down to region and city), company size, sector, seniority. */
@@ -48,8 +51,9 @@ export function BenchmarkScopeControls({ scope, onChange, companySector, disable
         <span className={labelCls}>{tr("Dimensione azienda")}</span>
         <select disabled={disabled} className={selectCls} value={scope.size} onChange={(e) => set({ size: e.target.value as BenchmarkScope["size"] })}>
           {SIZES.map((s) => (
-            <option key={s.id} value={s.id}>
+            <option key={s.id} value={s.id} disabled={NO_DATA.size.includes(s.id) && scope.size !== s.id}>
               {tr(s.label)}
+              {NO_DATA.size.includes(s.id) && ` · ${tr("dati non disponibili")}`}
             </option>
           ))}
         </select>
@@ -65,8 +69,9 @@ export function BenchmarkScopeControls({ scope, onChange, companySector, disable
         <span className={labelCls}>{tr("Seniority")}</span>
         <select disabled={disabled} className={selectCls} value={scope.seniority} onChange={(e) => set({ seniority: e.target.value as BenchmarkScope["seniority"] })}>
           {SENIORITIES.map((s) => (
-            <option key={s.id} value={s.id}>
+            <option key={s.id} value={s.id} disabled={NO_DATA.seniority.includes(s.id) && scope.seniority !== s.id}>
               {tr(s.label)}
+              {NO_DATA.seniority.includes(s.id) && ` · ${tr("dati non disponibili")}`}
             </option>
           ))}
         </select>

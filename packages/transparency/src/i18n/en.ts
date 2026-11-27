@@ -446,4 +446,7 @@ export const EN: Record<string, string> = {
   "(modificata)": "(edited)",
   "Competenze richieste (una per riga)": "Required skills (one per line)",
   "Salva profilo": "Save profile",
+  "dati non disponibili": "no data available",
+  "Salva approccio": "Save approach",
+  "Approccio salvato": "Approach saved",
 };
