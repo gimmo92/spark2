@@ -1,8 +1,8 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
-import { useData, useSettings } from "@spark/core";
-import { DEFAULT_SCOPE, benchmarkKey, cleanScope, uncovered, type BenchmarkDoc, type BenchmarkScope, type BenchmarkStats } from "../lib/benchmark";
+import { useData, useOrg, useSettings } from "@spark/core";
+import { DEFAULT_SCOPE, benchmarkKey, cleanScope, effectiveSector, uncovered, type BenchmarkDoc, type BenchmarkScope, type BenchmarkStats } from "../lib/benchmark";
 import type { Employee } from "../lib/models/Employee";
 import { rolesOf } from "../lib/roleWeights";
 import { useBenchmarks } from "../store";
@@ -26,6 +26,7 @@ const runKey = (analysisId: string, scope: BenchmarkScope) => `${analysisId}|${J
 export function useBenchmarkRunner() {
   const { get, sectorOf, add } = useBenchmarks();
   const email = useData().viewer?.email;
+  const { sector: companySector } = useOrg();
   const [stored] = useSettings<BenchmarkScope>("benchmark", DEFAULT_SCOPE);
   const defaultScope = cleanScope(stored);
   const busy = useSyncExternalStore(subscribe, snapshot, () => "");
@@ -35,7 +36,7 @@ export function useBenchmarkRunner() {
       const scope = cleanScope(scopeArg ?? defaultScope);
       const key = runKey(analysisId, scope) + (aliases ? `|${JSON.stringify(aliases)}` : "");
       if (running.has(key)) return "ok";
-      const known = scope.sector || sectorOf(analysisId);
+      const known = effectiveSector(scope, companySector, sectorOf(analysisId));
       const roles = rolesOf(people)
         .filter((r) => !uncovered(r.role) && (!aliases || r.role in aliases))
         .map((r) => ({ ...r, aliases: aliases?.[r.role] }));
@@ -48,7 +49,7 @@ export function useBenchmarkRunner() {
         const r = await fetch("/api/transparency/benchmark", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ scope: { ...scope, sector: known }, roles: todo.map(({ role, aliases: aka, level, ccnl, qualification }) => ({ role, aliases: aka, level, ccnl, qualification })) }),
+          body: JSON.stringify({ scope, sector: known, roles: todo.map(({ role, aliases: aka, level, ccnl, qualification }) => ({ role, aliases: aka, level, ccnl, qualification })) }),
         });
         const body = (await r.json().catch(() => ({}))) as { roles?: { role: string; stats: BenchmarkStats | null }[]; sector?: string; source?: string };
         if (!r.ok || !body.roles) return "error";
@@ -56,7 +57,7 @@ export function useBenchmarkRunner() {
         const now = new Date().toISOString();
         const byRole = new Map(todo.map((x) => [x.role, x]));
         add([
-          ...(!scope.sector && sector && !sectorOf(analysisId) ? [{ id: `sector:${analysisId}`, kind: "sector" as const, analysisId, sector }] : []),
+          ...(!known && sector ? [{ id: `sector:${analysisId}`, kind: "sector" as const, analysisId, sector }] : []),
           ...body.roles.flatMap((x): BenchmarkDoc[] => {
             const info = byRole.get(x.role);
             if (!info) return [];
@@ -85,7 +86,7 @@ export function useBenchmarkRunner() {
         emit();
       }
     },
-    [defaultScope, get, sectorOf, add, email],
+    [defaultScope, get, sectorOf, add, email, companySector],
   );
 
   return {

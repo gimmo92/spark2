@@ -142,6 +142,8 @@ export interface OrgSettings {
   teams?: OrgConfig["teams"];
   /** Business units (permission "teams.manage"). */
   businessUnits?: OrgConfig["businessUnits"];
+  /** Sector of the company (La mia azienda → Modifica azienda), used e.g. by market benchmarks. */
+  sector?: string;
 }
 
 const NO_BUS: NonNullable<OrgConfig["businessUnits"]> = [];
@@ -157,6 +159,9 @@ export function useOrg(): OrgConfig & {
   /** Saves the teams / business units (permission "teams.manage"). */
   setTeams: (teams: OrgConfig["teams"]) => void;
   setBusinessUnits: (bus: NonNullable<OrgConfig["businessUnits"]>) => void;
+  /** Sector of the company ("" = not set). */
+  sector: string;
+  setSector: (sector: string) => void;
 } {
   const { org } = useCoreCtx().config;
   const [stored, patch] = useSettings<OrgSettings>("org", {});
@@ -176,8 +181,10 @@ export function useOrg(): OrgConfig & {
       setCompanies: (list: string[]) => patch({ companies: list }),
       setTeams: (list: OrgConfig["teams"]) => patch({ teams: list }),
       setBusinessUnits: (list: NonNullable<OrgConfig["businessUnits"]>) => patch({ businessUnits: list }),
+      sector: stored.sector ?? "",
+      setSector: (sector: string) => patch({ sector }),
     }),
-    [org, companies, teams, businessUnits, patch],
+    [org, companies, teams, businessUnits, stored.sector, patch],
   );
 }
 

@@ -4,13 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, X } from "lucide-react";
-import { Badge, GhostButton, PrimaryButton, Tooltip, tr, useAccess, useData } from "@spark/core";
+import { Badge, GhostButton, PrimaryButton, Tooltip, tr, useAccess, useData, useOrg } from "@spark/core";
 import { CompensationAnalysis } from "../lib/analysis/CompensationAnalysis";
 import { rolesOf } from "../lib/roleWeights";
 import { useBenchmarks, usePayAnalyses } from "../store";
 import { personPay } from "../lib/analysis/RgaComponents";
 import { SalaryMath } from "../lib/analysis/SalaryMath";
-import { benchmarkKey, familyId, marketBand, scopeParts, uncovered, type BenchmarkScope, type BenchmarkStats, type MarketBand, type RoleFamilyDoc } from "../lib/benchmark";
+import { benchmarkKey, effectiveSector, familyId, marketBand, scopeParts, uncovered, type BenchmarkScope, type BenchmarkStats, type MarketBand, type RoleFamilyDoc } from "../lib/benchmark";
 import { BenchmarkScopeControls } from "./BenchmarkScopeControls";
 import { useBenchmarkRunner } from "./benchmarkRunner";
 import type { Employee } from "../lib/models/Employee";
@@ -81,7 +81,8 @@ export function BenchmarkDetailPage({ backHref = "/benchmarks?tab=ruoli" }: { ba
   const familyReady = !!family || familyFailed || !canManage;
 
   const aliases = useMemo(() => ({ [roleName]: titles }), [roleName, titles]);
-  const sector = scope.sector || (doc ? sectorOf(doc.id) : undefined);
+  const org = useOrg();
+  const sector = effectiveSector(scope, org.sector, doc ? sectorOf(doc.id) : undefined);
   const none = !!info && uncovered(info.role);
   const cached = info && sector && !none ? get(benchmarkKey({ ...info, aliases: titles }, scope, sector)) : undefined;
   const loading = !!doc && isRunning(doc.id, scope, aliases);
@@ -120,7 +121,7 @@ export function BenchmarkDetailPage({ backHref = "/benchmarks?tab=ruoli" }: { ba
           <BenchmarkScopeControls
             scope={scope}
             disabled={!canManage}
-            sectorHint={doc ? sectorOf(doc.id) : undefined}
+            companySector={org.sector || (doc ? sectorOf(doc.id) : undefined)}
             onChange={(next) => {
               setOwn(next);
               setFailed(false);
@@ -134,7 +135,7 @@ export function BenchmarkDetailPage({ backHref = "/benchmarks?tab=ruoli" }: { ba
           level={info.level}
           people={info.people}
           stats={cached.stats}
-          scopeText={[doc!.name, ...scopeParts({ ...scope, sector }).map((p) => tr(p))].join(" · ")}
+          scopeText={[doc!.name, ...scopeParts(scope, sector).map((p) => tr(p))].join(" · ")}
         />
       ) : info && !none && (loading || need || !familyReady) ? (
         <div className="card h-56 animate-pulse" aria-label={tr("Caricamento…")} />

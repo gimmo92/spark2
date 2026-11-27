@@ -282,7 +282,6 @@ export const EN: Record<string, string> = {
   "Senior (oltre 8 anni)": "Senior (over 8 years)",
   "Range di mercato per ruolo (RAL annua lorda a tempo pieno), confrontati con la RAL media a tempo pieno dell'azienda.": "Market ranges per role (annual gross full-time salary), compared with the company's mean full-time salary.",
   "Settore": "Sector",
-  "dal profilo dei ruoli": "from the roles' profile",
   "Benchmark di mercato Spark": "Spark market benchmark",
   "aggiornato al {0}": "updated on {0}",
   "Dati di mercato non disponibili al momento.": "Market data not available right now.",
@@ -418,4 +417,7 @@ export const EN: Record<string, string> = {
   "Nessun titolo equivalente": "No equivalent titles",
   "Aggiungi un titolo equivalente": "Add an equivalent title",
   "+ Aggiungi titolo": "+ Add title",
+  "Settore dell'azienda ({0})": "Company sector ({0})",
+  "Settore dell'azienda": "Company sector",
+  "Tutti i settori": "All sectors",
 };

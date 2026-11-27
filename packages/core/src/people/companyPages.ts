@@ -11,6 +11,7 @@ export const COMPANY_PAGES: { slug: string; label: string; title: string; permis
   { slug: "team", label: "Lista Team", title: "Lista Team", permission: "people.view" },
   { slug: "bu", label: "Business Unit", title: "Business Unit", permission: "people.view" },
   { slug: "ruoli", label: "Lista Ruoli", title: "Lista Ruoli", permission: "people.view" },
+  { slug: "modifica", label: "Modifica azienda", title: "Modifica azienda", permission: "companies.manage" },
   { slug: "lettere", label: "Gestione Lettere", title: "Gestione Lettere", permission: "letters.manage", badge: "Beta" },
 ];
 

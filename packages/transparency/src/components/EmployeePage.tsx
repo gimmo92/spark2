@@ -4,12 +4,12 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 import { ArrowLeft, Eye } from "lucide-react";
-import { Badge, tr, useAccess, useCore, useSettings } from "@spark/core";
+import { Badge, tr, useAccess, useCore, useSettings, useOrg } from "@spark/core";
 import { CompensationAnalysis, canonicalEmployeeId, type SavedJustification } from "../lib/analysis/CompensationAnalysis";
 import { LevelTaxonomy } from "../lib/analysis/LevelTaxonomy";
 import { defaultRgaSelection, personPay } from "../lib/analysis/RgaComponents";
 import { SalaryMath } from "../lib/analysis/SalaryMath";
-import { DEFAULT_SCOPE, benchmarkKey, cleanScope, uncovered, type BenchmarkScope } from "../lib/benchmark";
+import { DEFAULT_SCOPE, benchmarkKey, cleanScope, effectiveSector, uncovered, type BenchmarkScope } from "../lib/benchmark";
 import type { Employee } from "../lib/models/Employee";
 import { SALARY_METRICS, type SalaryMetric } from "../lib/models/constants";
 import { rolesOf } from "../lib/roleWeights";
@@ -44,6 +44,7 @@ export function EmployeePage({ backHref = "/trasparenza", benchmarkHref = "/benc
   const [scopeStored] = useSettings<BenchmarkScope>("benchmark", DEFAULT_SCOPE);
   const scope = cleanScope(scopeStored);
   const [metric, setMetric] = useState<SalaryMetric>(SALARY_METRICS.base);
+  const org = useOrg();
 
   const doc = analyses.find((a) => a.id === params.get("analisi"));
   const analysis = useMemo(() => (doc ? CompensationAnalysis.fromSnapshot(doc.snapshot) : null), [doc]);
@@ -80,7 +81,7 @@ export function EmployeePage({ backHref = "/trasparenza", benchmarkHref = "/benc
 
   // market benchmark of the role (company cache, effective sector of this analysis)
   const roleInfo = rolesOf([person])[0];
-  const sector = scope.sector || sectorOf(doc.id);
+  const sector = effectiveSector(scope, org.sector, sectorOf(doc.id));
   const market = roleInfo && sector && !uncovered(roleInfo.role) ? get(benchmarkKey({ ...roleInfo, aliases: familyOf(roleInfo.role)?.titles }, scope, sector))?.stats : undefined;
   const ownBase = pay(person, SALARY_METRICS.base);
 

@@ -4,12 +4,12 @@ import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Eye, Search } from "lucide-react";
-import { Tooltip, localeTag, tr, useAccess } from "@spark/core";
+import { Tooltip, localeTag, tr, useAccess, useOrg } from "@spark/core";
 import { CompensationAnalysis } from "../lib/analysis/CompensationAnalysis";
 import { LevelTaxonomy } from "../lib/analysis/LevelTaxonomy";
 import { personPay } from "../lib/analysis/RgaComponents";
 import { SalaryMath } from "../lib/analysis/SalaryMath";
-import { benchmarkKey, marketBand, uncovered, type BenchmarkDoc } from "../lib/benchmark";
+import { benchmarkKey, effectiveSector, marketBand, uncovered, type BenchmarkDoc } from "../lib/benchmark";
 import type { Employee } from "../lib/models/Employee";
 import { SALARY_METRICS } from "../lib/models/constants";
 import { rolesOf } from "../lib/roleWeights";
@@ -58,7 +58,8 @@ export function BenchmarkPage({ uploadHref = "/caricamento-dati", detailHref = "
   const [failed, setFailed] = useState(false);
 
   const people = useMemo(() => (doc ? (CompensationAnalysis.fromSnapshot(doc.snapshot)?.employees ?? []) : []), [doc]);
-  const sector = scope.sector || (doc ? sectorOf(doc.id) : undefined);
+  const org = useOrg();
+  const sector = effectiveSector(scope, org.sector, doc ? sectorOf(doc.id) : undefined);
   // a role uses the equivalent titles stored for it (same figures as on its page)
   const benchOf: BenchOf = (r) => (sector && !uncovered(r.role) ? get(benchmarkKey({ ...r, aliases: familyOf(r.role)?.titles }, scope, sector)) : undefined);
   const allRoles = useMemo(() => rolesOf(people), [people]);

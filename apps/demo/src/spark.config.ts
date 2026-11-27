@@ -28,7 +28,6 @@ export default defineConfig({
     { label: "Dashboard", href: "/dashboard", icon: ChartColumn },
     companyNav([
       { label: "Organigramma", href: "/azienda/organigramma", locked: true },
-      { label: "Modifica azienda", href: "/azienda/modifica", locked: true },
     ]),
     {
       id: "mbo",

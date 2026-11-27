@@ -47,7 +47,8 @@ export interface BenchmarkScope {
   region?: string;
   city?: string;
   size: Size;
-  sector?: string;
+  /** Compare with every sector instead of the company's own (default false). */
+  allSectors?: boolean;
   seniority: Seniority;
 }
 
@@ -66,7 +67,7 @@ export function cleanScope(v: unknown): BenchmarkScope {
     ...(region && { region }),
     ...(region && str(o.city, 40) && { city: str(o.city, 40) }),
     size: SIZES.some((s) => s.id === o.size) ? (o.size as Size) : "",
-    ...(str(o.sector, 60) && { sector: str(o.sector, 60) }),
+    ...(o.allSectors === true && { allSectors: true }),
     seniority: SENIORITIES.some((s) => s.id === o.seniority) ? (o.seniority as Seniority) : "auto",
   };
 }
@@ -74,9 +75,19 @@ export function cleanScope(v: unknown): BenchmarkScope {
 /** Where: "Tutta Italia", "Nord-Est", "Lombardia · Milano". */
 export const geoLabel = (s: BenchmarkScope) => (s.area === "regione" ? [s.region, s.city].filter(Boolean).join(" · ") : label(AREAS, s.area));
 
-/** Short description of a scope (Italian; translated where rendered piece by piece). */
-export function scopeParts(s: BenchmarkScope): string[] {
-  return [geoLabel(s), s.size ? label(SIZES, s.size) : "", s.sector ?? "", s.seniority !== "auto" ? label(SENIORITIES, s.seniority) : ""].filter(Boolean);
+/** Effective sector value meaning "every sector". */
+export const ALL_SECTORS = "*";
+
+/**
+ * Sector of a comparison: every sector when the scope asks for it, else the company's (La mia azienda →
+ * Modifica azienda), else the one recognised from the analysis' roles (undefined = not known yet).
+ */
+export const effectiveSector = (scope: BenchmarkScope, company?: string, recognised?: string) =>
+  scope.allSectors ? ALL_SECTORS : company?.trim() || recognised || undefined;
+
+/** Short description of a scope with its effective sector (Italian; translated where rendered piece by piece). */
+export function scopeParts(s: BenchmarkScope, sector?: string): string[] {
+  return [geoLabel(s), s.size ? label(SIZES, s.size) : "", sector === ALL_SECTORS ? "Tutti i settori" : (sector ?? ""), s.seniority !== "auto" ? label(SENIORITIES, s.seniority) : ""].filter(Boolean);
 }
 
 export const sameScope = (a: BenchmarkScope, b: BenchmarkScope) => JSON.stringify(cleanScope(a)) === JSON.stringify(cleanScope(b));
@@ -140,7 +151,7 @@ function fnv(s: string) {
 export function benchmarkKey(r: { role: string; level?: string; ccnl?: string; aliases?: string[] }, scope: BenchmarkScope, sector?: string) {
   const s = cleanScope(scope);
   const aliases = [...new Set((r.aliases ?? []).map(norm).filter(Boolean))].sort().join(",");
-  const parts = [r.role, r.level, r.ccnl, sector ?? s.sector, s.area, s.region, s.city, s.size, s.seniority, ...(aliases ? [`aka:${aliases}`] : [])].map(norm);
+  const parts = [r.role, r.level, r.ccnl, sector, s.area, s.region, s.city, s.size, s.seniority, ...(aliases ? [`aka:${aliases}`] : [])].map(norm);
   return `bm-${fnv(parts.join("|")).toString(36)}-${norm(r.role).replace(/[^a-z0-9]+/g, "-").slice(0, 40)}`;
 }
 

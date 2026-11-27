@@ -7,7 +7,7 @@ const selectCls = "rounded-lg border border-[#dfe3ea] bg-white px-2 py-1.5 text-
 const labelCls = "mb-1 block text-[11px] font-bold uppercase tracking-wide text-muted";
 
 /** Scope of a benchmark comparison: geography (down to region and city), company size, sector, seniority. */
-export function BenchmarkScopeControls({ scope, onChange, sectorHint, disabled }: { scope: BenchmarkScope; onChange: (s: BenchmarkScope) => void; sectorHint?: string; disabled?: boolean }) {
+export function BenchmarkScopeControls({ scope, onChange, companySector, disabled }: { scope: BenchmarkScope; onChange: (s: BenchmarkScope) => void; companySector?: string; disabled?: boolean }) {
   const set = (patch: Partial<BenchmarkScope>) => onChange(cleanScope({ ...scope, ...patch }));
   return (
     <div className="flex flex-wrap items-end gap-3">
@@ -54,9 +54,12 @@ export function BenchmarkScopeControls({ scope, onChange, sectorHint, disabled }
           ))}
         </select>
       </label>
-      <label className="w-48">
+      <label>
         <span className={labelCls}>{tr("Settore")}</span>
-        <input disabled={disabled} className={inputCls} value={scope.sector ?? ""} onChange={(e) => set({ sector: e.target.value })} placeholder={sectorHint ?? tr("dal profilo dei ruoli")} />
+        <select disabled={disabled} className={selectCls} value={scope.allSectors ? "all" : "company"} onChange={(e) => set({ allSectors: e.target.value === "all" })}>
+          <option value="company">{companySector ? tr("Settore dell'azienda ({0})", [companySector]) : tr("Settore dell'azienda")}</option>
+          <option value="all">{tr("Tutti i settori")}</option>
+        </select>
       </label>
       <label>
         <span className={labelCls}>{tr("Seniority")}</span>
