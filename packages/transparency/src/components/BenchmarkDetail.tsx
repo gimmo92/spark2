@@ -1,16 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { tr, useSettings } from "@spark/core";
+import { tr, useAccess } from "@spark/core";
 import { CompensationAnalysis } from "../lib/analysis/CompensationAnalysis";
 import { rolesOf } from "../lib/roleWeights";
 import { useBenchmarks, usePayAnalyses } from "../store";
 import { personPay } from "../lib/analysis/RgaComponents";
 import { SalaryMath } from "../lib/analysis/SalaryMath";
-import { DEFAULT_SCOPE, benchmarkKey, cleanScope, marketBand, scopeParts, uncovered, type BenchmarkScope, type BenchmarkStats, type MarketBand } from "../lib/benchmark";
+import { benchmarkKey, marketBand, scopeParts, uncovered, type BenchmarkScope, type BenchmarkStats, type MarketBand } from "../lib/benchmark";
+import { BenchmarkScopeControls } from "./BenchmarkScopeControls";
+import { useBenchmarkRunner } from "./benchmarkRunner";
 import type { Employee } from "../lib/models/Employee";
 import { SALARY_METRICS } from "../lib/models/constants";
 import { eur, gap, num } from "./format";
@@ -32,15 +34,20 @@ function niceStep(span: number, target = 5) {
 }
 
 /**
- * Page /benchmarks/dettaglio?analysis=…&role=…: one role of a saved analysis against its market
- * benchmark (needs <Suspense> in the route: it reads the URL on the client).
+ * Page /benchmarks/dettaglio?analysis=…&role=…: one role of an analysis against its market benchmark,
+ * with its own comparison scope (starts from the company default; another scope is computed for this
+ * role only). The route needs <Suspense> (it reads the URL on the client).
  */
-export function BenchmarkDetailPage({ backHref = "/benchmarks" }: { backHref?: string }) {
+export function BenchmarkDetailPage({ backHref = "/benchmarks?tab=ruoli" }: { backHref?: string }) {
   const params = useSearchParams();
   const { analyses } = usePayAnalyses();
   const { get, sectorOf } = useBenchmarks();
-  const [stored] = useSettings<BenchmarkScope>("benchmark", DEFAULT_SCOPE);
-  const scope = cleanScope(stored);
+  const { run, scope: defaultScope, isRunning } = useBenchmarkRunner();
+  const { allowed } = useAccess();
+  const canManage = allowed("transparency.manage");
+  const [own, setOwn] = useState<BenchmarkScope | null>(null);
+  const scope = own ?? defaultScope;
+  const [failed, setFailed] = useState(false);
   const doc = analyses.find((a) => a.id === params.get("analysis"));
   const roleName = params.get("role") ?? "";
   const info = useMemo(() => {
@@ -48,23 +55,54 @@ export function BenchmarkDetailPage({ backHref = "/benchmarks" }: { backHref?: s
     return rolesOf(people).find((r) => r.role === roleName);
   }, [doc, roleName]);
   const sector = scope.sector || (doc ? sectorOf(doc.id) : undefined);
-  const stats = info && sector && !uncovered(info.role) ? get(benchmarkKey(info, scope, sector))?.stats : undefined;
+  const none = !!info && uncovered(info.role);
+  const cached = info && sector && !none ? get(benchmarkKey(info, scope, sector)) : undefined;
+  const loading = !!doc && isRunning(doc.id, scope);
+
+  // this role in this scope not computed yet: compute it (short pause while the scope is being edited)
+  const need = !!doc && !!info && !none && !cached && canManage && !loading && !failed;
+  const needKey = need ? JSON.stringify(scope) : "";
+  useEffect(() => {
+    if (!needKey || !doc || !info) return;
+    const t = setTimeout(() => void run(doc.id, info.people, scope).then((r) => setFailed(r === "error")), 700);
+    return () => clearTimeout(t);
+    // the key covers analysis, role and scope
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needKey]);
 
   return (
     <div className="space-y-3.5">
       <Link href={backHref} className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-brand hover:underline">
         <ArrowLeft className="h-3.5 w-3.5" /> {tr("Benchmarks")}
       </Link>
-      {info && stats ? (
+      {info && (
+        <div className="card px-4 py-3">
+          <p className="mb-2 text-[12.5px] font-semibold">{tr("Perimetro del confronto")}</p>
+          <BenchmarkScopeControls
+            scope={scope}
+            disabled={!canManage}
+            sectorHint={doc ? sectorOf(doc.id) : undefined}
+            onChange={(s) => {
+              setOwn(s);
+              setFailed(false);
+            }}
+          />
+        </div>
+      )}
+      {info && cached?.stats ? (
         <BenchmarkDetail
           role={info.role}
           level={info.level}
           people={info.people}
-          stats={stats}
+          stats={cached.stats}
           scopeText={[doc!.name, ...scopeParts({ ...scope, sector }).map((p) => tr(p))].join(" · ")}
         />
+      ) : info && !none && (loading || need) ? (
+        <div className="card h-56 animate-pulse" aria-label={tr("Caricamento…")} />
       ) : (
-        <div className="card px-5 py-10 text-center text-[12.5px] text-muted">{tr("Benchmark non disponibile per questo ruolo.")}</div>
+        <div className="card px-5 py-10 text-center text-[12.5px] text-muted">
+          {failed ? tr("Dati di mercato non disponibili al momento.") : none || cached ? tr("Dati insufficienti per questo ruolo") : tr("Benchmark non disponibile per questo ruolo.")}
+        </div>
       )}
     </div>
   );
