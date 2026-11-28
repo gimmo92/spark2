@@ -11,6 +11,7 @@ export * from "./components/JobGradingPage";
 export * from "./components/BenchmarkPage";
 export * from "./components/BenchmarkDetail";
 export * from "./components/SalaryBandsPage";
+export * from "./components/CcnlPage";
 export type { BenchmarkDoc, BenchmarkStats } from "./lib/benchmark";
 export { CRITERIA, roleScore, type RoleWeightDoc, type RoleScores } from "./lib/roleWeights";
 export { CompensationAnalysis, type AnalysisSnapshot, type SavedJustification as PayJustification } from "./lib/analysis/CompensationAnalysis";

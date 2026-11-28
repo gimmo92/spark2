@@ -28,6 +28,9 @@ export const ROLE_WEIGHTS = "roleWeights";
 /** Job description and required skills per role (job grading). */
 export const ROLE_PROFILES = "roleProfiles";
 
+/** Official CCNL minimum pay tables (one record per contract of the payroll data). */
+export const CCNL_TABLES = "ccnlTables";
+
 /** Market benchmarks per role (one record per role title, see lib/benchmark). */
 export const BENCHMARKS = "benchmarks";
 
@@ -35,7 +38,7 @@ export const BENCHMARKS = "benchmarks";
 export const transparencyModule: SparkModule = {
   id: "transparency",
   label: "Compensation",
-  collections: [PAY_ANALYSES, ROLE_WEIGHTS, BENCHMARKS, ROLE_PROFILES],
+  collections: [PAY_ANALYSES, ROLE_WEIGHTS, BENCHMARKS, ROLE_PROFILES, CCNL_TABLES],
   permissions: TRANSPARENCY_PERMISSIONS,
   messages: { en: EN },
   // pay data: readable and writable only with the module's permissions (enforced by /api/data)
@@ -46,5 +49,6 @@ export const transparencyModule: SparkModule = {
     [ROLE_WEIGHTS]: { view: "transparency.view", edit: ["transparency.manage"] },
     [BENCHMARKS]: { view: "transparency.view", edit: ["transparency.manage"] },
     [ROLE_PROFILES]: { view: "transparency.view", edit: ["transparency.manage"] },
+    [CCNL_TABLES]: { view: "transparency.view", edit: ["transparency.manage"] },
   },
 };

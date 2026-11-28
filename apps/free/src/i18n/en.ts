@@ -14,4 +14,5 @@ export const EN: Record<string, string> = {
   "Salary bands": "Salary bands",
   "Benchmarks": "Benchmarks",
   "Caricamento dati": "Data upload",
+  "Minimi CCNL": "CCNL minimums",
 };

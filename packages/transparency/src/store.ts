@@ -3,7 +3,8 @@
 import { useCallback } from "react";
 import { useCollection, useSettings, type Doc } from "@spark/core";
 import type { AnalysisSnapshot, SavedJustification } from "./lib/analysis/CompensationAnalysis";
-import { BENCHMARKS, PAY_ANALYSES, ROLE_PROFILES, ROLE_WEIGHTS } from "./module";
+import { BENCHMARKS, CCNL_TABLES, PAY_ANALYSES, ROLE_PROFILES, ROLE_WEIGHTS } from "./module";
+import type { CcnlTableDoc } from "./lib/ccnl";
 import { familyId, type AnalysisSectorDoc, type BenchmarkDoc, type RoleFamilyDoc } from "./lib/benchmark";
 import { DEFAULT_WEIGHTS, cleanWeights, type CriteriaWeights, type RoleProfileDoc, type RoleWeightDoc } from "./lib/roleWeights";
 
@@ -109,6 +110,14 @@ export function useRoleProfiles() {
     [update],
   );
   return { profiles: byRole, upsert };
+}
+
+/** Official CCNL minimum tables, keyed by the contract name of the payroll data. */
+export function useCcnlTables() {
+  const [items, update] = useCollection<CcnlTableDoc>(CCNL_TABLES);
+  const byCcnl = new Map(items.map((d) => [d.ccnl, d]));
+  const upsert = useCallback((doc: CcnlTableDoc) => update((prev) => [doc, ...prev.filter((d) => d.id !== doc.id && d.ccnl !== doc.ccnl)]), [update]);
+  return { tables: byCcnl, upsert };
 }
 
 export type { SavedJustification };

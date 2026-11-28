@@ -73,6 +73,7 @@ export default defineConfig({
         { label: "Benchmarks", href: "/benchmarks", locked: true },
         { label: "Salary review", href: "/salary-review", locked: true },
         { label: "Salary bands", href: "/salary-bands", locked: true },
+        { label: "Minimi CCNL", href: "/minimi-ccnl", locked: true },
       ],
     },
     { label: "Analisi di clima", href: "/clima", icon: CloudSun, locked: true },

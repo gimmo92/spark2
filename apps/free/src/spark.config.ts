@@ -54,6 +54,7 @@ export default defineConfig({
         { label: "Benchmarks", href: "/benchmarks", permission: "transparency.view", module: "transparency" },
         { label: "Salary review", href: "/salary-review", locked: true },
         { label: "Salary bands", href: "/salary-bands", permission: "transparency.view", module: "transparency" },
+        { label: "Minimi CCNL", href: "/minimi-ccnl", permission: "transparency.view", module: "transparency" },
       ],
     },
     { label: "Analisi di clima", href: "/clima", icon: CloudSun, locked: true },
