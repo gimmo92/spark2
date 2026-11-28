@@ -6,7 +6,7 @@ Free plan for companies Spark is courting (first campaign: insurance companies, 
 
 - Live at **free.tryspark.it** (own Supabase project with core migrations 0001–0003 + `multi-tenant/0001_tenants.sql`, own Vercel project with Root Directory `apps/free`).
 - First tenant: **Insoore** (insurtech; data with an insurance company on CCNL ANIA and a tech company on Metalmeccanico / Federmanager).
-- Env vars: Supabase (URL, anon key, service role key), `AUTH_SECRET`, SendGrid, `ADMIN_EMAILS` (= Spark staff here; `SPARK_STAFF_EMAILS` not needed), **`ANTHROPIC_API_KEY`** (AI features: to be added on Vercel, then redeploy).
+- Env vars: Supabase (URL, anon key, service role key), `AUTH_SECRET`, SendGrid, `ADMIN_EMAILS` (= Spark staff here; `SPARK_STAFF_EMAILS` not needed), **`ANTHROPIC_API_KEY`** (AI features, set on Production; demo project: not set yet).
 
 ## How a company is activated
 
