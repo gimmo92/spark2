@@ -11,6 +11,7 @@ packages/transparency  @spark/transparency  Compensation module (id "transparenc
 apps/demo       @spark/demo  demo client Valmec S.p.A. → app.tryspark.it (Vercel Root Directory = apps/demo)
 apps/free       @spark/free  multi-tenant free plan (Compensation) → free.tryspark.it (live, see its CLAUDE.md)
 apps/carlo-gavazzi  @spark/carlo-gavazzi  client Carlo Gavazzi Services AG (see its CLAUDE.md; not deployed yet)
+apps/pellemoda  @spark/pellemoda  client Pellemoda, standard MBO only (see its CLAUDE.md; not deployed yet)
 apps/<client>   one Next.js app per client (own Vercel project, own Supabase project)
 ```
 
@@ -71,7 +72,7 @@ Next.js 16 (App Router, `cacheComponents` on, **`src/proxy.ts` instead of middle
 - Enforcement: `/api/data` computes the caller's modules (`enabledModules`) on every request and drops the others (collections not served, writes counted as rejected, permissions gone); the viewer carries `modules` and `staff`. Client: `SparkProvider` applies `applyModules` (config without those modules; menu entries / tabs with `module: "<id>"` become locked, their pages show "Funzione non attiva"). Tag every module's menu entries and tabs with `module`.
 - **Menu entries one by one**: under each module the panel lists its entries (`moduleFeatures(config)`: nav leaves / tabs tagged with `module`, group's module inherited) as toggles, for the installation and per company ("Voci di menu" button in the companies table). Stored as `hidden` hrefs in the same `_spark` modules record; `requireCaller` merges installation + company hidden, the viewer carries `hiddenFeatures`, `applyModules(config, enabled, hidden)` locks them. UI-level only: the module's data stays served (pages of one module share collections).
 - Menu entries can also be `locked: true` statically (features not built into the app, e.g. free: Dashboard, Team, Organigramma, Lettere, Competenze, Valutazioni, OKR). Tooltip: `SparkConfig.lockedHint`.
-- A module must be built into the app to be switched on (its routes in `apps/<app>/src/app/(app)/…`): free has MBO + transparency, demo MBO + transparency, Carlo Gavazzi MBO.
+- A module must be built into the app to be switched on (its routes in `apps/<app>/src/app/(app)/…`): free has MBO + transparency, demo MBO + transparency, Carlo Gavazzi MBO, Pellemoda MBO.
 
 ## Compensation module (`@spark/transparency`, module id `transparency`)
 

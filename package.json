@@ -13,7 +13,8 @@
     "lint": "eslint",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "i18n:check": "node scripts/i18n-check.mjs",
-    "dev:free": "npm run dev -w @spark/free"
+    "dev:free": "npm run dev -w @spark/free",
+    "dev:pellemoda": "npm run dev -w @spark/pellemoda"
   },
   "devDependencies": {
     "@types/node": "^20",
